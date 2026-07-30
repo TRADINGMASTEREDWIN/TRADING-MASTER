@@ -29,7 +29,6 @@ const ACTIVOS_FAVORITOS = ['BTC', 'ETH', 'SOL', 'XAU (Oro)', 'AAPL', 'TSLA'];
 
 // --- Construcción de campos dinámicos ---
 function construirCamposDinamicos() {
-  // Selectores básicos
   poblarSelect(document.getElementById('selectMercado'), MERCADOS, 'Selecciona…');
   poblarSelect(document.getElementById('selectTipoOperacion'), TIPOS_OPERACION, 'Selecciona…');
   poblarSelect(document.getElementById('selectTipoCuenta'), ['Real', 'Demo', 'Fondeada'], 'Selecciona…');
@@ -39,7 +38,6 @@ function construirCamposDinamicos() {
   poblarSelect(document.getElementById('selectTipoTrade'), TIPOS_TRADE, 'Selecciona…');
   poblarSelect(document.getElementById('selectTemporalidad'), TEMPORALIDADES, 'Selecciona…');
   
-  // Contexto Técnico
   poblarContextoTecnicoChips(document.getElementById('contextoMercadoGrid'));
   actualizarTemporalidadesVisibles();
 }
@@ -117,32 +115,25 @@ const TEMPORALIDADES_POR_DEFECTO = { visibles: ['1W', '1D', '4H', '1H', '15m', '
 export async function initApp() {
   console.log('🚀 Inicializando Trading Master...');
 
-  // Verificar Supabase
   verificarConexionSupabase();
 
-  // Cargar datos
   await cargarContadorCuentas();
   await cargarCuentas();
   await cargarContadorTrades();
   await loadOperations();
   
-  // Migraciones
   await migrarIdsCuentas();
   await migrarCuentasDeOperaciones();
   await migrarContextosTecnicos();
 
-  // Construir UI dinámica
   construirCamposDinamicos();
   
-  // Renderizar
   poblarSelectCuentaOperacion();
   renderCuentasTable();
   renderTable();
   
-  // Plan de Trading
   await renderPlanTrading();
   
-  // Adjuntar listeners
   attachVisualListeners();
   attachNavListeners();
   attachModalListeners();
@@ -155,9 +146,8 @@ export async function initApp() {
   console.log('✅ Trading Master inicializado correctamente');
 }
 
-// --- Funciones auxiliares para listeners (placeholder) ---
+// --- Funciones auxiliares para listeners ---
 function attachFormListeners() {
-  // Form listeners - implementación completa en trades.js
   const saveBtn = document.getElementById('saveBtn');
   const resetBtn = document.getElementById('resetBtn');
   const cancelBtn = document.getElementById('cancelBtn');
@@ -182,7 +172,6 @@ function attachFormListeners() {
 }
 
 function attachTableListeners() {
-  // Table listeners - implementación completa en trades.js
   const tbody = document.getElementById('operationsTableBody');
   if (tbody) {
     tbody.addEventListener('click', (e) => {
@@ -193,9 +182,6 @@ function attachTableListeners() {
 
 // --- Iniciar ---
 document.addEventListener('DOMContentLoaded', async function() {
-  // Inicializar autenticación primero
   await initAuth();
-  
-  // Luego inicializar la app
   await initApp();
 });
