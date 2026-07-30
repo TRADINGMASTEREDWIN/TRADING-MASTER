@@ -11,13 +11,13 @@ import {
   getCuentas, setCuentas, getOperaciones
 } from './storage.js';
 import { actualizarDashboard } from './dashboard.js';
-import { renderTable, renderCuentasTable, poblarSelectCuentaOperacion } from './accounts.js';
+import { renderTable } from './trades.js';
+import { renderCuentasTable, poblarSelectCuentaOperacion, attachCuentasListeners } from './accounts.js';
 import { renderPlanTrading, attachPlanTradingListeners } from './plan.js';
 import {
   attachVisualListeners, attachNavListeners, attachModalListeners,
   attachFichaListeners, showToast
 } from './ui.js';
-import { attachCuentasListeners } from './accounts.js';
 
 // --- Constantes ---
 const TEMPORALIDADES = ['1M', '1W', '1D', '4H', '1H', '15m', '5m'];
@@ -164,7 +164,6 @@ function attachFormListeners() {
 
   if (saveBtn) {
     saveBtn.addEventListener('click', () => {
-      // Delegar a trades.js
       console.log('Guardar operación');
     });
   }
@@ -187,7 +186,6 @@ function attachTableListeners() {
   const tbody = document.getElementById('operationsTableBody');
   if (tbody) {
     tbody.addEventListener('click', (e) => {
-      // Delegar a trades.js
       console.log('Acción en tabla');
     });
   }
