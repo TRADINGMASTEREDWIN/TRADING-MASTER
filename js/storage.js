@@ -11,6 +11,8 @@ const PLAN_TRADING_KEY = 'tradingJournalPlan';
 let operaciones = [];
 let cuentas = [];
 let planTrading = {};
+let contadorTrades = 0;
+let contadorCuentas = 0;
 
 // --- Operaciones ---
 export function getOperaciones() {
@@ -40,8 +42,6 @@ export async function persistirOperaciones() {
 }
 
 // --- Contador de Trades ---
-let contadorTrades = 0;
-
 export async function cargarContadorTrades() {
   try {
     const res = await window.storage.get(CONTADOR_TRADES_KEY, false);
@@ -75,8 +75,6 @@ export function generarSiguienteIdTrade() {
 }
 
 // --- Cuentas ---
-let contadorCuentas = 0;
-
 export function getCuentas() {
   return cuentas;
 }
@@ -172,4 +170,78 @@ export function obtenerNombreCuentaPorId(valor, cuentasList) {
   if (!valor) return '—';
   const cuenta = cuentasList.find(c => c.idCuenta === valor);
   return cuenta ? cuenta.nombre : valor;
+}
+
+// --- Migraciones de compatibilidad ---
+export async function migrarIdsCuentas() {
+  let cambios = false;
+  const cuentasList = getCuentas();
+  cuentasList.forEach(c => {
+    if (!c.idCuenta) {
+      c.idCuenta = generarSiguienteIdCuenta();
+      cambios = true;
+    }
+  });
+  if (cambios) {
+    setCuentas(cuentasList);
+    await persistirContadorCuentas();
+    await persistirCuentas();
+  }
+}
+
+export async function migrarCuentasDeOperaciones() {
+  let cambios = false;
+  const ops = getOperaciones();
+  const cuentasList = getCuentas();
+  ops.forEach(op => {
+    if (!op.cuenta) return;
+    const yaEsIdValido = cuentasList.some(c => c.idCuenta === op.cuenta);
+    if (yaEsIdValido) return;
+    const cuentaPorNombre = cuentasList.find(c => c.nombre === op.cuenta);
+    if (cuentaPorNombre) {
+      op.cuenta = cuentaPorNombre.idCuenta;
+      cambios = true;
+    }
+  });
+  if (cambios) {
+    setOperaciones(ops);
+    await persistirOperaciones();
+  }
+}
+
+export function migrarContextoTecnicoDeOperacion(op) {
+  if (op.contextoTecnico) return false;
+  const legado = op.contextoMercado;
+  if (!legado) return false;
+
+  const nuevo = {};
+  let huboDato = false;
+  let huboAmbiguo = false;
+
+  const TEMPORALIDADES = ['1M', '1W', '1D', '4H', '1H', '15m', '5m'];
+  TEMPORALIDADES.forEach(tf => {
+    const estado = legado[tf];
+    if (!estado) return;
+    huboDato = true;
+    if (estado === 'Alcista') nuevo[tf] = 'sobre';
+    else if (estado === 'Bajista') nuevo[tf] = 'bajo';
+    else huboAmbiguo = true;
+  });
+
+  if (!huboDato) return false;
+  op.contextoTecnico = nuevo;
+  if (huboAmbiguo) op.contextoTecnicoPendienteRevision = true;
+  return true;
+}
+
+export async function migrarContextosTecnicos() {
+  let cambios = false;
+  const ops = getOperaciones();
+  ops.forEach(op => {
+    if (migrarContextoTecnicoDeOperacion(op)) cambios = true;
+  });
+  if (cambios) {
+    setOperaciones(ops);
+    await persistirOperaciones();
+  }
 }
