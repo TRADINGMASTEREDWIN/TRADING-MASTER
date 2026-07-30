@@ -12,10 +12,8 @@ import { actualizarDashboard } from './dashboard.js';
 import { 
   guardarTradeSupabase, 
   actualizarTradeSupabase, 
-  eliminarTradeSupabase,
-  cargarTradesDesdeSupabase 
+  eliminarTradeSupabase
 } from './supabase.js';
-import { getCuentas as getCuentasList } from './storage.js';
 import { showToast } from './ui.js';
 
 // --- Variables de estado ---
@@ -112,14 +110,12 @@ export async function guardarOperacion(data, resetFormCallback) {
       { calculos: calcularOperacion(data) }
     );
     
-    // 1. Guardar en LocalStorage (siempre)
     const ops = getOperaciones();
     ops.push(nuevaOperacion);
     setOperaciones(ops);
     await persistirContadorTrades();
     await persistirOperaciones();
     
-    // 2. Guardar en Supabase (si falla, solo advierte)
     try {
       const resultado = await guardarTradeSupabase(nuevaOperacion);
       if (!resultado.success) {
@@ -205,9 +201,11 @@ export function cerrarTrade(id, populateFormCallback) {
   if (fechaSalidaEl) fechaSalidaEl.focus();
 }
 
-// --- Renderizar tabla ---
+// --- RENDERIZAR TABLA (EXPORTADA) ---
 export function renderTable() {
   const tbody = document.getElementById('operationsTableBody');
+  if (!tbody) return;
+  
   const ops = getOperaciones();
 
   const filtroEstadoTradeEl = document.getElementById('filtroEstadoTrade');
@@ -215,7 +213,13 @@ export function renderTable() {
   const filtroEstadoTrade = filtroEstadoTradeEl ? filtroEstadoTradeEl.value : 'Todos';
   const filtroResultado = filtroResultadoEl ? filtroResultadoEl.value : 'Todos';
 
-  let ordenadas = [...ops].sort((a, b) => obtenerMomentoEntrada(b) - obtenerMomentoEntrada(a));
+  let ordenadas = [...ops].sort((a, b) => {
+    const fechaA = a.fecha || '1970-01-01';
+    const fechaB = b.fecha || '1970-01-01';
+    const horaA = a.horaEntrada || '00:00';
+    const horaB = b.horaEntrada || '00:00';
+    return new Date(`${fechaB}T${horaB}`) - new Date(`${fechaA}T${horaA}`);
+  });
 
   if (filtroEstadoTrade !== 'Todos') {
     ordenadas = ordenadas.filter(op => (op.estadoTrade || 'Cerrado') === filtroEstadoTrade);
@@ -225,9 +229,6 @@ export function renderTable() {
   }
 
   document.getElementById('operacionesCount').textContent = ops.length;
-
-  const cuentasList = getCuentasList();
-
   actualizarDashboard(ops);
 
   if (ordenadas.length === 0) {
@@ -345,7 +346,7 @@ function establecerModoCierre(activo) {
   if (aviso) aviso.style.display = activo ? 'block' : 'none';
 }
 
-// --- Exportar funciones necesarias ---
+// --- Exportar variables de estado ---
 export function getEditingId() { return editingId; }
 export function setEditingId(id) { editingId = id; }
 export function getImagenTemporal() { return imagenTemporal; }
