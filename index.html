@@ -12,9 +12,9 @@
 </script>
 
 <!-- ============================================================
-     CSS EXTERNO
+     CSS EXTERNO - VIA GITHUB
      ============================================================ -->
-<link rel="stylesheet" href="/css/styles.css">
+<link rel="stylesheet" href="https://raw.githubusercontent.com/TRADINGMASTEREDWIN/TRADING-MASTER/main/css/styles.css">
 
 <style>
   /* CSS DE RESPALDO POR SI EL EXTERNO FALLA */
@@ -217,12 +217,31 @@
 </div>
 
 <!-- ============================================================
-     APP PRINCIPAL
+     APP PRINCIPAL (VERSION SIMPLIFICADA MIENTRAS RESTAURAMOS)
      ============================================================ -->
 <div class="app" id="app">
   <div style="padding: 40px; text-align: center; color: #FFFFFF;">
-    <h1 style="font-size: 26px;">Trading Master</h1>
-    <p style="color: #9CA3AF;">Cargando... Inicia sesión para ver tu contenido.</p>
+    <h1 style="font-size: 26px;">📊 Trading Master</h1>
+    <p style="color: #9CA3AF; margin: 16px 0;">Bienvenido, <span id="userEmailDisplay">usuario</span> 👋</p>
+    
+    <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-top: 30px;">
+      <div style="background: #1F2937; border: 1px solid #2D3748; border-radius: 16px; padding: 24px; width: 200px;">
+        <div style="font-size: 30px; font-weight: 700; color: #22C55E;">0</div>
+        <div style="color: #9CA3AF; font-size: 12.5px;">Operaciones</div>
+      </div>
+      <div style="background: #1F2937; border: 1px solid #2D3748; border-radius: 16px; padding: 24px; width: 200px;">
+        <div style="font-size: 30px; font-weight: 700; color: #2563EB;">0%</div>
+        <div style="color: #9CA3AF; font-size: 12.5px;">Win Rate</div>
+      </div>
+      <div style="background: #1F2937; border: 1px solid #2D3748; border-radius: 16px; padding: 24px; width: 200px;">
+        <div style="font-size: 30px; font-weight: 700; color: #F59E0B;">0.0</div>
+        <div style="color: #9CA3AF; font-size: 12.5px;">Profit Factor</div>
+      </div>
+    </div>
+    
+    <div style="margin-top: 40px;">
+      <button id="logoutBtn" style="background: transparent; border: 1px solid #EF4444; color: #EF4444; border-radius: 10px; padding: 12px 24px; font-size: 14px; font-weight: 600; cursor: pointer;">Cerrar Sesión</button>
+    </div>
   </div>
 </div>
 
@@ -313,7 +332,6 @@ async function signIn(email, password) {
       usuarioActual = data.user;
       showApp();
       document.getElementById('userEmailDisplay').textContent = data.user.email;
-      document.getElementById('userAvatar').textContent = data.user.email.charAt(0).toUpperCase();
       return true;
     }
     return false;
@@ -393,7 +411,6 @@ async function initAuth() {
   if (user) {
     showApp();
     document.getElementById('userEmailDisplay').textContent = user.email;
-    document.getElementById('userAvatar').textContent = user.email.charAt(0).toUpperCase();
   } else {
     showLoginPage();
   }
@@ -435,6 +452,8 @@ async function initAuth() {
     await resetPassword(email);
   });
 
+  document.getElementById('logoutBtn').addEventListener('click', signOut);
+
   document.getElementById('loginPassword').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') document.getElementById('loginBtn').click();
   });
@@ -442,7 +461,6 @@ async function initAuth() {
     if (e.key === 'Enter') document.getElementById('loginPassword').focus();
   });
 
-  // Recuperación de contraseña
   const hashParams = new URLSearchParams(window.location.hash.substring(1));
   if (hashParams.get('type') === 'recovery') {
     const accessToken = hashParams.get('access_token');
