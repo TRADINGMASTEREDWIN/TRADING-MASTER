@@ -166,6 +166,10 @@ input, select, textarea{ font-family: inherit; font-size: var(--fs-base); }
   border-color: var(--color-primary);
   outline: none;
 }
+.login-container .form-field input[type="checkbox"] {
+  width: auto;
+  margin-right: 8px;
+}
 .login-container .btn-primary {
   width: 100%;
   justify-content: center;
