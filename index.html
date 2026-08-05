@@ -1174,6 +1174,7 @@
 </div>
 
 <script src="js/utils.js"></script>
+<script src="js/storage.js"></script>
 <script>
   /* ============================================================
      CONSTANTES DE DATOS (Fase 3.5 — v0.3.5)
@@ -1363,18 +1364,11 @@
   /* ============================================================
      ESTADO GLOBAL DE LA APLICACIÓN
      ============================================================ */
-  const STORAGE_KEY = 'tradingJournalOperations';
-  let operaciones = [];        // array en memoria, sincronizado con localStorage
-  let editingId = null;        // null = creando nueva operación, id = editando existente
-  let imagenTemporal = null;   // base64 de la imagen seleccionada (temporal)
-  let pendingDeleteId = null;  // id pendiente de confirmación de borrado
 
   // --- Mi Plan de Trading (Fase 4.3) ---
   // Nota: el prompt de esta fase pedía "LocalStorage", pero se usa window.storage
   // (igual que las operaciones) para mantener consistencia y que el plan también
   // se sincronice entre dispositivos vía tu cuenta de Claude.
-  const PLAN_TRADING_KEY = 'tradingJournalPlan';
-  let planTrading = {};
   const PLAN_TRADING_DEFAULTS = {
     objetivos: 'Objetivos anuales:\n\nObjetivos mensuales:\n\nObjetivos semanales:\n',
     principios: '',
@@ -1389,88 +1383,6 @@
     notas: ''
   };
 
-  // --- Identificador de Trade (v0.4.5 — Parte 4) ---
-  // Contador persistente e incremental, independiente del "id" interno usado
-  // para CRUD/DOM. Nunca disminuye ni se reutiliza, aunque se eliminen operaciones.
-  const CONTADOR_TRADES_KEY = 'tradingJournalContadorTrades';
-  let contadorTrades = 0;
-
-  async function cargarContadorTrades(){
-    try{
-      const res = await window.storage.get(CONTADOR_TRADES_KEY, false);
-      contadorTrades = (res && res.value) ? (parseInt(res.value, 10) || 0) : 0;
-    }catch(e){
-      contadorTrades = 0;
-    }
-  }
-
-  async function persistirContadorTrades(){
-    try{
-      await window.storage.set(CONTADOR_TRADES_KEY, String(contadorTrades), false);
-    }catch(e){
-      console.error('No se pudo guardar el contador de Trade ID:', e);
-    }
-  }
-
-  function generarSiguienteIdTrade(){
-    contadorTrades += 1;
-    return 'TM-' + String(contadorTrades).padStart(6, '0');
-  }
-
-  // --- Gestión de Cuentas (AC-01) ---
-  // Misma arquitectura de persistencia que operaciones/plan/contador: una
-  // colección independiente en window.storage, cargada y guardada de forma
-  // asíncrona con el mismo patrón try/catch ya establecido en todo el proyecto.
-  const CUENTAS_KEY = 'tradingJournalCuentas';
-  let cuentas = [];
-  let editingCuentaId = null;
-
-  // AC-01.1 — ID permanente de Cuenta (CTA-000001...), mismo patrón exacto
-  // que el Identificador de Trade (TM-000001): contador persistente que
-  // nunca decrece ni se reutiliza, independiente del "id" interno usado
-  // para CRUD/DOM.
-  const CONTADOR_CUENTAS_KEY = 'tradingJournalContadorCuentas';
-  let contadorCuentas = 0;
-
-  async function cargarContadorCuentas(){
-    try{
-      const res = await window.storage.get(CONTADOR_CUENTAS_KEY, false);
-      contadorCuentas = (res && res.value) ? (parseInt(res.value, 10) || 0) : 0;
-    }catch(e){
-      contadorCuentas = 0;
-    }
-  }
-
-  async function persistirContadorCuentas(){
-    try{
-      await window.storage.set(CONTADOR_CUENTAS_KEY, String(contadorCuentas), false);
-    }catch(e){
-      console.error('No se pudo guardar el contador de ID de Cuenta:', e);
-    }
-  }
-
-  function generarSiguienteIdCuenta(){
-    contadorCuentas += 1;
-    return 'CTA-' + String(contadorCuentas).padStart(6, '0');
-  }
-
-  async function cargarCuentas(){
-    try{
-      const res = await window.storage.get(CUENTAS_KEY, false);
-      cuentas = (res && res.value) ? JSON.parse(res.value) : [];
-    }catch(e){
-      cuentas = [];
-    }
-  }
-
-  async function persistirCuentas(){
-    try{
-      await window.storage.set(CUENTAS_KEY, JSON.stringify(cuentas), false);
-    }catch(e){
-      console.error('No se pudo guardar la cuenta:', e);
-      showToast('danger', 'No se pudo guardar', 'La cuenta no se guardó correctamente.');
-    }
-  }
 
   // AC-01.1 (punto 1 + compatibilidad) — cuentas creadas antes de este
   // refinamiento no tienen `idCuenta` todavía. Se les asigna uno de forma
@@ -2243,50 +2155,6 @@
       `<tr class="empty-row"><td colspan="11">Cargando tu historial…</td></tr>`;
   }
 
-  /* ============================================================
-     PERSISTENCIA (Claude window.storage — personal, ligado a tu cuenta)
-     ============================================================ */
-  async function loadOperations(){
-    try{
-      const res = await window.storage.get(STORAGE_KEY, false);
-      operaciones = res && res.value ? JSON.parse(res.value) : [];
-    }catch(e){
-      // La clave no existe aún (primera vez que se usa la app) u otro error de lectura
-      operaciones = [];
-    }
-  }
-
-  async function persistirOperaciones(){
-    try{
-      await window.storage.set(STORAGE_KEY, JSON.stringify(operaciones), false);
-    }catch(e){
-      console.error('No se pudo guardar en window.storage:', e);
-      showToast('danger', 'No se pudo guardar', 'El almacenamiento de Claude falló. Intenta de nuevo.');
-    }
-  }
-
-  /* ============================================================
-     MI PLAN DE TRADING — persistencia y render (Fase 4.3)
-     ============================================================ */
-  async function loadPlanTrading(){
-    try{
-      const res = await window.storage.get(PLAN_TRADING_KEY, false);
-      const guardado = res && res.value ? JSON.parse(res.value) : {};
-      planTrading = Object.assign({}, PLAN_TRADING_DEFAULTS, guardado);
-    }catch(e){
-      // Primera vez que se usa el módulo (la clave aún no existe) u otro error de lectura.
-      planTrading = Object.assign({}, PLAN_TRADING_DEFAULTS);
-    }
-  }
-
-  async function guardarPlanTrading(){
-    try{
-      await window.storage.set(PLAN_TRADING_KEY, JSON.stringify(planTrading), false);
-    }catch(e){
-      console.error('No se pudo guardar el Plan de Trading:', e);
-      showToast('danger', 'No se pudo guardar', 'El plan de trading no se guardó correctamente.');
-    }
-  }
 
   function renderPlanTrading(){
     document.querySelectorAll('.plan-view-text').forEach(el => {
