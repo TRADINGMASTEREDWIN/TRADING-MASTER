@@ -1173,6 +1173,7 @@
   </div>
 </div>
 
+<script src="js/utils.js"></script>
 <script>
   /* ============================================================
      CONSTANTES DE DATOS (Fase 3.5 — v0.3.5)
@@ -2301,10 +2302,6 @@
     });
   }
 
-  function generarId(){
-    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-  }
-
   /* ============================================================
      LECTURA / ESCRITURA DEL FORMULARIO
      ============================================================ */
@@ -2632,24 +2629,6 @@
     return resultado;
   }
 
-  // --- Helpers de formato (reutilizables desde Dashboard/Gráficos) ---
-  function formatMoney(valor){
-    if(valor === null || valor === undefined || isNaN(valor)) return '—';
-    const signo = valor > 0 ? '+' : '';
-    return `${signo}$${valor.toFixed(2)}`;
-  }
-
-  function formatPct(valor){
-    if(valor === null || valor === undefined || isNaN(valor)) return '—';
-    const signo = valor > 0 ? '+' : '';
-    return `${signo}${valor.toFixed(2)}%`;
-  }
-
-  function formatR(valor){
-    if(valor === null || valor === undefined || isNaN(valor)) return '—';
-    const signo = valor > 0 ? '+' : '';
-    return `${signo}${valor.toFixed(2)}R`;
-  }
 
   function actualizarTamanoPosicionAutomatico(){
     const margenEl = document.querySelector('[data-field="margenUtilizado"]');
@@ -3928,12 +3907,6 @@
         </td>
       </tr>`;
     }).join('');
-  }
-
-  function escapeHtml(str){
-    const div = document.createElement('div');
-    div.textContent = String(str);
-    return div.innerHTML;
   }
 
   /* ============================================================
