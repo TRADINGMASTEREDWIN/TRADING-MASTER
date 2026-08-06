@@ -1,17 +1,26 @@
 /* ============================================================
    CLIENTE SUPABASE — Trading Master
 
-   Único archivo que inicializa la conexión a Supabase. El resto de
-   la aplicación accede a través del objeto global `supabaseClient`
-   (por ejemplo, accounts.js lo usa directamente, sin importarlo:
-   toda la app sigue viviendo en un único ámbito global, sin
-   type="module" ni bundlers).
+   Único archivo que inicializa la conexión a Supabase.
+   El resto de la aplicación utiliza el objeto global
+   window.supabaseClient.
 
-   Requiere que el <script> del SDK de Supabase (CDN) se cargue ANTES
-   que este archivo — ver instrucciones de index.html.
    ============================================================ */
 
-const SUPABASE_URL = 'https://pxaqnmxjcmddfgihfnzm.supabase.co';   // <-- reemplazar con tu Project URL
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4YXFubXhqY21kZGZnaWhmbnptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0Mjg0NzEsImV4cCI6MjEwMTAwNDQ3MX0.3Gqf9N3Otl4qEDbcrCkzeWrICcR2nR5T5zUh2MEVK3g';               // <-- reemplazar con tu anon/public key
+const SUPABASE_URL = 'https://pxaqnmxjcmddfgihfnzm.supabase.co';
 
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4YXFubXhqY21kZGZnaWhmbnptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0Mjg0NzEsImV4cCI6MjEwMTAwNDQ3MX0.3Gqf9N3Otl4qEDbcrCkzeWrICcR2nR5T5zUh2MEVK3g';
+
+// Crear el cliente de Supabase y dejarlo disponible globalmente
+window.supabaseClient = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+);
+
+// Referencia local opcional
+const supabaseClient = window.supabaseClient;
+
+// Verificación rápida (puedes quitar estos console.log después)
+console.log('✅ Supabase cargado');
+console.log('URL:', SUPABASE_URL);
+console.log('Cliente:', window.supabaseClient);
