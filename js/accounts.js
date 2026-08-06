@@ -5,14 +5,168 @@
    Contiene el CRUD completo de cuentas: formulario, validaciones,
    tabla, listeners y el poblado del selector de cuenta que usa el
    formulario de operaciones.
-   El código es idéntico al que estaba en index.html.
+
+   *** CONEXIÓN A SUPABASE ***
+   Este módulo ya no persiste en window.storage: lee y escribe
+   directamente en la tabla `accounts` de Supabase. El resto del
+   archivo (formulario, validaciones, render de la tabla, listeners)
+   es idéntico al original — solo cambió CÓMO se guarda/carga, no
+   cómo se usa el módulo desde la UI.
+
+   Cambios de fondo (documentados aquí para no repetirlo en cada
+   función):
+   1. `idCuenta` ahora es el UUID que genera Supabase (antes era un
+      contador local "CTA-000001"). generarSiguienteIdCuenta() y
+      persistirContadorCuentas() (de storage.js) ya NO se usan.
+   2. `plataforma` (texto libre) se traduce a `broker_id` (UUID hacia
+      la tabla `brokers`) buscando o creando el broker por nombre.
+   3. `descripcion` y `notas` (2 campos del formulario) se combinan en
+      la única columna `description` de la tabla, con un separador
+      que permite reconstruirlos al leer de vuelta.
+   4. cargarCuentas() vive en storage.js y se invoca desde app.js —
+      ninguno de los dos se modificó aquí. Ver instrucciones aparte
+      para el único ajuste necesario en app.js.
 
    Depende de:
-   - storage.js  -> estado `cuentas`, `editingCuentaId`, persistirCuentas(),
-                    generarSiguienteIdCuenta()
-   - utils.js    -> generarId(), escapeHtml(), formatMoney()
+   - js/supabase.js -> objeto global `supabaseClient`
+   - storage.js  -> estado `cuentas`, `editingCuentaId`
+   - utils.js    -> escapeHtml(), formatMoney()
    - index.html  -> showToast(), poblarSelect(), TIPOS_CUENTA, MONEDAS
    ============================================================ */
+
+  /* ============================================================
+     TRADUCCIÓN UI <-> SUPABASE (Data Mapper)
+     La UI sigue hablando en español (nombre, tipoCuenta, moneda...);
+     Supabase habla en snake_case en inglés (name, account_type,
+     currency...). Estas funciones son el único lugar que conoce
+     ambos idiomas.
+     ============================================================ */
+
+  const SEPARADOR_NOTAS = '\n---NOTAS---\n';
+
+  // descripcion + notas (2 campos del formulario) -> 1 sola columna `description`
+  function combinarDescripcionYNotas(descripcion, notas){
+    const d = (descripcion || '').trim();
+    const n = (notas || '').trim();
+    if(d && n) return `${d}${SEPARADOR_NOTAS}${n}`;
+    if(d) return d;
+    if(n) return `${SEPARADOR_NOTAS}${n}`;
+    return '';
+  }
+
+  // El proceso inverso: 1 columna `description` -> descripcion + notas
+  function separarDescripcionYNotas(description){
+    const texto = description || '';
+    const idx = texto.indexOf(SEPARADOR_NOTAS);
+    if(idx === -1) return { descripcion: texto, notas: '' };
+    return {
+      descripcion: texto.slice(0, idx),
+      notas: texto.slice(idx + SEPARADOR_NOTAS.length)
+    };
+  }
+
+  // Busca un broker por nombre (propio o global); si no existe, lo crea.
+  // Así "plataforma" sigue siendo texto libre para el usuario, aunque la
+  // tabla accounts solo acepte una referencia (broker_id).
+  async function buscarOCrearBrokerPorNombre(nombre){
+    const limpio = (nombre || '').trim();
+    if(!limpio) return null;
+
+    const { data: existente, error: errorBusqueda } = await supabaseClient
+      .from('brokers')
+      .select('id')
+      .ilike('name', limpio)
+      .limit(1)
+      .maybeSingle();
+
+    if(errorBusqueda){
+      console.error('Error buscando broker:', errorBusqueda);
+      return null;
+    }
+    if(existente) return existente.id;
+
+    const { data: userData } = await supabaseClient.auth.getUser();
+    const userId = userData && userData.user ? userData.user.id : null;
+
+    const { data: creado, error: errorCreacion } = await supabaseClient
+      .from('brokers')
+      .insert({ user_id: userId, name: limpio })
+      .select('id')
+      .single();
+
+    if(errorCreacion){
+      console.error('Error creando broker:', errorCreacion);
+      return null;
+    }
+    return creado.id;
+  }
+
+  // UI (español, formulario) -> fila de Supabase (snake_case, inglés)
+  async function mapearCuentaUIaSupabase(data){
+    const brokerId = await buscarOCrearBrokerPorNombre(data.plataforma);
+    return {
+      broker_id: brokerId,
+      name: data.nombre,
+      account_type: data.tipoCuenta,
+      currency: data.moneda,
+      initial_capital: data.capitalInicial ? parseFloat(data.capitalInicial) : null,
+      target_capital: data.capitalObjetivo ? parseFloat(data.capitalObjetivo) : null,
+      max_drawdown_pct: data.drawdownMaximo ? parseFloat(data.drawdownMaximo) : null,
+      max_daily_loss_pct: data.perdidaMaximaDiaria ? parseFloat(data.perdidaMaximaDiaria) : null,
+      start_date: data.fechaInicio || null,
+      color: data.color || null,
+      description: combinarDescripcionYNotas(data.descripcion, data.notas),
+      is_active: data.estado === 'Activa'
+    };
+  }
+
+  // Fila de Supabase -> objeto en el idioma que ya entiende el resto de la
+  // aplicación (renderCuentasTable, poblarSelectCuentaOperacion, Ficha
+  // Técnica, etc. — ninguno de ellos se modificó).
+  function mapearCuentaSupabaseAUI(row){
+    const { descripcion, notas } = separarDescripcionYNotas(row.description);
+    return {
+      id: row.id,
+      idCuenta: row.id,               // ver nota: ya no es "CTA-000001", es el UUID de Supabase
+      nombre: row.name,
+      plataforma: row.broker_nombre || '',   // ver poblarPlataformaEnFilas()
+      tipoCuenta: row.account_type,
+      moneda: row.currency,
+      capitalInicial: row.initial_capital,
+      capitalObjetivo: row.target_capital,
+      drawdownMaximo: row.max_drawdown_pct,
+      perdidaMaximaDiaria: row.max_daily_loss_pct,
+      fechaInicio: row.start_date,
+      color: row.color,
+      descripcion,
+      notas,
+      estado: row.is_active ? 'Activa' : 'Inactiva',
+      fechaCreacion: row.created_at
+    };
+  }
+
+  /* ============================================================
+     CARGA DESDE SUPABASE
+     Reemplaza a cargarCuentas() (storage.js). Ver instrucciones para
+     el único ajuste necesario en app.js — este archivo no lo toca.
+     ============================================================ */
+  async function cargarCuentasDesdeSupabase(){
+    const { data, error } = await supabaseClient
+      .from('accounts')
+      .select('*, brokers(name)')
+      .order('created_at', { ascending: true });
+
+    if(error){
+      console.error('No se pudieron cargar las cuentas:', error);
+      showToast('danger', 'No se pudieron cargar las cuentas', error.message);
+      cuentas = [];
+      return;
+    }
+
+    cuentas = (data || []).map(row => mapearCuentaSupabaseAUI(
+      Object.assign({}, row, { broker_nombre: row.brokers ? row.brokers.name : '' })
+    ));
+  }
 
   /* ============================================================
      GESTIÓN DE CUENTAS (AC-01)
@@ -111,23 +265,37 @@
       return;
     }
 
+    const payload = await mapearCuentaUIaSupabase(data);
+
     if(editingCuentaId){
-      const index = cuentas.findIndex(c => c.id === editingCuentaId);
-      if(index !== -1){
-        // Se preservan id, idCuenta y fechaCreacion — nunca se regeneran al editar.
-        cuentas[index] = Object.assign({}, cuentas[index], data);
+      const { error } = await supabaseClient
+        .from('accounts')
+        .update(payload)
+        .eq('id', editingCuentaId);
+
+      if(error){
+        console.error('Error actualizando cuenta:', error);
+        showToast('danger', 'No se pudo actualizar', error.message);
+        return;
       }
       showToast('success', 'Cuenta actualizada', `${data.nombre} se guardó correctamente.`);
     }else{
-      cuentas.push(Object.assign(
-        { id: generarId(), idCuenta: generarSiguienteIdCuenta(), fechaCreacion: new Date().toISOString() },
-        data
-      ));
-      await persistirContadorCuentas();
+      const { data: userData } = await supabaseClient.auth.getUser();
+      const userId = userData && userData.user ? userData.user.id : null;
+
+      const { error } = await supabaseClient
+        .from('accounts')
+        .insert(Object.assign({ user_id: userId }, payload));
+
+      if(error){
+        console.error('Error creando cuenta:', error);
+        showToast('danger', 'No se pudo crear la cuenta', error.message);
+        return;
+      }
       showToast('success', 'Cuenta creada', `${data.nombre} ya está disponible en el formulario de operaciones.`);
     }
 
-    await persistirCuentas();
+    await cargarCuentasDesdeSupabase();
     renderCuentasTable();
     poblarSelectCuentaOperacion();
     resetCuentaForm();
@@ -150,11 +318,23 @@
   async function toggleEstadoCuenta(id){
     const cuenta = cuentas.find(c => c.id === id);
     if(!cuenta) return;
-    cuenta.estado = cuenta.estado === 'Activa' ? 'Inactiva' : 'Activa';
-    await persistirCuentas();
+    const nuevoEstado = cuenta.estado === 'Activa' ? 'Inactiva' : 'Activa';
+
+    const { error } = await supabaseClient
+      .from('accounts')
+      .update({ is_active: nuevoEstado === 'Activa' })
+      .eq('id', id);
+
+    if(error){
+      console.error('Error actualizando estado de la cuenta:', error);
+      showToast('danger', 'No se pudo actualizar el estado', error.message);
+      return;
+    }
+
+    await cargarCuentasDesdeSupabase();
     renderCuentasTable();
     poblarSelectCuentaOperacion();
-    showToast('success', 'Estado actualizado', `${cuenta.nombre} ahora está ${cuenta.estado === 'Activa' ? 'Activa' : 'Inactiva'}.`);
+    showToast('success', 'Estado actualizado', `${cuenta.nombre} ahora está ${nuevoEstado}.`);
   }
 
   function renderCuentasTable(){
