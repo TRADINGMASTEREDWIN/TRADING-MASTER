@@ -8,7 +8,27 @@
 </head>
 <body>
 
-<div class="app" id="app">
+<div id="loginScreen" style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;">
+  <div class="card" style="width:100%; max-width:380px; padding:32px;">
+    <div style="text-align:center; margin-bottom:24px;">
+      <div class="sidebar-brand-mark" style="margin:0 auto 12px;">TM</div>
+      <h1 style="font-size:var(--fs-lg); font-weight:700;">Trading Master</h1>
+      <p style="color:var(--color-text-secondary); font-size:var(--fs-sm);">Inicia sesión para continuar</p>
+    </div>
+    <div class="form-field" style="margin-bottom:16px;">
+      <label for="loginEmail">Correo electrónico</label>
+      <input type="email" id="loginEmail" placeholder="tu@correo.com" autocomplete="email">
+    </div>
+    <div class="form-field" style="margin-bottom:8px;">
+      <label for="loginPassword">Contraseña</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <div id="loginError" style="display:none; color:var(--color-danger); font-size:var(--fs-sm); margin-bottom:12px;"></div>
+    <button class="btn-primary" id="loginBtn" style="width:100%; margin-top:8px;">Iniciar sesión</button>
+  </div>
+</div>
+
+<div class="app" id="app" style="display:none;">
 
   <!-- ============================================================
        SIDEBAR
@@ -84,7 +104,10 @@
         <button class="icon-btn" title="Notificaciones">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
         </button>
-        <div class="avatar" title="Edwin Chica">EC</div>
+      <div class="avatar" title="Edwin Chica">EC</div>
+        <button class="icon-btn" id="logoutBtn" title="Cerrar sesión">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
       </div>
     </header>
 
@@ -1177,6 +1200,7 @@
 <script src="js/storage.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/supabase.js"></script>
+<script src="js/auth.js"></script>
 <script src="js/accounts.js"></script>
 <script src="js/plan.js"></script>
 <script src="js/dashboard.js"></script>
