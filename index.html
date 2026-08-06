@@ -1108,7 +1108,84 @@
         </section>
 
       </div><!-- /vistaCuentas -->
+<!-- ===================== GESTIÓN DE ACTIVOS ===================== -->
+      <div id="vistaActivos" style="display:none;">
 
+        <section class="card" style="margin-bottom: var(--space-6);" id="activo-form-card">
+          <div class="card-header">
+            <div class="card-header-title-group">
+              <div class="card-header-icon icon-purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+              <div>
+                <h2>💠 Activos</h2>
+                <div class="card-header-sub" id="activoFormSub">Registra un nuevo activo</div>
+              </div>
+            </div>
+            <span class="badge gold" id="activoEditBadge" style="display:none;">Editando activo</span>
+          </div>
+          <div class="card-body">
+
+            <div class="form-grid">
+              <div class="form-field">
+                <label>Símbolo *</label>
+                <input type="text" data-activo-campo="simbolo" placeholder="ej. BTC, AAPL">
+                <span class="field-error" data-activo-error-for="simbolo">El símbolo es obligatorio.</span>
+              </div>
+              <div class="form-field">
+                <label>Nombre</label>
+                <input type="text" data-activo-campo="nombre" placeholder="ej. Bitcoin, Apple Inc.">
+              </div>
+              <div class="form-field">
+                <label>Mercado *</label>
+                <select id="selectMercadoActivo" data-activo-campo="mercado"></select>
+                <span class="field-error" data-activo-error-for="mercado">Selecciona un mercado.</span>
+              </div>
+              <div class="form-field">
+                <label>Estado</label>
+                <div class="segmented" id="estadoActivoSegmented">
+                  <button class="buy active" type="button" data-valor="activo">Activo</button>
+                  <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button class="btn-secondary" id="activoCancelBtn" type="button">Cancelar</button>
+              <button class="btn-primary" id="activoSaveBtn" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <span id="activoSaveBtnLabel">Guardar activo</span>
+              </button>
+            </div>
+
+          </div>
+        </section>
+
+        <section class="card" id="activos-listado">
+          <div class="card-header">
+            <div class="card-header-title-group">
+              <div class="card-header-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="14" y2="18"/></svg></div>
+              <div>
+                <h2>Listado de Activos</h2>
+                <div class="card-header-sub"><span id="activosCount">0</span> activos registrados</div>
+              </div>
+            </div>
+          </div>
+          <div class="table-wrap" style="max-height: none;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Símbolo</th>
+                  <th>Nombre</th>
+                  <th>Mercado</th>
+                  <th>Estado</th>
+                  <th class="col-actions">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="activosTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+      </div><!-- /vistaActivos -->
       <!-- ===================== ESTRATEGIAS (NAV-01) — en desarrollo ===================== -->
       <div id="vistaEstrategias" style="display:none;">
         <section class="card">
@@ -1209,6 +1286,8 @@
 <script src="js/plan.js"></script>
 <script src="js/dashboard.js"></script>
 <script src="js/trades.js"></script>
+  <script src="js/catalog.js"></script>
+<script src="js/assets.js"></script>
 <script>
   /* ============================================================
      CONSTANTES DE DATOS (Fase 3.5 — v0.3.5)
