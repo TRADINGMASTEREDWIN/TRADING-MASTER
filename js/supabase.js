@@ -11,7 +11,7 @@
    que este archivo — ver instrucciones de index.html.
    ============================================================ */
 
-const SUPABASE_URL = 'https://TU-PROYECTO.supabase.co';   // <-- reemplazar con tu Project URL
-const SUPABASE_ANON_KEY = 'TU-ANON-KEY-AQUI';               // <-- reemplazar con tu anon/public key
+const SUPABASE_URL = 'https://pxaqnmxjcmddfgihfnzm.supabase.co';   // <-- reemplazar con tu Project URL
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4YXFubXhqY21kZGZnaWhmbnptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0Mjg0NzEsImV4cCI6MjEwMTAwNDQ3MX0.3Gqf9N3Otl4qEDbcrCkzeWrICcR2nR5T5zUh2MEVK3g';               // <-- reemplazar con tu anon/public key
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
