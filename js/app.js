@@ -90,12 +90,16 @@
     await cargarContadorCuentas();  // ID permanente de Cuenta (AC-01.1)
     await cargarCuentas();          // Gestión de Cuentas (AC-01)
     await migrarIdsCuentas();       // Asigna idCuenta a cuentas creadas antes de AC-01.1
+    await cargarActivosDesdeSupabase(); // Gestión de Activos
+    await poblarSelectMercadoActivo();  // Select de Mercado del formulario de Activos
     await loadOperations();
     await cargarContadorTrades();   // Identificador de Trade (v0.4.5)
     await migrarCuentasDeOperaciones(); // Migra op.cuenta de nombre a idCuenta (AC-01.1)
     await migrarContextosTecnicos();    // Migra contextoMercado (interpretado) a contextoTecnico (IMP-02)
     poblarSelectCuentaOperacion();
+    poblarSelectActivoOperacion();   // Gestión de Activos — reemplaza a poblarSelectActivo()
     renderCuentasTable();
+    renderActivosTable();            // Gestión de Activos
     renderTable();
     await loadPlanTrading();   // Mi Plan de Trading (Fase 4.3)
     renderPlanTrading();
@@ -106,6 +110,7 @@
     attachFichaListeners();    // Ficha Técnica del Trade (Fase 4.2)
     attachPlanTradingListeners(); // Mi Plan de Trading (Fase 4.3)
     attachCuentasListeners();     // Gestión de Cuentas (AC-01)
+    attachActivosListeners();     // Gestión de Activos
   }
 
   function construirCamposDinamicos(){
@@ -113,7 +118,9 @@
     poblarSelect(document.getElementById('selectTipoOperacion'), TIPOS_OPERACION, 'Selecciona…');
     poblarSelect(document.getElementById('selectTipoCuenta'), TIPOS_CUENTA, 'Selecciona…');
     poblarSelect(document.getElementById('selectMonedaCuenta'), MONEDAS, 'Selecciona…');
-    poblarSelectActivo(document.getElementById('selectActivo'));
+    // Gestión de Activos: el selector de Activo ya no se puebla aquí (dato
+    // estático) sino en poblarSelectActivoOperacion(), después de cargar los
+    // activos guardados — mismo criterio ya usado para Cuenta.
     poblarSelect(document.getElementById('selectEstrategia'), ESTRATEGIAS, 'Selecciona una estrategia…');
     poblarSelect(document.getElementById('selectTipoTrade'), TIPOS_TRADE, 'Selecciona…');
     // AC-01: el selector de Cuenta ya no se puebla aquí (dato estático) sino
