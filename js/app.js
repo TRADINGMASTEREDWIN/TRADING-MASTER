@@ -82,6 +82,9 @@
   }
 
   async function initApp(){
+    const sesionValida = await verificarSesionYMostrarUI();
+    if(!sesionValida) return; // Sin sesión: se queda en pantalla de Login (auth.js). Al iniciar sesión, auth.js vuelve a llamar a initApp().
+
     construirCamposDinamicos();
     mostrarEstadoCargando();
     await cargarContadorCuentas();  // ID permanente de Cuenta (AC-01.1)
