@@ -93,8 +93,15 @@
     await cargarActivosDesdeSupabase(); // Gestión de Activos
     await poblarSelectMercadoActivo();  // Select de Mercado del formulario de Activos
     await inicializarModuloVariables(); // Gestión de Variables (Categorías, Variables, Opciones)
-    await cargarDataTypesParaVariablesObservadas(); // Sprint 3 — tipos de dato para el bloque dinámico
-    renderVariablesObservadas();                    // Sprint 3 — construye el bloque desde Supabase
+    // Sprint 3 — aislado en try/catch: si algo aquí falla, se ve claramente
+    // en consola pero NO detiene el resto de initApp() (Dashboard, Trades,
+    // Plan, etc. deben seguir funcionando aunque este bloque falle).
+    try{
+      await cargarDataTypesParaVariablesObservadas();
+      renderVariablesObservadas();
+    }catch(errorVariablesObservadas){
+      console.error('[Variables Observadas] Error al construir el bloque:', errorVariablesObservadas);
+    }
     await loadOperations();
     await cargarContadorTrades();   // Identificador de Trade (v0.4.5)
     await migrarCuentasDeOperaciones(); // Migra op.cuenta de nombre a idCuenta (AC-01.1)
@@ -115,7 +122,11 @@
     attachCuentasListeners();     // Gestión de Cuentas (AC-01)
     attachActivosListeners();     // Gestión de Activos
     attachModuloVariablesListeners(); // Gestión de Variables
-    attachVariablesObservadasListeners(); // Sprint 3
+    try{
+      attachVariablesObservadasListeners(); // Sprint 3
+    }catch(errorListenersVO){
+      console.error('[Variables Observadas] Error al conectar sus listeners:', errorListenersVO);
+    }
   }
 
   function construirCamposDinamicos(){

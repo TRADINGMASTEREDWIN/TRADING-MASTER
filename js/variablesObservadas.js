@@ -55,8 +55,18 @@
   // cargó (categoriasVariables/variablesTrading/opcionesVariables) — cero
   // consultas nuevas a esas 3 tablas.
   function construirArbolVariablesObservadas(){
-    const categoriasActivas = categoriasVariables
-      .filter(c => c.estado === 'Activo');
+    // Guardia explícita: si variables.js no cargó ANTES que este archivo
+    // (o su script ni siquiera está en el HTML), estas variables globales
+    // no existirían y esto lanzaría un ReferenceError silencioso que
+    // detendría TODO initApp(). Se detecta aquí y se avisa con claridad
+    // en vez de fallar en silencio.
+    if(typeof categoriasVariables === 'undefined' || typeof variablesTrading === 'undefined' || typeof opcionesVariables === 'undefined'){
+      console.error('[Variables Observadas] categoriasVariables/variablesTrading/opcionesVariables no están definidas. ' +
+        'Causa más probable: js/variables.js no se cargó, o se cargó DESPUÉS de js/variablesObservadas.js en index.html.');
+      return [];
+    }
+
+    const categoriasActivas = categoriasVariables.filter(c => c.estado === 'Activo');
 
     return categoriasActivas
       .map(cat => {
@@ -96,9 +106,16 @@
 
   function renderVariablesObservadas(){
     const container = document.getElementById('variablesObservadasContainer');
-    if(!container) return;
+    if(!container){
+      console.error('[Variables Observadas] No se encontró #variablesObservadasContainer en el DOM. ' +
+        'Causa más probable: el bloque HTML no se pegó en index.html, o el id tiene una errata.');
+      return;
+    }
 
     const arbol = construirArbolVariablesObservadas();
+    console.log(`[Variables Observadas] Categorías activas con variables activas: ${arbol.length}`,
+      arbol.map(a => a.categoria.nombre));
+
     if(arbol.length === 0){
       container.innerHTML = `<span style="color: var(--color-text-muted); font-size: var(--fs-sm);">Aún no hay categorías de Variables activas con al menos una Variable activa. Créalas desde el módulo "🧩 Variables".</span>`;
       return;
@@ -133,7 +150,10 @@
   // los .segmented que ya existían en el HTML al momento de ejecutarse).
   function attachVariablesObservadasListeners(){
     const container = document.getElementById('variablesObservadasContainer');
-    if(!container) return;
+    if(!container){
+      console.error('[Variables Observadas] attachVariablesObservadasListeners: contenedor no encontrado, no se pudo conectar el listener de clics.');
+      return;
+    }
     container.addEventListener('click', (e) => {
       const segBtn = e.target.closest('.segmented button');
       if(segBtn){
