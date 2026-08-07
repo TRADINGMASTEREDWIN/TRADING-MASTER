@@ -475,30 +475,12 @@
 </div>
 
             <!-- Variable de Decisión — Volumen (quinta de la serie) -->
-            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Variable de Decisión: Volumen</div>
-            <div class="card" style="background: var(--color-bg);">
-              <div class="card-body" style="padding: var(--space-4);">
-                <div class="form-field form-field-full" style="margin-bottom: 0;">
-                  <label>¿El Volumen influyó en mi decisión?</label>
-                  <div class="segmented" id="toggle-decision-volumen" data-decision="volumen">
-                    <button class="sell active" type="button" data-valor="no">No</button>
-                    <button class="buy" type="button" data-valor="si">Sí</button>
-                  </div>
-                </div>
-
-                <div id="decisionBody-volumen" style="display:none; margin-top: var(--space-4);">
-                  <div class="form-field form-field-full">
-                    <label>Lectura del Volumen</label>
-                    <div class="chip-group" id="volumenLectura"></div>
-                  </div>
-                  <div class="form-field form-field-full" style="margin-top: var(--space-4);">
-                    <label>VRVP (Visible Range Volume Profile)</label>
-                    <div class="chip-group" id="volumenVrvp"></div>
-                  </div>
-                  <div class="dropzone-hint" style="margin-top: var(--space-3);">⭐ Haz clic en la estrella del elemento más importante de esta lectura de Volumen.</div>
-                </div>
-              </div>
-            </div>
+           <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Variable de Decisión: Volumen</div>
+<div class="card" style="background: var(--color-bg);">
+  <div class="card-body" style="padding: var(--space-4);">
+    <div id="volumenDinamicaContainer"></div>
+  </div>
+</div>
 <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Variables Observadas <span class="badge info" style="margin-left:6px;">Nuevo</span></div>
 <div id="variablesObservadasContainer"></div>
             <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Confirmaciones</div>
