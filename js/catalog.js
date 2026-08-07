@@ -36,6 +36,14 @@
     if(config.idSegmentedEstado){
       data.estado = leerSegmentedActivo(config.idSegmentedEstado);
     }
+    // Generalización aditiva (Sprint Variables): cualquier campo booleano/enum
+    // adicional que use el mismo mecanismo de .segmented — Activos y Cuentas
+    // no la usan (solo tienen "estado"), así que esto no les afecta en nada.
+    if(config.camposSegmentedExtra){
+      config.camposSegmentedExtra.forEach(({ idSegmented, dataKey }) => {
+        data[dataKey] = leerSegmentedActivo(idSegmented);
+      });
+    }
     return data;
   }
 
@@ -46,6 +54,11 @@
     });
     if(config.idSegmentedEstado){
       aplicarSegmentedActivo(config.idSegmentedEstado, item.estado === config.estadoActivoLabel ? 'activo' : 'inactivo');
+    }
+    if(config.camposSegmentedExtra){
+      config.camposSegmentedExtra.forEach(({ idSegmented, dataKey }) => {
+        aplicarSegmentedActivo(idSegmented, item[dataKey]);
+      });
     }
   }
 
@@ -83,6 +96,11 @@
     document.querySelectorAll(`[data-${config.atributoCampo}]`).forEach(el => { el.value = ''; });
     if(config.idSegmentedEstado){
       aplicarSegmentedActivo(config.idSegmentedEstado, config.valorEstadoActivoDefault || 'activo');
+    }
+    if(config.camposSegmentedExtra){
+      config.camposSegmentedExtra.forEach(({ idSegmented, valorDefault }) => {
+        aplicarSegmentedActivo(idSegmented, valorDefault || 'no');
+      });
     }
     catalogoLimpiarErrores(config);
 
@@ -210,4 +228,24 @@
       if(editBtn){ catalogoEditar(config, editBtn.dataset.id); return; }
       if(toggleBtn){ catalogoToggleEstado(config, toggleBtn.dataset.id); }
     });
+  }
+
+  // Puebla un <select> con filas de cualquier tabla — generaliza lo que antes
+  // se escribía a mano por cada FK (ej. poblarSelectMercadoActivo en
+  // assets.js). Útil para relaciones simples de un solo nivel (id + etiqueta).
+  async function catalogoPoblarSelectFK({ idSelect, tabla, camposSelect, ordenarPor, etiquetaFn }){
+    const select = document.getElementById(idSelect);
+    if(!select) return;
+    const { data, error } = await supabaseClient
+      .from(tabla)
+      .select(camposSelect || 'id, name')
+      .order(ordenarPor || 'sort_order', { ascending: true });
+
+    if(error){
+      console.error(`No se pudo cargar ${tabla} para el select:`, error);
+      showToast('danger', 'No se pudo cargar', error.message);
+      return;
+    }
+    select.innerHTML = `<option value="">Selecciona…</option>` +
+      (data || []).map(row => `<option value="${row.id}">${escapeHtml(etiquetaFn(row))}</option>`).join('');
   }

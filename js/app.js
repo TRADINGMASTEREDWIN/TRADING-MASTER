@@ -92,6 +92,7 @@
     await migrarIdsCuentas();       // Asigna idCuenta a cuentas creadas antes de AC-01.1
     await cargarActivosDesdeSupabase(); // Gestión de Activos
     await poblarSelectMercadoActivo();  // Select de Mercado del formulario de Activos
+    await inicializarModuloVariables(); // Gestión de Variables (Categorías, Variables, Opciones)
     await loadOperations();
     await cargarContadorTrades();   // Identificador de Trade (v0.4.5)
     await migrarCuentasDeOperaciones(); // Migra op.cuenta de nombre a idCuenta (AC-01.1)
@@ -111,6 +112,7 @@
     attachPlanTradingListeners(); // Mi Plan de Trading (Fase 4.3)
     attachCuentasListeners();     // Gestión de Cuentas (AC-01)
     attachActivosListeners();     // Gestión de Activos
+    attachModuloVariablesListeners(); // Gestión de Variables
   }
 
   function construirCamposDinamicos(){
