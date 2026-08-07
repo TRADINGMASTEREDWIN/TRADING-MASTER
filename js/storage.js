@@ -44,9 +44,21 @@
     }
   }
 
+  // Sprint (conexión de Trades) — ya no depende de contadorTrades/window.storage.
+  // El siguiente TM-XXXXXX se deriva de las operaciones ya cargadas desde
+  // Supabase: el número más alto encontrado + 1. cargarContadorTrades() /
+  // persistirContadorTrades() quedan sin usar (código muerto, no se borran
+  // por si algo más las necesita) — ya no se llaman desde aquí.
   function generarSiguienteIdTrade(){
-    contadorTrades += 1;
-    return 'TM-' + String(contadorTrades).padStart(6, '0');
+    let maxNum = 0;
+    operaciones.forEach(op => {
+      const match = op.idTrade && op.idTrade.match(/^TM-(\d+)$/);
+      if(match){
+        const num = parseInt(match[1], 10);
+        if(num > maxNum) maxNum = num;
+      }
+    });
+    return 'TM-' + String(maxNum + 1).padStart(6, '0');
   }
 
   // --- Gestión de Cuentas (AC-01) ---
@@ -106,24 +118,104 @@
   }
 
   /* ============================================================
-     PERSISTENCIA (Claude window.storage — personal, ligado a tu cuenta)
+     PERSISTENCIA (Supabase — tabla `trades`)
+
+     Sprint previo a Sprint 5: hasta aquí, las Operaciones (Trades) eran
+     el ÚNICO dato que seguía viviendo en window.storage (exclusivo de
+     artifacts de Claude.ai) — no existía fuera de una sesión de Claude.
+     Cuentas, Activos y el Administrador de Variables ya se habían
+     conectado antes; esto cierra la migración completa a Supabase.
+
+     trade_data (JSONB) guarda el objeto `op` completo tal cual —
+     el mismo modelo que ya usaban Ficha Técnica, Dashboard, etc. — así
+     que no hace falta traducir nombres de campo (a diferencia de
+     Cuentas/Activos, aquí no hay mapeo UI<->DB porque la tabla ya se
+     diseñó para guardar JSON libre).
      ============================================================ */
   async function loadOperations(){
-    try{
-      const res = await window.storage.get(STORAGE_KEY, false);
-      operaciones = res && res.value ? JSON.parse(res.value) : [];
-    }catch(e){
-      // La clave no existe aún (primera vez que se usa la app) u otro error de lectura
+    const { data, error } = await supabaseClient
+      .from('trades')
+      .select('id, trade_data')
+      .order('created_at', { ascending: true });
+
+    if(error){
+      console.error('No se pudieron cargar las operaciones desde Supabase:', error);
+      showToast('danger', 'No se pudieron cargar tus operaciones', error.message);
       operaciones = [];
+      return;
+    }
+    operaciones = (data || []).map(row => Object.assign({}, row.trade_data, { id: row.id }));
+  }
+
+  // Crea UNA operación nueva en Supabase. Devuelve el objeto `op` ya con el
+  // id real (UUID) que asignó Supabase — quien llama debe usar ESE objeto,
+  // no el que tenía antes de guardar.
+  async function crearOperacionEnSupabase(op){
+    const { data: userData } = await supabaseClient.auth.getUser();
+    const userId = userData && userData.user ? userData.user.id : null;
+
+    const tradeData = Object.assign({}, op);
+    delete tradeData.id; // el id real lo genera Supabase, no se guarda dos veces
+
+    const { data, error } = await supabaseClient
+      .from('trades')
+      .insert({ user_id: userId, trade_data: tradeData })
+      .select('id, trade_data')
+      .single();
+
+    if(error){
+      console.error('No se pudo crear la operación en Supabase:', error);
+      throw error;
+    }
+    return Object.assign({}, data.trade_data, { id: data.id });
+  }
+
+  // Actualiza UNA operación existente por su id (UUID real de Supabase).
+  async function actualizarOperacionEnSupabase(id, op){
+    const tradeData = Object.assign({}, op);
+    delete tradeData.id;
+
+    const { data, error } = await supabaseClient
+      .from('trades')
+      .update({ trade_data: tradeData })
+      .eq('id', id)
+      .select('id, trade_data')
+      .single();
+
+    if(error){
+      console.error('No se pudo actualizar la operación en Supabase:', error);
+      throw error;
+    }
+    return Object.assign({}, data.trade_data, { id: data.id });
+  }
+
+  async function eliminarOperacionEnSupabase(id){
+    const { error } = await supabaseClient.from('trades').delete().eq('id', id);
+    if(error){
+      console.error('No se pudo eliminar la operación en Supabase:', error);
+      throw error;
     }
   }
 
+  // Se conserva SOLO para migrarCuentasDeOperaciones()/migrarContextosTecnicos()
+  // (app.js), que mutan varias operaciones en memoria y esperan poder
+  // "guardar todo lo que cambió" al final. trades.js YA NO la usa para su
+  // propio CRUD (crear/editar/eliminar usan las 3 funciones de arriba,
+  // más precisas y sin reescribir operaciones que no cambiaron).
   async function persistirOperaciones(){
     try{
-      await window.storage.set(STORAGE_KEY, JSON.stringify(operaciones), false);
+      for(const op of operaciones){
+        if(!op.id) continue;
+        const tradeData = Object.assign({}, op);
+        delete tradeData.id;
+        const { error } = await supabaseClient.from('trades').update({ trade_data: tradeData }).eq('id', op.id);
+        if(error){
+          console.error('No se pudo actualizar una operación (persistirOperaciones):', error);
+        }
+      }
     }catch(e){
-      console.error('No se pudo guardar en window.storage:', e);
-      showToast('danger', 'No se pudo guardar', 'El almacenamiento de Claude falló. Intenta de nuevo.');
+      console.error('Error en persistirOperaciones (Supabase):', e);
+      showToast('danger', 'No se pudo guardar', 'No se pudieron guardar los cambios en Supabase.');
     }
   }
 

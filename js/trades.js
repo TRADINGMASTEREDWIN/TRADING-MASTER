@@ -884,14 +884,20 @@
     if(editingId){
       await actualizarOperacion(editingId, data);
     }else{
-      const nuevaOperacion = Object.assign(
-        { id: generarId(), idTrade: generarSiguienteIdTrade() },
+      const nuevaOperacionLocal = Object.assign(
+        { idTrade: generarSiguienteIdTrade() },
         data,
         { calculos: calcularOperacion(data) }
       );
-      operaciones.push(nuevaOperacion);
-      await persistirContadorTrades();
-      await persistirOperaciones();
+      // Sprint (conexión de Trades): el id ya no se genera localmente
+      // (generarId()) — Supabase asigna el UUID real al insertar.
+      try{
+        const creada = await crearOperacionEnSupabase(nuevaOperacionLocal);
+        operaciones.push(creada);
+      }catch(error){
+        showToast('danger', 'No se pudo guardar', error.message || 'Error al crear la operación en Supabase.');
+        return;
+      }
       renderTable();
       mostrarAvisoEstadoTrade(data);
       mostrarAvisoCompletitud(completitud);
@@ -912,8 +918,14 @@
     const index = operaciones.findIndex(op => op.id === id);
     if(index === -1) return;
     const idTradeExistente = operaciones[index].idTrade; // nunca se regenera ni se pierde al editar
-    operaciones[index] = Object.assign({ id, idTrade: idTradeExistente }, data, { calculos: calcularOperacion(data) });
-    await persistirOperaciones();
+    const operacionActualizada = Object.assign({ id, idTrade: idTradeExistente }, data, { calculos: calcularOperacion(data) });
+    try{
+      const guardada = await actualizarOperacionEnSupabase(id, operacionActualizada);
+      operaciones[index] = guardada;
+    }catch(error){
+      showToast('danger', 'No se pudo actualizar', error.message || 'Error al actualizar la operación en Supabase.');
+      return;
+    }
     renderTable();
     const completitud = verificarCompletitudRegistro(data);
     mostrarAvisoEstadoTrade(data);
@@ -923,8 +935,13 @@
   }
 
   async function eliminarOperacion(id){
+    try{
+      await eliminarOperacionEnSupabase(id);
+    }catch(error){
+      showToast('danger', 'No se pudo eliminar', error.message || 'Error al eliminar la operación en Supabase.');
+      return;
+    }
     operaciones = operaciones.filter(op => op.id !== id);
-    await persistirOperaciones();
     renderTable();
     showToast('success', 'Operación eliminada', 'El registro se quitó de tu historial.');
     if(editingId === id) resetForm();
