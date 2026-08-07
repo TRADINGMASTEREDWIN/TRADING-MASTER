@@ -459,60 +459,20 @@
 </div>
 
             <!-- ASE X: Variable de Decisión — Price Action (tercera de la serie) -->
-            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Variable de Decisión: Price Action</div>
-            <div class="card" style="background: var(--color-bg);">
-              <div class="card-body" style="padding: var(--space-4);">
-                <div class="form-field form-field-full" style="margin-bottom: 0;">
-                  <label>¿La Acción del Precio influyó en mi decisión?</label>
-                  <div class="segmented" id="toggle-decision-priceAction" data-decision="priceAction">
-                    <button class="sell active" type="button" data-valor="no">No</button>
-                    <button class="buy" type="button" data-valor="si">Sí</button>
-                  </div>
-                </div>
-
-                <div id="decisionBody-priceAction" style="display:none; margin-top: var(--space-4);">
-
-                  <div class="form-field form-field-full">
-                    <label>Patrones de vela observados</label>
-                    <div class="chip-group" id="priceActionPatrones"></div>
-                  </div>
-
-                  <div class="form-field form-field-full" style="margin-top: var(--space-4);">
-                    <label>Lectura del comportamiento</label>
-                    <div class="chip-group" id="priceActionLectura"></div>
-                  </div>
-
-                  <div class="form-field form-field-full" style="margin-top: var(--space-4);">
-                    <label>Validación de la lectura</label>
-                    <div class="chip-group" id="priceActionConfirmaciones"></div>
-                  </div>
-
-                  <div class="dropzone-hint" style="margin-top: var(--space-3);">⭐ Haz clic en la estrella de un elemento ya seleccionado para marcarlo como el patrón/lectura principal.</div>
-                </div>
-              </div>
-            </div>
+      <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Variable de Decisión: Price Action</div>
+<div class="card" style="background: var(--color-bg);">
+  <div class="card-body" style="padding: var(--space-4);">
+    <div id="priceActionDinamicaContainer"></div>
+  </div>
+</div>
 
             <!-- Variable de Decisión — Desequilibrios (cuarta de la serie) -->
-            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Variable de Decisión: Desequilibrios</div>
-            <div class="card" style="background: var(--color-bg);">
-              <div class="card-body" style="padding: var(--space-4);">
-                <div class="form-field form-field-full" style="margin-bottom: 0;">
-                  <label>¿Los Desequilibrios influyeron en mi decisión?</label>
-                  <div class="segmented" id="toggle-decision-desequilibrios" data-decision="desequilibrios">
-                    <button class="sell active" type="button" data-valor="no">No</button>
-                    <button class="buy" type="button" data-valor="si">Sí</button>
-                  </div>
-                </div>
-
-                <div id="decisionBody-desequilibrios" style="display:none; margin-top: var(--space-4);">
-                  <div class="form-field form-field-full">
-                    <label>Desequilibrios observados</label>
-                    <div class="chip-group" id="desequilibriosObservados"></div>
-                  </div>
-                  <div class="dropzone-hint" style="margin-top: var(--space-3);">⭐ Haz clic en la estrella del desequilibrio más determinante para esta entrada.</div>
-                </div>
-              </div>
-            </div>
+           <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Variable de Decisión: Desequilibrios</div>
+<div class="card" style="background: var(--color-bg);">
+  <div class="card-body" style="padding: var(--space-4);">
+    <div id="desequilibriosDinamicaContainer"></div>
+  </div>
+</div>
 
             <!-- Variable de Decisión — Volumen (quinta de la serie) -->
             <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Variable de Decisión: Volumen</div>
