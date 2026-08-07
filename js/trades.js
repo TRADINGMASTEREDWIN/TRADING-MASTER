@@ -571,6 +571,10 @@
       desequilibrios: obtenerDecisionDesequilibrios(),
       volumen: obtenerDecisionVolumen()
     };
+    // Sprint 3 — bloque dinámico construido desde Supabase (variable_categories
+    // / trading_variables / variable_options). Independiente de op.decisiones:
+    // ese objeto sigue siendo de los 5 bloques históricos, sin tocar.
+    data.variablesObservadas = obtenerVariablesObservadasData();
     data.contextoTecnico = obtenerContextoTecnico();
     data.confirmaciones = obtenerSeleccionadosDeGrupo(document.getElementById('confirmacionesCheckboxGroup'));
     data.imagenBase64 = imagenTemporal;
@@ -620,6 +624,7 @@
     aplicarDecisionPriceAction(op.decisiones);
     aplicarDecisionDesequilibrios(op.decisiones);
     aplicarDecisionVolumen(op.decisiones);
+    aplicarVariablesObservadasData(op.variablesObservadas); // Sprint 3
 
     // Compatibilidad: operaciones antiguas no tienen estos campos — quedan vacíos/sin marcar.
     actualizarTemporalidadesVisibles(); // IMP-03: según el Tipo de Trade de esta operación
@@ -946,6 +951,7 @@
     aplicarDecisionPriceAction({});
     aplicarDecisionDesequilibrios({});
     aplicarDecisionVolumen({});
+    aplicarVariablesObservadasData([]); // Sprint 3
     aplicarContextoTecnico({});
     actualizarTemporalidadesVisibles(); // IMP-03: vuelve al estado por defecto (Tipo de Trade en blanco)
     aplicarSeleccionEnGrupo(document.getElementById('confirmacionesCheckboxGroup'), []);
@@ -1356,6 +1362,7 @@
         ${bloqueDecisionPriceAction}
         ${bloqueDecisionDesequilibrios}
         ${bloqueDecisionVolumen}
+        ${construirBloqueFichaVariablesObservadas(op.variablesObservadas)}
         ${bloqueComparacionAnalisis}
         ${bloquePsicologia}
         ${bloqueEvidencia}
