@@ -564,17 +564,12 @@
     // ARQ-01: todas las variables de decisión viven bajo un solo objeto,
     // extensible sin tocar collectFormData en el futuro (solo se agrega
     // la llamada correspondiente aquí cuando exista una nueva).
-    data.decisiones = {
-      // Sprint 4 — Liquidez ya no se escribe aquí para operaciones nuevas:
-      // migró por completo a data.variablesObservadas (motor dinámico).
-      // Las funciones obtenerDecisionLiquidez()/aplicarDecisionLiquidez()
-      // siguen existiendo sin usarse — la Ficha Técnica las necesita para
-      // seguir mostrando operaciones ANTIGUAS que sí tienen este campo.
-      estructura: obtenerDecisionEstructura(),
-      priceAction: obtenerDecisionPriceAction(),
-      desequilibrios: obtenerDecisionDesequilibrios(),
-      volumen: obtenerDecisionVolumen()
-    };
+    // Sprint 5 — Estructura, Price Action, Desequilibrios y Volumen migraron
+    // por completo a data.variablesObservadas (motor dinámico), mismo criterio
+    // que Liquidez en el Sprint anterior. Las funciones obtenerDecisionX()/
+    // aplicarDecisionX() siguen existiendo sin usarse — la Ficha Técnica las
+    // necesita para operaciones ANTIGUAS que sí tienen estos campos.
+    data.decisiones = {};
     // Sprint 3 — bloque dinámico construido desde Supabase (variable_categories
     // / trading_variables / variable_options). Independiente de op.decisiones:
     // ese objeto sigue siendo de los 5 bloques históricos, sin tocar.
@@ -623,15 +618,12 @@
     // ARQ-01: compatibilidad automática — si la operación es anterior a este
     // módulo, `op.decisiones` no existe; aplicarDecisionLiquidez ya maneja
     // ese caso con su propio fallback `{}` y deja el toggle en "No".
-    // Sprint 4 — se retiró aplicarDecisionLiquidez(op.decisiones) de aquí:
-    // el HTML que esa función necesita ya no existe (Liquidez ahora es
-    // dinámica). aplicarVariablesObservadasData(), justo abajo, ya se
-    // encarga de repoblar Liquidez para operaciones que la tengan guardada
-    // en el modelo nuevo.
-    aplicarDecisionEstructura(op.decisiones);
-    aplicarDecisionPriceAction(op.decisiones);
-    aplicarDecisionDesequilibrios(op.decisiones);
-    aplicarDecisionVolumen(op.decisiones);
+    // Sprint 4/5 — se retiraron las 5 líneas aplicarDecisionX(op.decisiones)
+    // que iban aquí (Liquidez, Estructura, Price Action, Desequilibrios,
+    // Volumen): el HTML que esas funciones necesitan ya no existe (todas
+    // son dinámicas ahora). aplicarVariablesObservadasData(), justo abajo,
+    // ya se encarga de repoblar los 5 bloques para operaciones que los
+    // tengan guardados en el modelo nuevo.
     aplicarVariablesObservadasData(op.variablesObservadas); // Sprint 3
 
     // Compatibilidad: operaciones antiguas no tienen estos campos — quedan vacíos/sin marcar.
@@ -971,11 +963,9 @@
     document.querySelector('#direccionSegmented button[data-direction="Compra"]').click();
     establecerModoCierre(false);
     resetearPsicologia();
-    // Sprint 4 — se retiró aplicarDecisionLiquidez({}) de aquí, mismo motivo.
-    aplicarDecisionEstructura({});
-    aplicarDecisionPriceAction({});
-    aplicarDecisionDesequilibrios({});
-    aplicarDecisionVolumen({});
+    // Sprint 4/5 — se retiraron las 5 líneas aplicarDecisionX({}) que iban
+    // aquí (Liquidez, Estructura, Price Action, Desequilibrios, Volumen),
+    // mismo motivo: su HTML ya no existe, ahora son dinámicas.
     aplicarVariablesObservadasData([]); // Sprint 3
     aplicarContextoTecnico({});
     actualizarTemporalidadesVisibles(); // IMP-03: vuelve al estado por defecto (Tipo de Trade en blanco)

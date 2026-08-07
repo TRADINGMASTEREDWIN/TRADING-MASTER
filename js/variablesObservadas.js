@@ -122,7 +122,11 @@
   // Para migrar la siguiente (ej. Estructura), se agrega UNA línea aquí y se
   // crea su contenedor en el HTML — nada más se duplica ni se reescribe.
   const CATEGORIAS_EN_BLOQUE_PROPIO = {
-    'liquidez': 'liquidezDinamicaContainer'
+    'liquidez': 'liquidezDinamicaContainer',
+    'estructura': 'estructuraDinamicaContainer',
+    'price_action': 'priceActionDinamicaContainer',
+    'desequilibrios': 'desequilibriosDinamicaContainer',
+    'volumen': 'volumenDinamicaContainer'
   };
 
   // HTML de una categoría completa — reutilizado tanto por el cajón genérico

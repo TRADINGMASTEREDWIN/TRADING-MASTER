@@ -196,6 +196,26 @@
     showToast('success', 'Estado actualizado', `${item[config.campoNombrePrincipal]} ahora está ${nuevoEstado}.`);
   }
 
+  // Sprint 5 (parte 2) — DELETE físico real. Distinto de catalogoToggleEstado:
+  // esto no se puede deshacer. El propio index.html debe traer, por cada
+  // catálogo, el botón con la clase que indique config.claseBotonEliminar —
+  // la confirmación se pide SIEMPRE antes de llamar a esta función (ver
+  // catalogoAttachListeners), nunca se borra sin que el usuario confirme.
+  async function catalogoEliminarDefinitivo(config, id){
+    const item = config.obtenerEstadoArray().find(i => i.id === id);
+    const { error } = await supabaseClient.from(config.tabla).delete().eq('id', id);
+    if(error){
+      console.error(`Error eliminando definitivamente en ${config.tabla}:`, error);
+      showToast('danger', 'No se pudo eliminar', error.message);
+      return;
+    }
+
+    await catalogoCargarDesdeSupabase(config);
+    catalogoRenderTabla(config);
+    if(config.alTerminarToggle) config.alTerminarToggle(); // mismo hook: repuebla selects relacionados
+    showToast('success', 'Eliminado definitivamente', `${item ? item[config.campoNombrePrincipal] : 'El registro'} se borró de la base de datos.`);
+  }
+
   function catalogoRenderTabla(config){
     const tbody = document.getElementById(config.idTablaBody);
     if(!tbody) return;
@@ -225,8 +245,19 @@
     document.getElementById(config.idTablaBody).addEventListener('click', (e) => {
       const editBtn = e.target.closest(`.${config.claseBotonEditar}`);
       const toggleBtn = e.target.closest(`.${config.claseBotonToggle}`);
+      const deleteBtn = config.claseBotonEliminar ? e.target.closest(`.${config.claseBotonEliminar}`) : null;
       if(editBtn){ catalogoEditar(config, editBtn.dataset.id); return; }
-      if(toggleBtn){ catalogoToggleEstado(config, toggleBtn.dataset.id); }
+      if(toggleBtn){ catalogoToggleEstado(config, toggleBtn.dataset.id); return; }
+      if(deleteBtn){
+        const id = deleteBtn.dataset.id;
+        const item = config.obtenerEstadoArray().find(i => i.id === id);
+        const nombre = item ? item[config.campoNombrePrincipal] : 'este registro';
+        openModal({
+          titulo: 'Eliminar definitivamente',
+          cuerpo: `¿Seguro que quieres eliminar "${nombre}" de forma permanente? Esta acción no se puede deshacer.`,
+          onConfirm: () => catalogoEliminarDefinitivo(config, id)
+        });
+      }
     });
   }
 

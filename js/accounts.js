@@ -337,6 +337,25 @@
     showToast('success', 'Estado actualizado', `${cuenta.nombre} ahora está ${nuevoEstado}.`);
   }
 
+  // Sprint 5 (parte 2) — DELETE físico real, distinto de toggleEstadoCuenta.
+  // No se puede deshacer; el llamador (attachCuentasListeners) siempre pide
+  // confirmación antes vía openModal().
+  async function eliminarCuentaDefinitivamente(id){
+    const cuenta = cuentas.find(c => c.id === id);
+    const { error } = await supabaseClient.from('accounts').delete().eq('id', id);
+
+    if(error){
+      console.error('Error eliminando definitivamente la cuenta:', error);
+      showToast('danger', 'No se pudo eliminar', error.message);
+      return;
+    }
+
+    await cargarCuentasDesdeSupabase();
+    renderCuentasTable();
+    poblarSelectCuentaOperacion();
+    showToast('success', 'Eliminada definitivamente', `${cuenta ? cuenta.nombre : 'La cuenta'} se borró de la base de datos.`);
+  }
+
   function renderCuentasTable(){
     const tbody = document.getElementById('cuentasTableBody');
     if(!tbody) return;
@@ -368,6 +387,9 @@
             <button class="btn-toggle-cuenta" data-id="${c.id}" title="${c.estado === 'Activa' ? 'Inactivar' : 'Activar'}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
             </button>
+            <button class="btn-delete-cuenta" data-id="${c.id}" title="Eliminar definitivamente">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+            </button>
           </div>
         </td>
       </tr>`;
@@ -389,7 +411,17 @@
     document.getElementById('cuentasTableBody').addEventListener('click', (e) => {
       const editBtn = e.target.closest('.btn-edit-cuenta');
       const toggleBtn = e.target.closest('.btn-toggle-cuenta');
+      const deleteBtn = e.target.closest('.btn-delete-cuenta');
       if(editBtn){ editarCuenta(editBtn.dataset.id); return; }
-      if(toggleBtn){ toggleEstadoCuenta(toggleBtn.dataset.id); }
+      if(toggleBtn){ toggleEstadoCuenta(toggleBtn.dataset.id); return; }
+      if(deleteBtn){
+        const id = deleteBtn.dataset.id;
+        const cuenta = cuentas.find(c => c.id === id);
+        openModal({
+          titulo: 'Eliminar definitivamente',
+          cuerpo: `¿Seguro que quieres eliminar la cuenta "${cuenta ? cuenta.nombre : ''}" de forma permanente? Esta acción no se puede deshacer.`,
+          onConfirm: () => eliminarCuentaDefinitivamente(id)
+        });
+      }
     });
   }

@@ -96,6 +96,7 @@
 
     claseBotonEditar: 'btn-edit-categoriavar',
     claseBotonToggle: 'btn-toggle-categoriavar',
+    claseBotonEliminar: 'btn-delete-categoriavar',
 
     campoNombrePrincipal: 'nombre',
     nombreSingular: 'Categoría',
@@ -122,6 +123,9 @@
           </button>
           <button class="btn-toggle-categoriavar" data-id="${c.id}" title="${c.estado === 'Activo' ? 'Inactivar' : 'Activar'}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+          </button>
+          <button class="btn-delete-categoriavar" data-id="${c.id}" title="Eliminar definitivamente">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
           </button>
         </div>
       </td>
@@ -221,6 +225,7 @@
 
     claseBotonEditar: 'btn-edit-variable',
     claseBotonToggle: 'btn-toggle-variable',
+    claseBotonEliminar: 'btn-delete-variable',
 
     campoNombrePrincipal: 'nombre',
     nombreSingular: 'Variable',
@@ -248,6 +253,9 @@
           </button>
           <button class="btn-toggle-variable" data-id="${v.id}" title="${v.estado === 'Activo' ? 'Inactivar' : 'Activar'}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+          </button>
+          <button class="btn-delete-variable" data-id="${v.id}" title="Eliminar definitivamente">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
           </button>
         </div>
       </td>
@@ -351,6 +359,7 @@
 
     claseBotonEditar: 'btn-edit-opcionvar',
     claseBotonToggle: 'btn-toggle-opcionvar',
+    claseBotonEliminar: 'btn-delete-opcionvar',
 
     campoNombrePrincipal: 'etiqueta',
     nombreSingular: 'Opción',
@@ -377,6 +386,9 @@
           </button>
           <button class="btn-toggle-opcionvar" data-id="${o.id}" title="${o.estado === 'Activo' ? 'Inactivar' : 'Activar'}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+          </button>
+          <button class="btn-delete-opcionvar" data-id="${o.id}" title="Eliminar definitivamente">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
           </button>
         </div>
       </td>
