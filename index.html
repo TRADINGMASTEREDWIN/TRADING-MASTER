@@ -1186,6 +1186,238 @@
         </section>
 
       </div><!-- /vistaActivos -->
+      <!-- ===================== GESTIÓN DE VARIABLES ===================== -->
+      <div id="vistaVariables" style="display:none;">
+
+        <div class="card" style="margin-bottom: var(--space-6);">
+          <div class="card-body">
+            <h2 style="font-size: var(--fs-xl); margin-bottom: var(--space-2);">🧩 Variables</h2>
+            <p class="plan-header-intro">Administra las Categorías, Variables y Opciones que alimentarán el formulario de Trades. Este Sprint es solo el administrador — la integración con Trades es el siguiente paso.</p>
+          </div>
+        </div>
+
+        <!-- ===== 1. CATEGORÍAS DE VARIABLES ===== -->
+        <section class="card" style="margin-bottom: var(--space-6);" id="categoriavar-form-card">
+          <div class="card-header">
+            <div class="card-header-title-group">
+              <div class="card-header-icon icon-purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
+              <div>
+                <h2>1. Categorías de Variables</h2>
+                <div class="card-header-sub" id="categoriaVarFormSub">Crea una nueva categoría de Variables</div>
+              </div>
+            </div>
+            <span class="badge gold" id="categoriaVarEditBadge" style="display:none;">Editando categoría</span>
+          </div>
+          <div class="card-body">
+            <div class="form-grid">
+              <div class="form-field">
+                <label>Código *</label>
+                <input type="text" data-categoriavar-campo="codigo" placeholder="ej. liquidez">
+                <span class="field-error" data-categoriavar-error-for="codigo">El código es obligatorio.</span>
+              </div>
+              <div class="form-field">
+                <label>Nombre *</label>
+                <input type="text" data-categoriavar-campo="nombre" placeholder="ej. Liquidez">
+                <span class="field-error" data-categoriavar-error-for="nombre">El nombre es obligatorio.</span>
+              </div>
+              <div class="form-field">
+                <label>Fase</label>
+                <select data-categoriavar-campo="fase">
+                  <option value="PRE_TRADE">Antes de la operación</option>
+                  <option value="DURING_TRADE">Durante la operación</option>
+                  <option value="POST_TRADE">Después de la operación</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label>Estado</label>
+                <div class="segmented" id="estadoCategoriaVarSegmented">
+                  <button class="buy active" type="button" data-valor="activo">Activo</button>
+                  <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+                </div>
+              </div>
+              <div class="form-field">
+                <label>Contexto</label>
+                <input type="text" data-categoriavar-campo="contexto" placeholder="ej. trade_decision">
+              </div>
+              <div class="form-field form-field-full">
+                <label>Descripción</label>
+                <input type="text" data-categoriavar-campo="descripcion" placeholder="Breve descripción de esta categoría...">
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn-secondary" id="categoriaVarCancelBtn" type="button">Cancelar</button>
+              <button class="btn-primary" id="categoriaVarSaveBtn" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <span id="categoriaVarSaveBtnLabel">Guardar categoría</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" style="margin-bottom: var(--space-6);">
+          <div class="card-header">
+            <div class="card-header-title-group">
+              <div><h2>Listado de Categorías</h2><div class="card-header-sub"><span id="categoriasVarCount">0</span> categorías registradas</div></div>
+            </div>
+          </div>
+          <div class="table-wrap" style="max-height: none;">
+            <table class="data-table">
+              <thead><tr><th>Categoría</th><th>Fase</th><th>Estado</th><th class="col-actions">Acciones</th></tr></thead>
+              <tbody id="categoriasVarTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ===== 2. VARIABLES ===== -->
+        <section class="card" style="margin-bottom: var(--space-6);" id="variable-form-card">
+          <div class="card-header">
+            <div class="card-header-title-group">
+              <div class="card-header-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></div>
+              <div>
+                <h2>2. Variables</h2>
+                <div class="card-header-sub" id="variableFormSub">Crea una nueva variable dentro de una categoría</div>
+              </div>
+            </div>
+            <span class="badge gold" id="variableEditBadge" style="display:none;">Editando variable</span>
+          </div>
+          <div class="card-body">
+            <div class="form-grid">
+              <div class="form-field">
+                <label>Categoría *</label>
+                <select id="selectCategoriaVariable" data-variable-campo="categoria"></select>
+                <span class="field-error" data-variable-error-for="categoria">Selecciona una categoría.</span>
+              </div>
+              <div class="form-field">
+                <label>Tipo de dato *</label>
+                <select id="selectDataTypeVariable" data-variable-campo="tipoDato"></select>
+                <span class="field-error" data-variable-error-for="tipoDato">Selecciona un tipo de dato.</span>
+              </div>
+              <div class="form-field">
+                <label>Código *</label>
+                <input type="text" data-variable-campo="codigo" placeholder="ej. peso">
+                <span class="field-error" data-variable-error-for="codigo">El código es obligatorio.</span>
+              </div>
+              <div class="form-field">
+                <label>Nombre *</label>
+                <input type="text" data-variable-campo="nombre" placeholder="ej. Peso de la Liquidez">
+                <span class="field-error" data-variable-error-for="nombre">El nombre es obligatorio.</span>
+              </div>
+              <div class="form-field">
+                <label>¿Permite marcar como más importante?</label>
+                <div class="segmented" id="importanciaVariableSegmented">
+                  <button class="sell active" type="button" data-valor="no">No</button>
+                  <button class="buy" type="button" data-valor="si">Sí</button>
+                </div>
+              </div>
+              <div class="form-field">
+                <label>¿Es obligatoria?</label>
+                <div class="segmented" id="requeridaVariableSegmented">
+                  <button class="sell active" type="button" data-valor="no">No</button>
+                  <button class="buy" type="button" data-valor="si">Sí</button>
+                </div>
+              </div>
+              <div class="form-field">
+                <label>¿La usa la IA?</label>
+                <div class="segmented" id="iaVariableSegmented">
+                  <button class="sell" type="button" data-valor="no">No</button>
+                  <button class="buy active" type="button" data-valor="si">Sí</button>
+                </div>
+              </div>
+              <div class="form-field">
+                <label>Estado</label>
+                <div class="segmented" id="estadoVariableSegmented">
+                  <button class="buy active" type="button" data-valor="activo">Activo</button>
+                  <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+                </div>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn-secondary" id="variableCancelBtn" type="button">Cancelar</button>
+              <button class="btn-primary" id="variableSaveBtn" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <span id="variableSaveBtnLabel">Guardar variable</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" style="margin-bottom: var(--space-6);">
+          <div class="card-header">
+            <div class="card-header-title-group">
+              <div><h2>Listado de Variables</h2><div class="card-header-sub"><span id="variablesCount">0</span> variables registradas</div></div>
+            </div>
+          </div>
+          <div class="table-wrap" style="max-height: none;">
+            <table class="data-table">
+              <thead><tr><th>Variable</th><th>Categoría</th><th>Tipo de dato</th><th>Estado</th><th class="col-actions">Acciones</th></tr></thead>
+              <tbody id="variablesTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ===== 3. OPCIONES DE VARIABLES ===== -->
+        <section class="card" style="margin-bottom: var(--space-6);" id="opcionvar-form-card">
+          <div class="card-header">
+            <div class="card-header-title-group">
+              <div class="card-header-icon icon-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
+              <div>
+                <h2>3. Opciones de Variables</h2>
+                <div class="card-header-sub" id="opcionVarFormSub">Crea una nueva opción dentro de una variable</div>
+              </div>
+            </div>
+            <span class="badge gold" id="opcionVarEditBadge" style="display:none;">Editando opción</span>
+          </div>
+          <div class="card-body">
+            <div class="form-grid">
+              <div class="form-field">
+                <label>Variable *</label>
+                <select id="selectVariableOpcion" data-opcionvar-campo="variable"></select>
+                <span class="field-error" data-opcionvar-error-for="variable">Selecciona una variable.</span>
+              </div>
+              <div class="form-field">
+                <label>Código *</label>
+                <input type="text" data-opcionvar-campo="codigo" placeholder="ej. esencial">
+                <span class="field-error" data-opcionvar-error-for="codigo">El código es obligatorio.</span>
+              </div>
+              <div class="form-field">
+                <label>Etiqueta *</label>
+                <input type="text" data-opcionvar-campo="etiqueta" placeholder="ej. Esencial">
+                <span class="field-error" data-opcionvar-error-for="etiqueta">La etiqueta es obligatoria.</span>
+              </div>
+              <div class="form-field">
+                <label>Color</label>
+                <input type="color" data-opcionvar-campo="color" value="#2563EB" style="height: 42px; padding: 4px; cursor: pointer;">
+              </div>
+              <div class="form-field">
+                <label>Ícono / Emoji</label>
+                <input type="text" data-opcionvar-campo="icono" placeholder="ej. ⭐ o 🟢" maxlength="4">
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn-secondary" id="opcionVarCancelBtn" type="button">Cancelar</button>
+              <button class="btn-primary" id="opcionVarSaveBtn" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <span id="opcionVarSaveBtnLabel">Guardar opción</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" id="opcionesvar-listado">
+          <div class="card-header">
+            <div class="card-header-title-group">
+              <div><h2>Listado de Opciones</h2><div class="card-header-sub"><span id="opcionesVarCount">0</span> opciones registradas</div></div>
+            </div>
+          </div>
+          <div class="table-wrap" style="max-height: none;">
+            <table class="data-table">
+              <thead><tr><th>Opción</th><th>Variable</th><th>Estado</th><th class="col-actions">Acciones</th></tr></thead>
+              <tbody id="opcionesVarTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+      </div><!-- /vistaVariables -->
       <!-- ===================== ESTRATEGIAS (NAV-01) — en desarrollo ===================== -->
       <div id="vistaEstrategias" style="display:none;">
         <section class="card">
