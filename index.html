@@ -452,51 +452,11 @@
 </div>
             <!-- IMP-04: Variable de Decisión — Estructura (segunda de la serie) -->
             <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Variable de Decisión: Estructura</div>
-            <div class="card" style="background: var(--color-bg);">
-              <div class="card-body" style="padding: var(--space-4);">
-                <div class="form-field form-field-full" style="margin-bottom: 0;">
-                  <label>¿La estructura influyó en esta entrada?</label>
-                  <div class="segmented" id="toggle-decision-estructura" data-decision="estructura">
-                    <button class="sell active" type="button" data-valor="no">No</button>
-                    <button class="buy" type="button" data-valor="si">Sí</button>
-                  </div>
-                </div>
-
-                <div id="decisionBody-estructura" style="display:none; margin-top: var(--space-4);">
-
-                  <div class="form-field-full" style="font-size: var(--fs-xs); font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: var(--space-2);">¿Qué observaste?</div>
-                  <div class="form-grid">
-                    <div class="form-field">
-                      <label>Referencias</label>
-                      <div class="chip-group" id="estructuraReferencias"></div>
-                    </div>
-                    <div class="form-field">
-                      <label>Formaciones</label>
-                      <div class="chip-group" id="estructuraFormaciones"></div>
-                    </div>
-                  </div>
-
-                  <div class="form-field-full" style="font-size: var(--fs-xs); font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.06em; margin: var(--space-5) 0 var(--space-2);">¿Cómo interpretaste esa estructura?</div>
-                  <div class="form-grid">
-                    <div class="form-field">
-                      <label>Ubicación dentro de la estructura</label>
-                      <div class="chip-group" id="estructuraUbicacion"></div>
-                    </div>
-                    <div class="form-field">
-                      <label>Escenario de Entrada</label>
-                      <div class="chip-group" id="estructuraHipotesis"></div>
-                    </div>
-                  </div>
-
-                  <div class="form-field form-field-full" style="margin-top: var(--space-5);">
-                    <label style="font-size: var(--fs-xs); font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.06em;">Eventos estructurales observados</label>
-                    <div class="chip-group" id="estructuraConfirmaciones"></div>
-                  </div>
-
-                  <div class="dropzone-hint" style="margin-top: var(--space-3);">⭐ Haz clic en la estrella de un elemento ya seleccionado para marcarlo como el factor principal de esta entrada.</div>
-                </div>
-              </div>
-            </div>
+<div class="card" style="background: var(--color-bg);">
+  <div class="card-body" style="padding: var(--space-4);">
+    <div id="estructuraDinamicaContainer"></div>
+  </div>
+</div>
 
             <!-- ASE X: Variable de Decisión — Price Action (tercera de la serie) -->
             <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Variable de Decisión: Price Action</div>
