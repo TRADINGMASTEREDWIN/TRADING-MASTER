@@ -444,48 +444,12 @@
             <!-- ARQ-01: Variable de Decisión — Liquidez. Primera de una serie
                  de "variables de decisión" (Analytics futuro las recorrerá
                  desde op.decisiones sin necesitar conocerlas de antemano). -->
-            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Variable de Decisión: Liquidez</div>
-            <div class="card" style="background: var(--color-bg);">
-              <div class="card-body" style="padding: var(--space-4);">
-                <div class="form-field form-field-full" style="margin-bottom: 0;">
-                  <label>¿La Liquidez influyó en mi decisión?</label>
-                  <div class="segmented" id="toggle-decision-liquidez" data-decision="liquidez">
-                    <button class="sell active" type="button" data-valor="no">No</button>
-                    <button class="buy" type="button" data-valor="si">Sí</button>
-                  </div>
-                </div>
-
-                <div id="decisionBody-liquidez" style="display:none; margin-top: var(--space-4);">
-                  <div class="form-field form-field-full">
-                    <label>Peso de la Liquidez</label>
-                    <div class="segmented" id="liquidezPeso"></div>
-                  </div>
-                  <div class="form-grid" style="margin-top: var(--space-4);">
-                    <div class="form-field">
-                      <label>Zona principal de Liquidez</label>
-                      <select id="liquidezZonaPrincipal"></select>
-                    </div>
-                  </div>
-                  <div class="form-field form-field-full" style="margin-top: var(--space-4);">
-                    <label>Barrido al momento de la entrada</label>
-                    <div class="segmented" id="liquidezBarrido"></div>
-                  </div>
-                  <div class="form-field form-field-full" id="liquidezCalidadBarridoWrapper" style="display:none; margin-top: var(--space-4);">
-                    <label>Calidad del Barrido</label>
-                    <div class="segmented" id="liquidezCalidadBarrido"></div>
-                  </div>
-                  <div class="form-field form-field-full" style="margin-top: var(--space-4);">
-                    <label>Calidad de la Recuperación</label>
-                    <div class="segmented" id="liquidezRecuperacion"></div>
-                  </div>
-                  <div class="form-field form-field-full" style="margin-top: var(--space-4);">
-                    <label>Método de ejecución</label>
-                    <div class="segmented" id="liquidezMetodoEntrada"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
+           <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Variable de Decisión: Liquidez</div>
+<div class="card" style="background: var(--color-bg);">
+  <div class="card-body" style="padding: var(--space-4);">
+    <div id="liquidezDinamicaContainer"></div>
+  </div>
+</div>
             <!-- IMP-04: Variable de Decisión — Estructura (segunda de la serie) -->
             <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Variable de Decisión: Estructura</div>
             <div class="card" style="background: var(--color-bg);">
