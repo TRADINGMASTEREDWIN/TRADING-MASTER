@@ -565,7 +565,11 @@
     // extensible sin tocar collectFormData en el futuro (solo se agrega
     // la llamada correspondiente aquí cuando exista una nueva).
     data.decisiones = {
-      liquidez: obtenerDecisionLiquidez(),
+      // Sprint 4 — Liquidez ya no se escribe aquí para operaciones nuevas:
+      // migró por completo a data.variablesObservadas (motor dinámico).
+      // Las funciones obtenerDecisionLiquidez()/aplicarDecisionLiquidez()
+      // siguen existiendo sin usarse — la Ficha Técnica las necesita para
+      // seguir mostrando operaciones ANTIGUAS que sí tienen este campo.
       estructura: obtenerDecisionEstructura(),
       priceAction: obtenerDecisionPriceAction(),
       desequilibrios: obtenerDecisionDesequilibrios(),
@@ -619,7 +623,11 @@
     // ARQ-01: compatibilidad automática — si la operación es anterior a este
     // módulo, `op.decisiones` no existe; aplicarDecisionLiquidez ya maneja
     // ese caso con su propio fallback `{}` y deja el toggle en "No".
-    aplicarDecisionLiquidez(op.decisiones);
+    // Sprint 4 — se retiró aplicarDecisionLiquidez(op.decisiones) de aquí:
+    // el HTML que esa función necesita ya no existe (Liquidez ahora es
+    // dinámica). aplicarVariablesObservadasData(), justo abajo, ya se
+    // encarga de repoblar Liquidez para operaciones que la tengan guardada
+    // en el modelo nuevo.
     aplicarDecisionEstructura(op.decisiones);
     aplicarDecisionPriceAction(op.decisiones);
     aplicarDecisionDesequilibrios(op.decisiones);
@@ -946,7 +954,7 @@
     document.querySelector('#direccionSegmented button[data-direction="Compra"]').click();
     establecerModoCierre(false);
     resetearPsicologia();
-    aplicarDecisionLiquidez({}); // vuelve a "No" y oculta los campos condicionales
+    // Sprint 4 — se retiró aplicarDecisionLiquidez({}) de aquí, mismo motivo.
     aplicarDecisionEstructura({});
     aplicarDecisionPriceAction({});
     aplicarDecisionDesequilibrios({});

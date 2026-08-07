@@ -99,6 +99,7 @@
     try{
       await cargarDataTypesParaVariablesObservadas();
       renderVariablesObservadas();
+      renderCategoriasEnBloquePropio(); // Sprint 4 — Liquidez (y futuras migradas)
     }catch(errorVariablesObservadas){
       console.error('[Variables Observadas] Error al construir el bloque:', errorVariablesObservadas);
     }
@@ -147,9 +148,15 @@
 
     // ARQ-01 — Variable de Decisión: Liquidez
     // (value = código corto para análisis; texto visible = etiqueta larga)
-    document.getElementById('liquidezZonaPrincipal').innerHTML =
-      `<option value="">Selecciona…</option>` +
-      LIQUIDEZ_ZONAS.map(z => `<option value="${z.valor}">${z.etiqueta}</option>`).join('');
+    // Sprint 4 — guardia agregada: el HTML antiguo de Liquidez ya no existe
+    // en index.html (se sustituyó por el bloque dinámico), así que este
+    // elemento puede no existir. Sin la guardia, esto rompía TODO initApp().
+    const selectZonaLiquidez = document.getElementById('liquidezZonaPrincipal');
+    if(selectZonaLiquidez){
+      selectZonaLiquidez.innerHTML =
+        `<option value="">Selecciona…</option>` +
+        LIQUIDEZ_ZONAS.map(z => `<option value="${z.valor}">${z.etiqueta}</option>`).join('');
+    }
     poblarSegmented(document.getElementById('liquidezPeso'), LIQUIDEZ_PESO);
     poblarSegmented(document.getElementById('liquidezRecuperacion'), LIQUIDEZ_RECUPERACION);
     poblarSegmented(document.getElementById('liquidezBarrido'), LIQUIDEZ_BARRIDO);

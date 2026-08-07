@@ -104,6 +104,64 @@
     </div>`;
   }
 
+  // Sprint 4 — control de "importancia", genérico para cualquier variable con
+  // importance_enabled=true (no exclusivo de Liquidez). Independiente de
+  // valor_observado e influyo_en_decision, mismo principio de Sprint 3.
+  function construirControlImportancia(){
+    return `<div class="vo-importancia" style="margin-top: var(--space-2); display:flex; align-items:center; gap: var(--space-3);">
+      <span style="font-size: var(--fs-xs); color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.04em;">¿Es especialmente importante?</span>
+      <div class="segmented vo-importancia-segmented">
+        <button class="sell active" type="button" data-valor="no">No</button>
+        <button class="buy" type="button" data-valor="si">Sí</button>
+      </div>
+    </div>`;
+  }
+
+  // Sprint 4 — registro de categorías ya migradas a su propia posición fija
+  // en el formulario (en vez del cajón genérico "Variables Observadas").
+  // Para migrar la siguiente (ej. Estructura), se agrega UNA línea aquí y se
+  // crea su contenedor en el HTML — nada más se duplica ni se reescribe.
+  const CATEGORIAS_EN_BLOQUE_PROPIO = {
+    'liquidez': 'liquidezDinamicaContainer'
+  };
+
+  // HTML de una categoría completa — reutilizado tanto por el cajón genérico
+  // como por los bloques propios (Liquidez), para no duplicar esta plantilla.
+  function construirHtmlCategoria(grupo, opciones){
+    opciones = opciones || {};
+    const { categoria, variables } = grupo;
+
+    const titulo = opciones.ocultarTitulo ? '' :
+      `<div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin-bottom: var(--space-2);">${escapeHtml(categoria.nombre)}</div>`;
+
+    const cuerpo = variables.map(({ variable, tipo, opciones: opcionesVar }, i) => `
+      <div class="form-field form-field-full vo-variable" data-variable-id="${variable.id}" data-tipo="${tipo}"
+           style="${i > 0 ? 'margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--color-border);' : ''}">
+        <label>${escapeHtml(variable.nombre)}</label>
+        <div class="vo-control">${construirControlValorObservado(tipo, opcionesVar)}</div>
+        ${variable.importancia ? construirControlImportancia() : ''}
+        <div style="margin-top: var(--space-2); display:flex; align-items:center; gap: var(--space-3);">
+          <span style="font-size: var(--fs-xs); color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.04em;">¿Influyó en mi decisión?</span>
+          <div class="segmented vo-influyo-segmented">
+            <button class="sell active" type="button" data-valor="no">No</button>
+            <button class="buy" type="button" data-valor="si">Sí</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    if(opciones.sinTarjeta){
+      return titulo + cuerpo;
+    }
+    return `
+      <div class="card" style="background: var(--color-bg); margin-top: var(--space-4);">
+        <div class="card-body" style="padding: var(--space-4);">${titulo}${cuerpo}</div>
+      </div>
+    `;
+  }
+
+  // Cajón genérico — todas las categorías activas EXCEPTO las que ya migraron
+  // a su propio bloque fijo (ver CATEGORIAS_EN_BLOQUE_PROPIO).
   function renderVariablesObservadas(){
     const container = document.getElementById('variablesObservadasContainer');
     if(!container){
@@ -112,66 +170,80 @@
       return;
     }
 
-    const arbol = construirArbolVariablesObservadas();
-    console.log(`[Variables Observadas] Categorías activas con variables activas: ${arbol.length}`,
+    const arbol = construirArbolVariablesObservadas()
+      .filter(grupo => !CATEGORIAS_EN_BLOQUE_PROPIO[grupo.categoria.codigo]);
+    console.log(`[Variables Observadas] Categorías en el cajón genérico: ${arbol.length}`,
       arbol.map(a => a.categoria.nombre));
 
     if(arbol.length === 0){
-      container.innerHTML = `<span style="color: var(--color-text-muted); font-size: var(--fs-sm);">Aún no hay categorías de Variables activas con al menos una Variable activa. Créalas desde el módulo "🧩 Variables".</span>`;
+      container.innerHTML = `<span style="color: var(--color-text-muted); font-size: var(--fs-sm);">Aún no hay categorías de Variables activas (fuera de las que ya tienen su propio bloque) con al menos una Variable activa. Créalas desde el módulo "🧩 Variables".</span>`;
       return;
     }
 
-    container.innerHTML = arbol.map(({ categoria, variables }) => `
-      <div class="card" style="background: var(--color-bg); margin-top: var(--space-4);">
-        <div class="card-body" style="padding: var(--space-4);">
-          <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin-bottom: var(--space-2);">${escapeHtml(categoria.nombre)}</div>
-          ${variables.map(({ variable, tipo, opciones }, i) => `
-            <div class="form-field form-field-full vo-variable" data-variable-id="${variable.id}" data-tipo="${tipo}"
-                 style="${i > 0 ? 'margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--color-border);' : ''}">
-              <label>${escapeHtml(variable.nombre)}</label>
-              <div class="vo-control">${construirControlValorObservado(tipo, opciones)}</div>
-              <div style="margin-top: var(--space-2); display:flex; align-items:center; gap: var(--space-3);">
-                <span style="font-size: var(--fs-xs); color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.04em;">¿Influyó en mi decisión?</span>
-                <div class="segmented vo-influyo-segmented">
-                  <button class="sell active" type="button" data-valor="no">No</button>
-                  <button class="buy" type="button" data-valor="si">Sí</button>
-                </div>
-              </div>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    `).join('');
+    container.innerHTML = arbol.map(grupo => construirHtmlCategoria(grupo)).join('');
+  }
+
+  // Sprint 4 — categorías migradas a SU PROPIO contenedor fijo en el formulario
+  // (ej. Liquidez). Reutiliza el mismo árbol y la misma plantilla que el
+  // cajón genérico — solo cambia dónde se inserta el resultado.
+  function renderCategoriasEnBloquePropio(){
+    const arbolCompleto = construirArbolVariablesObservadas();
+
+    Object.entries(CATEGORIAS_EN_BLOQUE_PROPIO).forEach(([codigoCategoria, idContenedor]) => {
+      const contenedor = document.getElementById(idContenedor);
+      if(!contenedor){
+        console.error(`[Variables Observadas] No se encontró #${idContenedor} para la categoría "${codigoCategoria}". ` +
+          'Causa más probable: el bloque HTML no se pegó en index.html, o el id tiene una errata.');
+        return;
+      }
+
+      const grupo = arbolCompleto.find(g => g.categoria.codigo === codigoCategoria);
+      if(!grupo){
+        console.log(`[Variables Observadas] La categoría "${codigoCategoria}" no está activa o no tiene variables activas.`);
+        contenedor.innerHTML = `<span style="color: var(--color-text-muted); font-size: var(--fs-sm);">Esta categoría no está activa o no tiene variables activas todavía. Revisa el módulo "🧩 Variables".</span>`;
+        return;
+      }
+
+      contenedor.innerHTML = construirHtmlCategoria(grupo, { ocultarTitulo: true, sinTarjeta: true });
+    });
   }
 
   // Listener único delegado sobre todo el contenedor — necesario porque el
   // contenido se genera dinámicamente DESPUÉS de que corre el listener
   // genérico de .segmented en attachVisualListeners() (ese solo alcanza a
   // los .segmented que ya existían en el HTML al momento de ejecutarse).
-  function attachVariablesObservadasListeners(){
-    const container = document.getElementById('variablesObservadasContainer');
-    if(!container){
-      console.error('[Variables Observadas] attachVariablesObservadasListeners: contenedor no encontrado, no se pudo conectar el listener de clics.');
+  // Sprint 4 — un solo manejador reutilizado en TODOS los contenedores
+  // (el cajón genérico y cada bloque propio como Liquidez), para no
+  // duplicar esta lógica de clic por cada categoría migrada.
+  function manejarClicVariableObservada(e){
+    const segBtn = e.target.closest('.segmented button');
+    if(segBtn){
+      const grupo = segBtn.closest('.segmented');
+      grupo.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      segBtn.classList.add('active');
       return;
     }
-    container.addEventListener('click', (e) => {
-      const segBtn = e.target.closest('.segmented button');
-      if(segBtn){
-        const grupo = segBtn.closest('.segmented');
-        grupo.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-        segBtn.classList.add('active');
+    const chip = e.target.closest('.vo-valor-chips .chip');
+    if(chip){
+      const grupo = chip.closest('.vo-valor-chips');
+      if(grupo.dataset.modo === 'single'){
+        grupo.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+      }else{
+        chip.classList.toggle('active');
+      }
+    }
+  }
+
+  function attachVariablesObservadasListeners(){
+    const idsContenedores = ['variablesObservadasContainer'].concat(Object.values(CATEGORIAS_EN_BLOQUE_PROPIO));
+    idsContenedores.forEach(id => {
+      const container = document.getElementById(id);
+      if(!container){
+        console.error(`[Variables Observadas] attachVariablesObservadasListeners: #${id} no encontrado, no se pudo conectar el listener de clics.`);
         return;
       }
-      const chip = e.target.closest('.vo-valor-chips .chip');
-      if(chip){
-        const grupo = chip.closest('.vo-valor-chips');
-        if(grupo.dataset.modo === 'single'){
-          grupo.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-          chip.classList.add('active');
-        }else{
-          chip.classList.toggle('active');
-        }
-      }
+      container.addEventListener('click', manejarClicVariableObservada);
     });
   }
 
@@ -179,7 +251,9 @@
 
   function obtenerVariablesObservadasData(){
     const resultado = [];
-    document.querySelectorAll('#variablesObservadasContainer .vo-variable').forEach(bloque => {
+    // Sprint 4: selector global (ya no atado a un solo contenedor) — recoge
+    // tanto el cajón genérico como cualquier bloque propio (ej. Liquidez).
+    document.querySelectorAll('.vo-variable').forEach(bloque => {
       const variableId = bloque.dataset.variableId;
       const tipo = bloque.dataset.tipo;
       let valorObservado = null;
@@ -201,18 +275,27 @@
       const influyoBtn = bloque.querySelector('.vo-influyo-segmented button.active');
       const influyoEnDecision = influyoBtn ? influyoBtn.dataset.valor === 'si' : false;
 
-      resultado.push({
+      const registro = {
         variable_id: variableId,
         valor_observado: valorObservado,
         influyo_en_decision: influyoEnDecision
-      });
+      };
+
+      // Sprint 4 — solo presente si esta variable tiene importance_enabled=true
+      // (el control ni siquiera existe en el DOM para las demás).
+      const importanciaBtn = bloque.querySelector('.vo-importancia-segmented button.active');
+      if(importanciaBtn){
+        registro.es_importante = importanciaBtn.dataset.valor === 'si';
+      }
+
+      resultado.push(registro);
     });
     return resultado;
   }
 
   function aplicarVariablesObservadasData(lista){
     const datos = Array.isArray(lista) ? lista : [];
-    document.querySelectorAll('#variablesObservadasContainer .vo-variable').forEach(bloque => {
+    document.querySelectorAll('.vo-variable').forEach(bloque => {
       const variableId = bloque.dataset.variableId;
       const tipo = bloque.dataset.tipo;
       const registro = datos.find(d => d.variable_id === variableId);
@@ -233,6 +316,9 @@
 
       const influyo = (registro && registro.influyo_en_decision) ? 'si' : 'no';
       bloque.querySelectorAll('.vo-influyo-segmented button').forEach(b => b.classList.toggle('active', b.dataset.valor === influyo));
+
+      const importancia = (registro && registro.es_importante) ? 'si' : 'no';
+      bloque.querySelectorAll('.vo-importancia-segmented button').forEach(b => b.classList.toggle('active', b.dataset.valor === importancia));
     });
   }
 
@@ -262,8 +348,11 @@
       const influyoBadge = registro.influyo_en_decision
         ? `<span class="badge success" style="margin-left:6px;">Influyó</span>`
         : `<span class="badge neutral" style="margin-left:6px;">No influyó</span>`;
+      const importanciaBadge = registro.es_importante
+        ? `<span class="badge gold" style="margin-left:6px;">⭐ Importante</span>`
+        : '';
 
-      return `${filaCampoFicha(escapeHtml(nombreVariable), escapeHtml(textoValor) + influyoBadge)}`;
+      return `${filaCampoFicha(escapeHtml(nombreVariable), escapeHtml(textoValor) + influyoBadge + importanciaBadge)}`;
     }).join('');
 
     return `
