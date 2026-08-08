@@ -134,7 +134,7 @@
   }
   .app.sidebar-collapsed{ grid-template-columns: var(--sidebar-width-collapsed) 1fr; }
   .app-main{ display: flex; flex-direction: column; min-width: 0; }
-  .content{ flex: 1; padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-6); }
+  .content{ flex: 1; padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-7); }
 
   /* ============================================================
      4. SIDEBAR
@@ -258,7 +258,7 @@
   .card-header-title-group{ display: flex; align-items: center; gap: var(--space-3); }
   .card-body{ padding: var(--space-5); }
 
-  .section{ display: flex; flex-direction: column; gap: var(--space-3); }
+  .section{ display: flex; flex-direction: column; gap: var(--space-4); }
   .section-title{
     font-size: var(--eyebrow-fs); font-weight: var(--eyebrow-fw); text-transform: uppercase;
     letter-spacing: var(--eyebrow-ls); color: var(--eyebrow-color);
@@ -278,7 +278,7 @@
   /* ============================================================
      7. GRID DE ESTADÍSTICAS
      ============================================================ */
-  .stat-grid{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-4); }
+  .stat-grid{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-5); }
   .stat-card{
     background: var(--color-panel); border: 1px solid var(--color-border); border-radius: var(--radius-lg);
     padding: var(--space-4) var(--space-5); box-shadow: var(--shadow-sm);
@@ -450,6 +450,19 @@
   .form-actions{
     display: flex; justify-content: flex-end; gap: var(--space-3);
     padding-top: var(--space-5); margin-top: var(--space-5); border-top: 1px solid var(--color-border);
+  }
+
+  /* Sprint UX-1 — el Guardar de Trades vive SOLO en la pestaña Resumen (es
+     la única que lo tiene), pero esa pestaña puede tener bastante contenido
+     encima; se fija abajo de la pantalla al hacer scroll para que nunca
+     quede "escondido". Selector específico a esa pestaña — no afecta los
+     botones Guardar de Cuentas/Activos/Variables/etc. */
+  .form-panel[data-panel="resumen"] .form-actions{
+    position: sticky; bottom: 0;
+    background: var(--color-panel);
+    padding: var(--space-4) 0;
+    z-index: 10;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.15);
   }
 
   /* ============================================================
