@@ -343,12 +343,18 @@
               <div class="form-field">
                 <label>Dirección *</label>
                 <div class="segmented" id="direccionSegmented">
+                 
                   <button class="buy active" type="button" data-direction="Compra">Compra</button>
                   <button class="sell" type="button" data-direction="Venta">Venta</button>
                 </div>
               </div>
             </div>
 
+            <div class="form-field">
+  <label>Tipo de Entrada</label>
+  <select data-field="tipoEntrada" id="selectTipoEntrada"></select>
+</div>
+            
             <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Gestión</div>
             <div class="form-grid">
               <div class="form-field">
@@ -1660,6 +1666,7 @@
   <script src="js/catalog.js"></script>
 <script src="js/assets.js"></script>
   <script src="js/variables.js"></script>
+  <script src="js/catalogosGenerales.js"></script>
   <script src="js/variablesObservadas.js"></script>
 <script>
   /* ============================================================
