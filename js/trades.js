@@ -575,7 +575,11 @@
     // ese objeto sigue siendo de los 5 bloques históricos, sin tocar.
     data.variablesObservadas = obtenerVariablesObservadasData();
     data.contextoTecnico = obtenerContextoTecnico();
-    data.confirmaciones = obtenerSeleccionadosDeGrupo(document.getElementById('confirmacionesCheckboxGroup'));
+    // Sprint UX-1 — el bloque "Confirmaciones" se retiró del formulario (esa
+    // información ya vive en Variables Observadas, sin duplicar). Se deja de
+    // recolectar data.confirmaciones para operaciones nuevas; la Ficha
+    // Técnica sigue mostrando el campo tal cual para operaciones antiguas
+    // que ya lo tengan guardado.
     data.imagenBase64 = imagenTemporal;
     data.imagenNombre = document.getElementById('filePreviewName').textContent !== '—'
       ? document.getElementById('filePreviewName').textContent
@@ -629,7 +633,8 @@
     // Compatibilidad: operaciones antiguas no tienen estos campos — quedan vacíos/sin marcar.
     actualizarTemporalidadesVisibles(); // IMP-03: según el Tipo de Trade de esta operación
     aplicarContextoTecnico(op.contextoTecnico);
-    aplicarSeleccionEnGrupo(document.getElementById('confirmacionesCheckboxGroup'), op.confirmaciones);
+    // Sprint UX-1 — se retiró aplicarSeleccionEnGrupo(...op.confirmaciones)
+    // de aquí: el HTML de Confirmaciones ya no existe en el formulario.
     actualizarVisibilidadOtroConfirmacion();
 
     if(op.imagenBase64){
@@ -969,7 +974,7 @@
     aplicarVariablesObservadasData([]); // Sprint 3
     aplicarContextoTecnico({});
     actualizarTemporalidadesVisibles(); // IMP-03: vuelve al estado por defecto (Tipo de Trade en blanco)
-    aplicarSeleccionEnGrupo(document.getElementById('confirmacionesCheckboxGroup'), []);
+    // Sprint UX-1 — se retiró aplicarSeleccionEnGrupo(...[]) de aquí, mismo motivo.
     actualizarVisibilidadOtroConfirmacion();
     actualizarVisibilidadActivoOtro();
     removeImage();
@@ -1576,6 +1581,57 @@
         </td>
       </tr>`;
     }).join('');
+
+    renderOperacionesAbiertas(); // Sprint UX-1 — widget compacto, siempre visible, sin filtrar
+  }
+
+  // Sprint UX-1 — "Operaciones Abiertas": la parte del Historial que el
+  // usuario pidió mantener siempre visible en Trades, sin tener que filtrar.
+  // Reutiliza `operaciones` y el mismo estadoTrade ya calculado — ningún
+  // cálculo nuevo, ninguna consulta nueva. Es una vista más liviana que el
+  // Historial completo (sin PnL/R/%, que no tienen sentido sin un precio de
+  // mercado en vivo — eso queda para cuando se conecten "flotantes").
+  function renderOperacionesAbiertas(){
+    const tbody = document.getElementById('operacionesAbiertasTableBody');
+    if(!tbody) return;
+
+    const abiertas = operaciones
+      .filter(op => (op.estadoTrade || 'Cerrado') === 'Abierto')
+      .sort((a, b) => obtenerMomentoEntrada(b) - obtenerMomentoEntrada(a));
+
+    const contadorEl = document.getElementById('operacionesAbiertasCount');
+    if(contadorEl) contadorEl.textContent = abiertas.length;
+
+    if(abiertas.length === 0){
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="6">No tienes operaciones abiertas en este momento.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = abiertas.map(op => {
+      const direccionBadge = op.direccion === 'Compra'
+        ? `<span class="badge success"><span class="badge-dot"></span>Compra</span>`
+        : `<span class="badge danger"><span class="badge-dot"></span>Venta</span>`;
+
+      return `<tr data-row-id="${op.id}">
+        <td>${escapeHtml(op.idTrade || '—')}</td>
+        <td>${escapeHtml(op.fecha || '—')}</td>
+        <td>${escapeHtml(op.activo || '—')}</td>
+        <td>${direccionBadge}</td>
+        <td class="col-actions">
+          <div class="row-actions">
+            <button class="btn-view" data-id="${op.id}" title="Ver">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+            <button class="btn-edit" data-id="${op.id}" title="Editar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg>
+            </button>
+            <button class="btn-cerrar-trade" data-id="${op.id}" title="Cerrar Trade">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>
+            </button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
   }
 
   function openModal({ titulo, cuerpo, onConfirm }){
@@ -1714,7 +1770,15 @@
     if(filtroEstadoTradeEl) filtroEstadoTradeEl.addEventListener('change', renderTable);
     if(filtroResultadoEl) filtroResultadoEl.addEventListener('change', renderTable);
 
-    document.getElementById('operationsTableBody').addEventListener('click', (e) => {
+    document.getElementById('operationsTableBody').addEventListener('click', manejarClicTablaOperaciones);
+
+    // Sprint UX-1 — misma lógica de clic (Ver/Editar/Cerrar), sin duplicarla,
+    // conectada también a la tabla compacta de Operaciones Abiertas.
+    const tbodyAbiertas = document.getElementById('operacionesAbiertasTableBody');
+    if(tbodyAbiertas) tbodyAbiertas.addEventListener('click', manejarClicTablaOperaciones);
+  }
+
+  function manejarClicTablaOperaciones(e){
       const viewBtn = e.target.closest('.btn-view');
       const editBtn = e.target.closest('.btn-edit');
       const cerrarBtn = e.target.closest('.btn-cerrar-trade');
@@ -1744,5 +1808,4 @@
           onConfirm: () => eliminarOperacion(id)
         });
       }
-    });
   }
