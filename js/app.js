@@ -93,6 +93,7 @@
     await cargarActivosDesdeSupabase(); // Gestión de Activos
     await poblarSelectMercadoActivo();  // Select de Mercado del formulario de Activos
     await inicializarModuloVariables(); // Gestión de Variables (Categorías, Variables, Opciones)
+    await inicializarCatalogosGenerales(); // Fase 3 — Brokers, Mercados, Temporalidades, Horizontes, Tipos de Entrada, Direcciones
     // Sprint 3 — aislado en try/catch: si algo aquí falla, se ve claramente
     // en consola pero NO detiene el resto de initApp() (Dashboard, Trades,
     // Plan, etc. deben seguir funcionando aunque este bloque falle).
@@ -123,6 +124,7 @@
     attachCuentasListeners();     // Gestión de Cuentas (AC-01)
     attachActivosListeners();     // Gestión de Activos
     attachModuloVariablesListeners(); // Gestión de Variables
+    attachCatalogosGeneralesListeners(); // Fase 3
     try{
       attachVariablesObservadasListeners(); // Sprint 3
     }catch(errorListenersVO){
@@ -131,7 +133,10 @@
   }
 
   function construirCamposDinamicos(){
-    poblarSelect(document.getElementById('selectMercado'), MERCADOS, 'Selecciona…');
+    // Fase 3 — Mercado, Tipo de Trade y Temporalidad ya no se pueblan aquí
+    // (listas estáticas) sino en inicializarCatalogosGenerales(), después de
+    // cargar sus catálogos desde Supabase — mismo criterio ya usado para
+    // Cuenta y Activo.
     poblarSelect(document.getElementById('selectTipoOperacion'), TIPOS_OPERACION, 'Selecciona…');
     poblarSelect(document.getElementById('selectTipoCuenta'), TIPOS_CUENTA, 'Selecciona…');
     poblarSelect(document.getElementById('selectMonedaCuenta'), MONEDAS, 'Selecciona…');
@@ -139,10 +144,8 @@
     // estático) sino en poblarSelectActivoOperacion(), después de cargar los
     // activos guardados — mismo criterio ya usado para Cuenta.
     poblarSelect(document.getElementById('selectEstrategia'), ESTRATEGIAS, 'Selecciona una estrategia…');
-    poblarSelect(document.getElementById('selectTipoTrade'), TIPOS_TRADE, 'Selecciona…');
     // AC-01: el selector de Cuenta ya no se puebla aquí (dato estático) sino
     // en poblarSelectCuentaOperacion(), después de cargar las cuentas guardadas.
-    poblarSelect(document.getElementById('selectTemporalidad'), TEMPORALIDADES, 'Selecciona…');
     poblarContextoTecnicoChips(document.getElementById('contextoMercadoGrid'));
     actualizarTemporalidadesVisibles(); // IMP-03: estado inicial según Tipo de Trade (vacío al arrancar)
 
