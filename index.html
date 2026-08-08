@@ -84,6 +84,11 @@
       <a class="nav-item" data-nav="configuracion">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
         <span class="nav-label">⚙️ Configuración</span>
+         </a>
+        <a class="nav-item" data-nav="historial">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span class="nav-label">🕒 Historial de Operaciones</span>
+     
       </a>
     </nav>
 
@@ -605,75 +610,26 @@
 
         </div>
       </section>
-
-      <!-- ===================== HISTORIAL ===================== -->
-      <section class="card" id="historial">
+<section class="card" id="operaciones-abiertas">
         <div class="card-header">
           <div class="card-header-title-group">
-            <div class="card-header-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="14" y2="18"/></svg></div>
+            <div class="card-header-icon icon-gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
             <div>
-              <h2>Historial de operaciones</h2>
-              <div class="card-header-sub"><span id="operacionesCount">0</span> operaciones registradas</div>
+              <h2>🟡 Operaciones Abiertas</h2>
+              <div class="card-header-sub"><span id="operacionesAbiertasCount">0</span> operaciones en curso</div>
             </div>
           </div>
-          <button class="btn-secondary" type="button">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Exportar
-          </button>
         </div>
-
-        <div class="filters-bar">
-          <input type="date" title="Filtrar por fecha (visual, sin función aún)">
-          <select title="Filtrar por mercado (visual, sin función aún)">
-            <option value="">Mercado</option>
-            <option>Cripto</option><option>Forex</option><option>Acciones</option><option>Futuros</option>
-          </select>
-          <select title="Filtrar por activo (visual, sin función aún)">
-            <option value="">Activo</option>
-          </select>
-          <select title="Filtrar por estrategia (visual, sin función aún)">
-            <option value="">Estrategia</option>
-          </select>
-          <select id="filtroEstadoTrade" title="Filtrar por Estado del Trade">
-            <option value="Todos">Estado del Trade: Todos</option>
-            <option value="Abierto">🟡 Abiertos</option>
-            <option value="Cerrado">🔵 Cerrados</option>
-          </select>
-          <select id="filtroResultado" title="Filtrar por Resultado">
-            <option value="Todos">Resultado: Todos</option>
-            <option value="Ganadora">🟢 Ganadoras</option>
-            <option value="Perdedora">🔴 Perdedoras</option>
-            <option value="Break Even">🟡 Break Even</option>
-          </select>
-          <select title="Filtrar por estado emocional (visual, sin función aún)">
-            <option value="">Estado emocional</option>
-            <option>Neutral</option><option>Ansiedad</option><option>Euforia</option>
-          </select>
-        </div>
-
-        <div class="table-wrap">
+        <div class="table-wrap" style="max-height: none;">
           <table class="data-table">
             <thead>
-              <tr>
-                <th>ID</th>
-                <th>Fecha</th>
-                <th>Activo</th>
-                <th>Mercado</th>
-                <th>Dirección</th>
-                <th>PnL</th>
-                <th>R</th>
-                <th>Ganancia %</th>
-                <th>Estado del Trade</th>
-                <th>Resultado</th>
-                <th class="col-actions">Acciones</th>
-              </tr>
+              <tr><th>ID</th><th>Fecha</th><th>Activo</th><th>Dirección</th><th class="col-actions">Acciones</th></tr>
             </thead>
-            <tbody id="operationsTableBody">
-              <!-- Las filas se generan dinámicamente vía renderTable() -->
-            </tbody>
+            <tbody id="operacionesAbiertasTableBody"></tbody>
           </table>
         </div>
       </section>
+
       </div><!-- /vistaTrades -->
 
       <!-- ===================== MI PLAN DE TRADING (Fase 4.3) ===================== -->
@@ -1611,6 +1567,77 @@
         </div>
       </section>
       </div><!-- /vistaConfiguracion -->
+      
+      <!-- ===================== HISTORIAL DE OPERACIONES ===================== -->
+      <div id="vistaHistorial" style="display:none;">
+<!-- ===================== HISTORIAL ===================== -->
+
+      <section class="card" id="historial">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div class="card-header-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="14" y2="18"/></svg></div>
+            <div>
+              <h2>Historial de operaciones</h2>
+              <div class="card-header-sub"><span id="operacionesCount">0</span> operaciones registradas</div>
+            </div>
+          </div>
+          <button class="btn-secondary" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Exportar
+          </button>
+        </div>
+        <div class="filters-bar">
+          <input type="date" title="Filtrar por fecha (visual, sin función aún)">
+          <select title="Filtrar por mercado (visual, sin función aún)">
+            <option value="">Mercado</option>
+            <option>Cripto</option><option>Forex</option><option>Acciones</option><option>Futuros</option>
+          </select>
+          <select title="Filtrar por activo (visual, sin función aún)">
+            <option value="">Activo</option>
+          </select>
+          <select title="Filtrar por estrategia (visual, sin función aún)">
+            <option value="">Estrategia</option>
+          </select>
+          <select id="filtroEstadoTrade" title="Filtrar por Estado del Trade">
+            <option value="Todos">Estado del Trade: Todos</option>
+            <option value="Abierto">🟡 Abiertos</option>
+            <option value="Cerrado">🔵 Cerrados</option>
+          </select>
+          <select id="filtroResultado" title="Filtrar por Resultado">
+            <option value="Todos">Resultado: Todos</option>
+            <option value="Ganadora">🟢 Ganadoras</option>
+            <option value="Perdedora">🔴 Perdedoras</option>
+            <option value="Break Even">🟡 Break Even</option>
+          </select>
+          <select title="Filtrar por estado emocional (visual, sin función aún)">
+            <option value="">Estado emocional</option>
+            <option>Neutral</option><option>Ansiedad</option><option>Euforia</option>
+          </select>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Fecha</th>
+                <th>Activo</th>
+                <th>Mercado</th>
+                <th>Dirección</th>
+                <th>PnL</th>
+                <th>R</th>
+                <th>Ganancia %</th>
+                <th>Estado del Trade</th>
+                <th>Resultado</th>
+                <th class="col-actions">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="operationsTableBody">
+              <!-- Las filas se generan dinámicamente vía renderTable() -->
+            </tbody>
+          </table>
+        </div>
+     </section>
+      </div><!-- /vistaHistorial -->
 
     </main>
 
@@ -2370,6 +2397,7 @@
       'estrategias': 'vistaEstrategias',
       'analytics': 'vistaAnalytics',
       'plan-trading': 'vistaPlanTrading',
+      'historial': 'vistaHistorial',
       'configuracion': 'vistaConfiguracion'
     };
 
