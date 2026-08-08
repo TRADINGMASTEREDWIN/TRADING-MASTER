@@ -1321,17 +1321,285 @@
 
       <!-- ===================== CONFIGURACIÓN (NAV-01) — preparada para el futuro ===================== -->
       <div id="vistaConfiguracion" style="display:none;">
-        <section class="card">
-          <div class="card-header">
-            <div class="card-header-title-group">
-              <div class="card-header-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>
-              <div><h2>⚙️ Configuración</h2></div>
+       <!-- ===================== FASE 3 — CATÁLOGOS GENERALES ===================== -->
+      <!-- Reemplaza el contenido de vistaConfiguracion (antes vacío/placeholder) -->
+
+      <div class="card" style="margin-bottom: var(--space-6);">
+        <div class="card-body">
+          <h2 style="font-size: var(--fs-xl); margin-bottom: var(--space-2);">⚙️ Catálogos Generales</h2>
+          <p class="plan-header-intro">Brokers, Mercados, Temporalidades, Horizontes de Trading, Tipos de Entrada y Direcciones — todos alimentan directamente el formulario de Trades.</p>
+        </div>
+      </div>
+
+      <!-- ===== 1. BROKERS ===== -->
+      <section class="card" style="margin-bottom: var(--space-6);" id="broker-form-card">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div><h2>1. Brokers</h2><div class="card-header-sub" id="brokerFormSub">Registra un nuevo broker</div></div>
+          </div>
+          <span class="badge gold" id="brokerEditBadge" style="display:none;">Editando broker</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Nombre *</label>
+              <input type="text" data-broker-campo="nombre" placeholder="ej. Binance">
+              <span class="field-error" data-broker-error-for="nombre">El nombre es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Sitio web</label>
+              <input type="text" data-broker-campo="sitioWeb" placeholder="https://...">
+            </div>
+            <div class="form-field">
+              <label>Logo (URL)</label>
+              <input type="text" data-broker-campo="logoUrl" placeholder="https://...">
+            </div>
+            <div class="form-field">
+              <label>Estado</label>
+              <div class="segmented" id="estadoBrokerSegmented">
+                <button class="buy active" type="button" data-valor="activo">Activo</button>
+                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+              </div>
             </div>
           </div>
-          <div class="card-body">
-            <p style="color: var(--color-text-secondary);">Aún no hay opciones configurables. Este espacio está preparado para futuras funcionalidades.</p>
+          <div class="form-actions">
+            <button class="btn-secondary" id="brokerCancelBtn" type="button">Cancelar</button>
+            <button class="btn-primary" id="brokerSaveBtn" type="button"><span id="brokerSaveBtnLabel">Guardar broker</span></button>
           </div>
-        </section>
+        </div>
+      </section>
+      <section class="card" style="margin-bottom: var(--space-6);">
+        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Brokers</h2><div class="card-header-sub"><span id="brokersCount">0</span> brokers registrados</div></div></div></div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead><tr><th>Nombre</th><th>Estado</th><th class="col-actions">Acciones</th></tr></thead>
+            <tbody id="brokersTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===== 2. MERCADOS ===== -->
+      <section class="card" style="margin-bottom: var(--space-6);" id="mercadogen-form-card">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div><h2>2. Mercados</h2><div class="card-header-sub" id="mercadoGenFormSub">Registra un nuevo mercado</div></div>
+          </div>
+          <span class="badge gold" id="mercadoGenEditBadge" style="display:none;">Editando mercado</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Nombre *</label>
+              <input type="text" data-mercadogen-campo="nombre" placeholder="ej. Forex">
+              <span class="field-error" data-mercadogen-error-for="nombre">El nombre es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Estado</label>
+              <div class="segmented" id="estadoMercadoGenSegmented">
+                <button class="buy active" type="button" data-valor="activo">Activo</button>
+                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-secondary" id="mercadoGenCancelBtn" type="button">Cancelar</button>
+            <button class="btn-primary" id="mercadoGenSaveBtn" type="button"><span id="mercadoGenSaveBtnLabel">Guardar mercado</span></button>
+          </div>
+        </div>
+      </section>
+      <section class="card" style="margin-bottom: var(--space-6);">
+        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Mercados</h2><div class="card-header-sub"><span id="mercadosGenCount">0</span> mercados registrados</div></div></div></div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead><tr><th>Nombre</th><th class="col-actions">Acciones</th></tr></thead>
+            <tbody id="mercadosGenTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===== 3. TEMPORALIDADES ===== -->
+      <section class="card" style="margin-bottom: var(--space-6);" id="temporalidadgen-form-card">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div><h2>3. Temporalidades</h2><div class="card-header-sub" id="temporalidadGenFormSub">Registra una nueva temporalidad</div></div>
+          </div>
+          <span class="badge gold" id="temporalidadGenEditBadge" style="display:none;">Editando temporalidad</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Código *</label>
+              <input type="text" data-temporalidadgen-campo="codigo" placeholder="ej. 4H">
+              <span class="field-error" data-temporalidadgen-error-for="codigo">El código es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Nombre *</label>
+              <input type="text" data-temporalidadgen-campo="nombre" placeholder="ej. 4 Horas">
+              <span class="field-error" data-temporalidadgen-error-for="nombre">El nombre es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Minutos equivalentes *</label>
+              <input type="text" inputmode="decimal" class="input-numerico" data-temporalidadgen-campo="minutos" placeholder="ej. 240">
+              <span class="field-error" data-temporalidadgen-error-for="minutos">Ingresa un número válido.</span>
+            </div>
+            <div class="form-field">
+              <label>Estado</label>
+              <div class="segmented" id="estadoTemporalidadGenSegmented">
+                <button class="buy active" type="button" data-valor="activo">Activo</button>
+                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-secondary" id="temporalidadGenCancelBtn" type="button">Cancelar</button>
+            <button class="btn-primary" id="temporalidadGenSaveBtn" type="button"><span id="temporalidadGenSaveBtnLabel">Guardar temporalidad</span></button>
+          </div>
+        </div>
+      </section>
+      <section class="card" style="margin-bottom: var(--space-6);">
+        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Temporalidades</h2><div class="card-header-sub"><span id="temporalidadesGenCount">0</span> temporalidades registradas</div></div></div></div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead><tr><th>Temporalidad</th><th>Minutos</th><th class="col-actions">Acciones</th></tr></thead>
+            <tbody id="temporalidadesGenTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===== 4. HORIZONTES DE TRADING ===== -->
+      <section class="card" style="margin-bottom: var(--space-6);" id="horizontegen-form-card">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div><h2>4. Horizontes de Trading</h2><div class="card-header-sub" id="horizonteGenFormSub">Registra un nuevo horizonte de trading</div></div>
+          </div>
+          <span class="badge gold" id="horizonteGenEditBadge" style="display:none;">Editando horizonte</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Código *</label>
+              <input type="text" data-horizontegen-campo="codigo" placeholder="ej. Swing">
+              <span class="field-error" data-horizontegen-error-for="codigo">El código es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Nombre *</label>
+              <input type="text" data-horizontegen-campo="nombre" placeholder="ej. Swing Trading">
+              <span class="field-error" data-horizontegen-error-for="nombre">El nombre es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Estado</label>
+              <div class="segmented" id="estadoHorizonteGenSegmented">
+                <button class="buy active" type="button" data-valor="activo">Activo</button>
+                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-secondary" id="horizonteGenCancelBtn" type="button">Cancelar</button>
+            <button class="btn-primary" id="horizonteGenSaveBtn" type="button"><span id="horizonteGenSaveBtnLabel">Guardar horizonte</span></button>
+          </div>
+        </div>
+      </section>
+      <section class="card" style="margin-bottom: var(--space-6);">
+        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Horizontes</h2><div class="card-header-sub"><span id="horizontesGenCount">0</span> horizontes registrados</div></div></div></div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead><tr><th>Horizonte</th><th class="col-actions">Acciones</th></tr></thead>
+            <tbody id="horizontesGenTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===== 5. TIPOS DE ENTRADA ===== -->
+      <section class="card" style="margin-bottom: var(--space-6);" id="tipoentradagen-form-card">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div><h2>5. Tipos de Entrada</h2><div class="card-header-sub" id="tipoEntradaGenFormSub">Registra un nuevo tipo de entrada</div></div>
+          </div>
+          <span class="badge gold" id="tipoEntradaGenEditBadge" style="display:none;">Editando tipo de entrada</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Código *</label>
+              <input type="text" data-tipoentradagen-campo="codigo" placeholder="ej. Stop">
+              <span class="field-error" data-tipoentradagen-error-for="codigo">El código es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Nombre *</label>
+              <input type="text" data-tipoentradagen-campo="nombre" placeholder="ej. Stop">
+              <span class="field-error" data-tipoentradagen-error-for="nombre">El nombre es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Estado</label>
+              <div class="segmented" id="estadoTipoEntradaGenSegmented">
+                <button class="buy active" type="button" data-valor="activo">Activo</button>
+                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-secondary" id="tipoEntradaGenCancelBtn" type="button">Cancelar</button>
+            <button class="btn-primary" id="tipoEntradaGenSaveBtn" type="button"><span id="tipoEntradaGenSaveBtnLabel">Guardar tipo de entrada</span></button>
+          </div>
+        </div>
+      </section>
+      <section class="card" style="margin-bottom: var(--space-6);">
+        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Tipos de Entrada</h2><div class="card-header-sub"><span id="tiposEntradaGenCount">0</span> tipos registrados</div></div></div></div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead><tr><th>Tipo de Entrada</th><th class="col-actions">Acciones</th></tr></thead>
+            <tbody id="tiposEntradaGenTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===== 6. DIRECCIONES (Long/Short) ===== -->
+      <section class="card" style="margin-bottom: var(--space-6);" id="direcciongen-form-card">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div><h2>6. Direcciones</h2><div class="card-header-sub" id="direccionGenFormSub">Registra una nueva dirección</div></div>
+          </div>
+          <span class="badge gold" id="direccionGenEditBadge" style="display:none;">Editando dirección</span>
+        </div>
+        <div class="card-body">
+          <div class="form-field-full" style="margin-bottom: var(--space-3); font-size: var(--fs-sm); color: var(--color-text-secondary);">
+            El "Código" es el valor interno que usa el motor de cálculos (debe seguir siendo "Compra" o "Venta" para las 2 direcciones existentes) — el "Nombre" es lo único que ve el usuario en el formulario.
+          </div>
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Código (interno) *</label>
+              <input type="text" data-direcciongen-campo="codigo" placeholder="ej. Compra">
+              <span class="field-error" data-direcciongen-error-for="codigo">El código es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Nombre (visible) *</label>
+              <input type="text" data-direcciongen-campo="nombre" placeholder="ej. Long">
+              <span class="field-error" data-direcciongen-error-for="nombre">El nombre es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Estado</label>
+              <div class="segmented" id="estadoDireccionGenSegmented">
+                <button class="buy active" type="button" data-valor="activo">Activo</button>
+                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-secondary" id="direccionGenCancelBtn" type="button">Cancelar</button>
+            <button class="btn-primary" id="direccionGenSaveBtn" type="button"><span id="direccionGenSaveBtnLabel">Guardar dirección</span></button>
+          </div>
+        </div>
+      </section>
+      <section class="card">
+        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Direcciones</h2><div class="card-header-sub"><span id="direccionesGenCount">0</span> direcciones registradas</div></div></div></div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead><tr><th>Dirección</th><th class="col-actions">Acciones</th></tr></thead>
+            <tbody id="direccionesGenTableBody"></tbody>
+          </table>
+        </div>
+      </section>
       </div><!-- /vistaConfiguracion -->
 
     </main>
