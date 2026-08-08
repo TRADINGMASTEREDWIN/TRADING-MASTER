@@ -279,6 +279,17 @@
      7. GRID DE ESTADÍSTICAS
      ============================================================ */
   .stat-grid{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-5); }
+
+  /* Sprint UX-1 (corrección) — #vistaInicio es un <div> simple, hijo directo
+     de .content junto con el resto de las vistas (vistaTrades, vistaCuentas,
+     etc., de las que solo una está visible a la vez). El gap de .content
+     por sí solo NUNCA separaba las secciones DENTRO de una vista — separaba
+     vistas completas entre sí, algo irrelevante ya que solo una se ve.
+     Esta regla sí resuelve la separación real dentro del Dashboard, sin
+     tocar ninguna otra vista (que ya usan margin-bottom inline propio y
+     no deben duplicar espaciado). */
+  #vistaInicio{ display: flex; flex-direction: column; gap: var(--space-7); }
+
   .stat-card{
     background: var(--color-panel); border: 1px solid var(--color-border); border-radius: var(--radius-lg);
     padding: var(--space-4) var(--space-5); box-shadow: var(--shadow-sm);
