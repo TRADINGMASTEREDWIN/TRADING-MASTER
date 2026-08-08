@@ -1,10 +1,18 @@
 <!DOCTYPE html>
-<html lang="es" data-theme="dark">
+<html lang="es" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Trading Master</title>
 <link rel="stylesheet" href="css/styles.css">
+  <script>
+  (function(){
+    var temaGuardado = localStorage.getItem('trading-master-theme');
+    if(temaGuardado === 'dark' || temaGuardado === 'light'){
+      document.documentElement.setAttribute('data-theme', temaGuardado);
+    }
+  })();
+</script>
 </head>
 <body>
 
@@ -300,20 +308,7 @@
                 <input type="time" data-field="horaEntrada">
                 <span class="field-error" data-error-for="horaEntrada">La hora de entrada es obligatoria.</span>
               </div>
-              <div class="form-field">
-                <label>Fecha de salida</label>
-                <input type="date" data-field="fechaSalida">
-                <span class="field-error" data-error-for="fechaSalida">Obligatoria para cerrar el Trade.</span>
-                <span class="dropzone-hint">Solo si el Trade ya está cerrado.</span>
-              </div>
-              <div class="form-field">
-                <label>Hora de salida</label>
-                <input type="time" data-field="horaSalida">
-                <span class="field-error" data-error-for="horaSalida">Obligatoria para cerrar el Trade.</span>
-                <span class="dropzone-hint">Solo si el Trade ya está cerrado.</span>
-              </div>
-            </div>
-
+          
             <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Mercado</div>
             <div class="form-grid">
               <div class="form-field">
@@ -398,17 +393,7 @@
                 <input type="text" inputmode="decimal" class="input-numerico" data-field="comisionApertura" placeholder="0.00">
                 <span class="field-error" data-error-for="comisionApertura">No puede ser negativa.</span>
               </div>
-              <div class="form-field">
-                <label>Comisión cierre</label>
-                <input type="text" inputmode="decimal" class="input-numerico" data-field="comisionCierre" placeholder="0.00">
-                <span class="field-error" data-error-for="comisionCierre">No puede ser negativa.</span>
-              </div>
-              <div class="form-field">
-                <label>Costo adicional</label>
-                <input type="text" inputmode="decimal" class="input-numerico" data-field="costoAdicional" placeholder="0.00">
-                <span class="field-error" data-error-for="costoAdicional">No puede ser negativo.</span>
-                <span class="dropzone-hint">Funding fee, intereses, swap, etc.</span>
-              </div>
+             
             </div>
           </div>
 
@@ -450,6 +435,32 @@
             <!-- ARQ-01: Variable de Decisión — Liquidez. Primera de una serie
                  de "variables de decisión" (Analytics futuro las recorrerá
                  desde op.decisiones sin necesitar conocerlas de antemano). -->
+            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Cierre de la operación</div>
+            <div class="form-grid">
+              <div class="form-field">
+                <label>Fecha de salida</label>
+                <input type="date" data-field="fechaSalida">
+                <span class="field-error" data-error-for="fechaSalida">Obligatoria para cerrar el Trade.</span>
+                <span class="dropzone-hint">Solo si el Trade ya está cerrado.</span>
+              </div>
+              <div class="form-field">
+                <label>Hora de salida</label>
+                <input type="time" data-field="horaSalida">
+                <span class="field-error" data-error-for="horaSalida">Obligatoria para cerrar el Trade.</span>
+                <span class="dropzone-hint">Solo si el Trade ya está cerrado.</span>
+              </div>
+              <div class="form-field">
+                <label>Comisión cierre</label>
+                <input type="text" inputmode="decimal" class="input-numerico" data-field="comisionCierre" placeholder="0.00">
+                <span class="field-error" data-error-for="comisionCierre">No puede ser negativa.</span>
+              </div>
+              <div class="form-field">
+                <label>Costo adicional</label>
+                <input type="text" inputmode="decimal" class="input-numerico" data-field="costoAdicional" placeholder="0.00">
+                <span class="field-error" data-error-for="costoAdicional">No puede ser negativo.</span>
+                <span class="dropzone-hint">Funding fee, intereses, swap, etc.</span>
+              </div>
+            </div>
            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Variable de Decisión: Liquidez</div>
 <div class="card" style="background: var(--color-bg);">
   <div class="card-body" style="padding: var(--space-4);">
@@ -2334,10 +2345,11 @@
      ============================================================ */
   function attachVisualListeners(){
     const htmlEl = document.documentElement;
-    document.getElementById('themeToggleBtn').addEventListener('click', () => {
-      const current = htmlEl.getAttribute('data-theme');
-      htmlEl.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
-    });
+   document.getElementById('themeToggleBtn').addEventListener('click', () => {
+  const nuevo = htmlEl.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  htmlEl.setAttribute('data-theme', nuevo);
+  localStorage.setItem('trading-master-theme', nuevo);
+});
 
     const appEl = document.getElementById('app');
     document.getElementById('sidebarCollapseBtn').addEventListener('click', () => {
