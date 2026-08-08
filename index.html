@@ -313,7 +313,7 @@
                 <input type="time" data-field="horaEntrada">
                 <span class="field-error" data-error-for="horaEntrada">La hora de entrada es obligatoria.</span>
               </div>
-          
+          </div>
             <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Mercado</div>
             <div class="form-grid">
               <div class="form-field">
@@ -400,6 +400,57 @@
               </div>
              
             </div>
+             <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Cierre de la operación</div>
+
+            <div class="form-grid">
+
+              <div class="form-field">
+
+                <label>Fecha de salida</label>
+
+                <input type="date" data-field="fechaSalida">
+
+                <span class="field-error" data-error-for="fechaSalida">Obligatoria para cerrar el Trade.</span>
+
+                <span class="dropzone-hint">Solo si el Trade ya está cerrado.</span>
+
+              </div>
+
+              <div class="form-field">
+
+                <label>Hora de salida</label>
+
+                <input type="time" data-field="horaSalida">
+
+                <span class="field-error" data-error-for="horaSalida">Obligatoria para cerrar el Trade.</span>
+
+                <span class="dropzone-hint">Solo si el Trade ya está cerrado.</span>
+
+              </div>
+
+              <div class="form-field">
+
+                <label>Comisión cierre</label>
+
+                <input type="text" inputmode="decimal" class="input-numerico" data-field="comisionCierre" placeholder="0.00">
+
+                <span class="field-error" data-error-for="comisionCierre">No puede ser negativa.</span>
+
+              </div>
+
+              <div class="form-field">
+
+                <label>Costo adicional</label>
+
+                <input type="text" inputmode="decimal" class="input-numerico" data-field="costoAdicional" placeholder="0.00">
+
+                <span class="field-error" data-error-for="costoAdicional">No puede ser negativo.</span>
+
+                <span class="dropzone-hint">Funding fee, intereses, swap, etc.</span>
+
+              </div>
+
+            </div>
           </div>
 
           <!-- Panel: Plan de la Operación (v0.4.5 — fusiona Estrategia + Contexto del Mercado + Confirmaciones) -->
@@ -440,32 +491,7 @@
             <!-- ARQ-01: Variable de Decisión — Liquidez. Primera de una serie
                  de "variables de decisión" (Analytics futuro las recorrerá
                  desde op.decisiones sin necesitar conocerlas de antemano). -->
-            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Cierre de la operación</div>
-            <div class="form-grid">
-              <div class="form-field">
-                <label>Fecha de salida</label>
-                <input type="date" data-field="fechaSalida">
-                <span class="field-error" data-error-for="fechaSalida">Obligatoria para cerrar el Trade.</span>
-                <span class="dropzone-hint">Solo si el Trade ya está cerrado.</span>
-              </div>
-              <div class="form-field">
-                <label>Hora de salida</label>
-                <input type="time" data-field="horaSalida">
-                <span class="field-error" data-error-for="horaSalida">Obligatoria para cerrar el Trade.</span>
-                <span class="dropzone-hint">Solo si el Trade ya está cerrado.</span>
-              </div>
-              <div class="form-field">
-                <label>Comisión cierre</label>
-                <input type="text" inputmode="decimal" class="input-numerico" data-field="comisionCierre" placeholder="0.00">
-                <span class="field-error" data-error-for="comisionCierre">No puede ser negativa.</span>
-              </div>
-              <div class="form-field">
-                <label>Costo adicional</label>
-                <input type="text" inputmode="decimal" class="input-numerico" data-field="costoAdicional" placeholder="0.00">
-                <span class="field-error" data-error-for="costoAdicional">No puede ser negativo.</span>
-                <span class="dropzone-hint">Funding fee, intereses, swap, etc.</span>
-              </div>
-            </div>
+           
            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Variable de Decisión: Liquidez</div>
 <div class="card" style="background: var(--color-bg);">
   <div class="card-body" style="padding: var(--space-4);">
