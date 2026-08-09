@@ -300,7 +300,7 @@
      Esta regla sí resuelve la separación real dentro del Dashboard, sin
      tocar ninguna otra vista (que ya usan margin-bottom inline propio y
      no deben duplicar espaciado). */
-  #vistaInicio{ display: flex !important; flex-direction: column; gap: var(--space-7); }
+  #vistaInicio{ display: flex; flex-direction: column; gap: var(--space-7); }
 
   .stat-card{
     background: var(--color-panel); border: 1px solid var(--color-border); border-radius: var(--radius-lg);
