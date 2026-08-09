@@ -94,13 +94,15 @@
     await poblarSelectMercadoActivo();  // Select de Mercado del formulario de Activos
     await inicializarModuloVariables(); // Gestión de Variables (Categorías, Variables, Opciones)
     await inicializarCatalogosGenerales(); // Fase 3 — Brokers, Mercados, Temporalidades, Horizontes, Tipos de Entrada, Direcciones
+    poblarTemporalidadesParaVariable(); // Sprint UX-2A — necesita temporalidadesGenerales, recién cargado arriba
     // Sprint 3 — aislado en try/catch: si algo aquí falla, se ve claramente
     // en consola pero NO detiene el resto de initApp() (Dashboard, Trades,
     // Plan, etc. deben seguir funcionando aunque este bloque falle).
     try{
       await cargarDataTypesParaVariablesObservadas();
+      await cargarTemporalidadesDeVariablesMatriz(); // Sprint UX-2A — Indicadores Técnicos (EMA, etc.)
       renderVariablesObservadas();
-      renderCategoriasEnBloquePropio(); // Sprint 4 — Liquidez (y futuras migradas)
+      renderCategoriasEnBloquePropio(); // Sprint 4 — Liquidez, Estructura, ... (y ahora Indicadores Técnicos)
     }catch(errorVariablesObservadas){
       console.error('[Variables Observadas] Error al construir el bloque:', errorVariablesObservadas);
     }

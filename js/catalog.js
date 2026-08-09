@@ -130,31 +130,40 @@
     const { valido, faltantes } = catalogoValidateForm(config, data);
     if(!valido){
       showToast('danger', 'No es posible guardar', `Faltan: ${faltantes.join(', ')}.`);
-      return;
+      return null;
     }
 
     const payload = await config.mapearUIaDB(data);
     const editingId = config.obtenerEditingId();
     const nombreToast = config.nombreParaToast(data);
+    let idGuardado = editingId;
 
     if(editingId){
       const { error } = await supabaseClient.from(config.tabla).update(payload).eq('id', editingId);
       if(error){
         console.error(`Error actualizando ${config.tabla}:`, error);
         showToast('danger', 'No se pudo actualizar', error.message);
-        return;
+        return null;
       }
       showToast('success', `${config.nombreSingular} actualizado`, `${nombreToast} se guardó correctamente.`);
     }else{
       const { data: userData } = await supabaseClient.auth.getUser();
       const userId = userData && userData.user ? userData.user.id : null;
 
-      const { error } = await supabaseClient.from(config.tabla).insert(Object.assign({ user_id: userId }, payload));
+      // Sprint UX-2A — se agrega .select('id').single() para poder devolver
+      // el id de la fila recién creada (los demás catálogos simplemente
+      // ignoran este cambio, ninguno leía nada del resultado del insert).
+      const { data: creado, error } = await supabaseClient
+        .from(config.tabla)
+        .insert(Object.assign({ user_id: userId }, payload))
+        .select('id')
+        .single();
       if(error){
         console.error(`Error creando en ${config.tabla}:`, error);
         showToast('danger', `No se pudo crear`, error.message);
-        return;
+        return null;
       }
+      idGuardado = creado ? creado.id : null;
       showToast('success', `${config.nombreSingular} creado`, `${nombreToast} ya está disponible.`);
     }
 
@@ -162,6 +171,7 @@
     catalogoRenderTabla(config);
     if(config.alTerminarGuardar) config.alTerminarGuardar();
     catalogoResetForm(config);
+    return idGuardado; // Sprint UX-2A — aditivo; el resto de los catálogos ignora este valor
   }
 
   function catalogoEditar(config, id){
@@ -230,8 +240,15 @@
   }
 
   function catalogoAttachListeners(config){
-    document.getElementById(config.idBotonGuardar).addEventListener('click', () => catalogoGuardar(config));
-    document.getElementById(config.idBotonCancelar).addEventListener('click', () => catalogoResetForm(config));
+    // Sprint UX-2A — config.manejadorGuardarPersonalizado / .manejadorCancelarPersonalizado
+    // son ganchos OPCIONALES: si un catálogo los define, se usan en vez del
+    // comportamiento genérico (para casos como Variables, que necesitan un
+    // paso extra al guardar/cancelar). Si no se definen, el comportamiento
+    // es EXACTAMENTE el mismo de siempre — ningún catálogo existente los usa.
+    const manejarGuardar = config.manejadorGuardarPersonalizado || (() => catalogoGuardar(config));
+    const manejarCancelar = config.manejadorCancelarPersonalizado || (() => catalogoResetForm(config));
+    document.getElementById(config.idBotonGuardar).addEventListener('click', manejarGuardar);
+    document.getElementById(config.idBotonCancelar).addEventListener('click', manejarCancelar);
 
     document.querySelectorAll(`[data-${config.atributoCampo}]`).forEach(el => {
       el.addEventListener('input', () => {

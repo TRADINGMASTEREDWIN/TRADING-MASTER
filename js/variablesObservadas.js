@@ -50,6 +50,31 @@
     (data || []).forEach(dt => { dataTypesPorId[dt.id] = dt.code; });
   }
 
+  // Sprint UX-2A — Motor de Indicadores Técnicos. Qué Temporalidades usa
+  // cada Variable de tipo timeframe_matrix (ej. EMA). Consulta propia,
+  // independiente de la que hace variables.js para su propio administrador
+  // (mismo criterio de no acoplar módulos ya usado en todo el proyecto).
+  let temporalidadesPorVariableId = {};
+
+  async function cargarTemporalidadesDeVariablesMatriz(){
+    const { data, error } = await supabaseClient
+      .from('trading_variable_timeframes')
+      .select('variable_id, sort_order, timeframes(code, name)')
+      .order('sort_order', { ascending: true });
+
+    if(error){
+      console.error('No se pudieron cargar las temporalidades de las variables matriciales:', error);
+      temporalidadesPorVariableId = {};
+      return;
+    }
+    temporalidadesPorVariableId = {};
+    (data || []).forEach(row => {
+      if(!row.timeframes) return;
+      if(!temporalidadesPorVariableId[row.variable_id]) temporalidadesPorVariableId[row.variable_id] = [];
+      temporalidadesPorVariableId[row.variable_id].push({ code: row.timeframes.code, name: row.timeframes.name });
+    });
+  }
+
   // Arma el árbol Categoría -> Variables -> Opciones, filtrando solo lo
   // activo en cada nivel, a partir de los arreglos que variables.js ya
   // cargó (categoriasVariables/variablesTrading/opcionesVariables) — cero
@@ -75,7 +100,8 @@
           .map(v => ({
             variable: v,
             tipo: dataTypesPorId[v.tipoDato] || 'text',
-            opciones: opcionesVariables.filter(o => o.variable === v.id && o.estado === 'Activo')
+            opciones: opcionesVariables.filter(o => o.variable === v.id && o.estado === 'Activo'),
+            temporalidadesMatriz: temporalidadesPorVariableId[v.id] || [] // Sprint UX-2A
           }));
         return { categoria: cat, variables: variablesDeCategoria };
       })
@@ -104,6 +130,36 @@
     </div>`;
   }
 
+  // Sprint UX-2A — control para variables tipo "timeframe_matrix" (ej. EMA):
+  // una fila por Temporalidad vinculada, cada una con su propio chip-group
+  // de selección única. Reutiliza la MISMA clase "vo-valor-chips" que ya
+  // usa single_select — así el listener de clics (manejarClicVariableObservada,
+  // más abajo) la reconoce automáticamente, sin necesitar código nuevo ahí.
+  function construirControlMatrizTemporalidad(temporalidades, opciones){
+    if(temporalidades.length === 0){
+      return `<span style="color: var(--color-text-muted); font-size: var(--fs-sm); font-style: italic;">Esta variable todavía no tiene Temporalidades configuradas. Edítala desde "🧩 Variables".</span>`;
+    }
+    if(opciones.length === 0){
+      return `<span style="color: var(--color-text-muted); font-size: var(--fs-sm); font-style: italic;">Sin opciones configuradas todavía para esta variable.</span>`;
+    }
+    return temporalidades.map(tf => `
+      <div class="contexto-fila" data-timeframe-code="${escapeHtml(tf.code)}" style="display:flex; align-items:center; gap: var(--space-3); flex-wrap:wrap; margin-bottom: var(--space-2);">
+        <span style="font-weight:700; min-width:44px; display:inline-block;">${escapeHtml(tf.code)}</span>
+        <div class="chip-group vo-valor-chips" data-modo="single">
+          ${opciones.map(o => `<span class="chip" data-value="${escapeHtml(o.codigo)}">${o.icono ? escapeHtml(o.icono) + ' ' : ''}${escapeHtml(o.etiqueta)}</span>`).join('')}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Combina nombre + config.periodo (si existe) para armar la etiqueta —
+  // "EMA" con config={periodo:50} se muestra como "EMA 50". Genérico: no
+  // depende de que la variable se llame "EMA" específicamente, cualquier
+  // Variable con un período configurado se etiqueta igual.
+  function construirEtiquetaVariable(variable){
+    return variable.periodo ? `${variable.nombre} ${variable.periodo}` : variable.nombre;
+  }
+
   // Sprint 4 — control de "importancia", genérico para cualquier variable con
   // importance_enabled=true (no exclusivo de Liquidez). Independiente de
   // valor_observado e influyo_en_decision, mismo principio de Sprint 3.
@@ -126,7 +182,8 @@
     'estructura': 'estructuraDinamicaContainer',
     'price_action': 'priceActionDinamicaContainer',
     'desequilibrios': 'desequilibriosDinamicaContainer',
-    'volumen': 'volumenDinamicaContainer'
+    'volumen': 'volumenDinamicaContainer',
+    'indicadores_tecnicos': 'indicadoresTecnicosDinamicaContainer'
   };
 
   // HTML de una categoría completa — reutilizado tanto por el cajón genérico
@@ -138,11 +195,16 @@
     const titulo = opciones.ocultarTitulo ? '' :
       `<div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin-bottom: var(--space-2);">${escapeHtml(categoria.nombre)}</div>`;
 
-    const cuerpo = variables.map(({ variable, tipo, opciones: opcionesVar }, i) => `
+    const cuerpo = variables.map(({ variable, tipo, opciones: opcionesVar, temporalidadesMatriz }, i) => {
+      const etiqueta = construirEtiquetaVariable(variable); // Sprint UX-2A — "EMA" + config.periodo si existe
+      const controlHtml = tipo === 'timeframe_matrix'
+        ? construirControlMatrizTemporalidad(temporalidadesMatriz || [], opcionesVar)
+        : construirControlValorObservado(tipo, opcionesVar);
+      return `
       <div class="form-field form-field-full vo-variable" data-variable-id="${variable.id}" data-tipo="${tipo}"
            style="${i > 0 ? 'margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--color-border);' : ''}">
-        <label>${escapeHtml(variable.nombre)}</label>
-        <div class="vo-control">${construirControlValorObservado(tipo, opcionesVar)}</div>
+        <label>${escapeHtml(etiqueta)}</label>
+        <div class="vo-control">${controlHtml}</div>
         ${variable.importancia ? construirControlImportancia() : ''}
         <div style="margin-top: var(--space-2); display:flex; align-items:center; gap: var(--space-3);">
           <span style="font-size: var(--fs-xs); color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.04em;">¿Influyó en mi decisión?</span>
@@ -152,7 +214,8 @@
           </div>
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
 
     if(opciones.sinTarjeta){
       return titulo + cuerpo;
@@ -271,6 +334,16 @@
       }else if(tipo === 'multi_select'){
         const activos = Array.from(bloque.querySelectorAll('.vo-valor-chips .chip.active')).map(c => c.dataset.value);
         valorObservado = activos.length ? activos : null;
+      }else if(tipo === 'timeframe_matrix'){
+        // Sprint UX-2A — un valor por cada fila de Temporalidad dentro del
+        // mismo bloque (ej. { "1W": "sobre", "1D": "bajo" }).
+        const matriz = {};
+        bloque.querySelectorAll('.contexto-fila[data-timeframe-code]').forEach(fila => {
+          const tfCode = fila.dataset.timeframeCode;
+          const activo = fila.querySelector('.vo-valor-chips .chip.active');
+          if(activo) matriz[tfCode] = activo.dataset.value;
+        });
+        valorObservado = Object.keys(matriz).length > 0 ? matriz : null;
       }else{ // single_select
         const activo = bloque.querySelector('.vo-valor-chips .chip.active');
         valorObservado = activo ? activo.dataset.value : null;
@@ -313,6 +386,15 @@
       }else if(tipo === 'multi_select'){
         const seleccionados = (registro && Array.isArray(registro.valor_observado)) ? registro.valor_observado : [];
         bloque.querySelectorAll('.vo-valor-chips .chip').forEach(c => c.classList.toggle('active', seleccionados.includes(c.dataset.value)));
+      }else if(tipo === 'timeframe_matrix'){
+        // Sprint UX-2A — simétrico a la recolección: un valor por fila.
+        const matriz = (registro && registro.valor_observado && typeof registro.valor_observado === 'object' && !Array.isArray(registro.valor_observado))
+          ? registro.valor_observado : {};
+        bloque.querySelectorAll('.contexto-fila[data-timeframe-code]').forEach(fila => {
+          const tfCode = fila.dataset.timeframeCode;
+          const valorGuardado = matriz[tfCode] || null;
+          fila.querySelectorAll('.vo-valor-chips .chip').forEach(c => c.classList.toggle('active', c.dataset.value === valorGuardado));
+        });
       }else{ // single_select
         const valor = registro ? registro.valor_observado : null;
         bloque.querySelectorAll('.vo-valor-chips .chip').forEach(c => c.classList.toggle('active', c.dataset.value === valor));
@@ -334,10 +416,16 @@
 
     const filas = lista.map(registro => {
       const variable = variablesTrading.find(v => v.id === registro.variable_id);
-      const nombreVariable = variable ? variable.nombre : registro.variable_id;
+      const nombreVariable = variable ? construirEtiquetaVariable(variable) : registro.variable_id;
 
       let textoValor = '—';
-      if(Array.isArray(registro.valor_observado)){
+      if(registro.valor_observado && typeof registro.valor_observado === 'object' && !Array.isArray(registro.valor_observado)){
+        // Sprint UX-2A — matriz por temporalidad: "1W: Sobre · 1D: Bajo"
+        textoValor = Object.entries(registro.valor_observado).map(([tf, codigoOpcion]) => {
+          const opcion = opcionesVariables.find(o => o.codigo === codigoOpcion && o.variable === registro.variable_id);
+          return `${tf}: ${opcion ? opcion.etiqueta : codigoOpcion}`;
+        }).join(' · ') || '—';
+      }else if(Array.isArray(registro.valor_observado)){
         textoValor = registro.valor_observado.map(codigo => {
           const opcion = opcionesVariables.find(o => o.codigo === codigo && o.variable === registro.variable_id);
           return opcion ? opcion.etiqueta : codigo;

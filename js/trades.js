@@ -574,7 +574,11 @@
     // / trading_variables / variable_options). Independiente de op.decisiones:
     // ese objeto sigue siendo de los 5 bloques históricos, sin tocar.
     data.variablesObservadas = obtenerVariablesObservadasData();
-    data.contextoTecnico = obtenerContextoTecnico();
+    // Sprint UX-2A — se retiró data.contextoTecnico = obtenerContextoTecnico()
+    // de aquí: el Contexto Técnico (EMA50 fijo) migró por completo al motor
+    // de Variables Observadas, como la nueva categoría "Indicadores Técnicos".
+    // obtenerContextoTecnico()/aplicarContextoTecnico() siguen existiendo sin
+    // usarse — la Ficha Técnica las necesita para operaciones ANTIGUAS.
     // Sprint UX-1 — el bloque "Confirmaciones" se retiró del formulario (esa
     // información ya vive en Variables Observadas, sin duplicar). Se deja de
     // recolectar data.confirmaciones para operaciones nuevas; la Ficha
@@ -632,7 +636,10 @@
 
     // Compatibilidad: operaciones antiguas no tienen estos campos — quedan vacíos/sin marcar.
     actualizarTemporalidadesVisibles(); // IMP-03: según el Tipo de Trade de esta operación
-    aplicarContextoTecnico(op.contextoTecnico);
+    // Sprint UX-2A — se retiró aplicarContextoTecnico(op.contextoTecnico) de
+    // aquí: el HTML del EMA50 fijo ya no existe. aplicarVariablesObservadasData(),
+    // arriba, ya repuebla Indicadores Técnicos para operaciones que los tengan
+    // guardados en el modelo nuevo.
     // Sprint UX-1 — se retiró aplicarSeleccionEnGrupo(...op.confirmaciones)
     // de aquí: el HTML de Confirmaciones ya no existe en el formulario.
     actualizarVisibilidadOtroConfirmacion();
@@ -972,7 +979,7 @@
     // aquí (Liquidez, Estructura, Price Action, Desequilibrios, Volumen),
     // mismo motivo: su HTML ya no existe, ahora son dinámicas.
     aplicarVariablesObservadasData([]); // Sprint 3
-    aplicarContextoTecnico({});
+    // Sprint UX-2A — se retiró aplicarContextoTecnico({}) de aquí, mismo motivo.
     actualizarTemporalidadesVisibles(); // IMP-03: vuelve al estado por defecto (Tipo de Trade en blanco)
     // Sprint UX-1 — se retiró aplicarSeleccionEnGrupo(...[]) de aquí, mismo motivo.
     actualizarVisibilidadOtroConfirmacion();

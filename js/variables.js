@@ -150,11 +150,19 @@
      ============================================================ */
 
   function mapearVariableUIaSupabase(data){
+    // Sprint UX-2A — config es un JSONB genérico y extensible, no exclusivo
+    // de "periodo". Hoy solo construimos {periodo:...} porque es lo único
+    // que el formulario pide, pero el campo en sí no asume esa forma.
+    const config = {};
+    if(data.periodo && data.periodo.trim() !== ''){
+      config.periodo = parseInt(data.periodo, 10);
+    }
     return {
       category_id: data.categoria || null,
       data_type_id: data.tipoDato || null,
       code: data.codigo,
       name: data.nombre,
+      config,
       importance_enabled: data.importancia === 'si',
       is_required: data.requerida === 'si',
       is_ai_enabled: data.ia === 'si',
@@ -163,6 +171,7 @@
   }
 
   function mapearVariableSupabaseAUI(row){
+    const config = row.config || {};
     return {
       id: row.id,
       codigo: row.code,
@@ -171,6 +180,8 @@
       categoriaNombre: row.variable_categories ? row.variable_categories.name : '',
       tipoDato: row.data_type_id,
       tipoDatoNombre: row.data_types ? row.data_types.name : '',
+      tipoDatoCodigo: row.data_types ? row.data_types.code : '',
+      periodo: config.periodo !== undefined ? String(config.periodo) : '',
       importancia: row.importance_enabled,
       requerida: row.is_required,
       ia: row.is_ai_enabled,
@@ -180,7 +191,7 @@
 
   const configVariables = {
     tabla: 'trading_variables',
-    selectQuery: '*, variable_categories(name), data_types(name)',
+    selectQuery: '*, variable_categories(name), data_types(name, code)',
     ordenarPor: 'created_at',
 
     atributoCampo: 'variable-campo',
@@ -267,10 +278,48 @@
 
   async function cargarVariablesDesdeSupabase(){ await catalogoCargarDesdeSupabase(configVariables); }
   function renderVariablesTable(){ catalogoRenderTabla(configVariables); }
-  async function guardarVariable(){ await catalogoGuardar(configVariables); }
-  function editarVariable(id){ catalogoEditar(configVariables, id); }
+
+  // Sprint UX-2A — envuelve catalogoGuardar() (sin modificarlo) para además
+  // sincronizar las Temporalidades vinculadas cuando el tipo de dato es
+  // "Matriz por temporalidad". Se captura la selección ANTES de llamar a
+  // catalogoGuardar() porque esa función limpia el formulario al terminar.
+  async function guardarVariable(){
+    const esMatriz = esTipoMatrizSeleccionado();
+    const contenedorTf = document.getElementById('temporalidadesVariableContainer');
+    const temporalidadesSeleccionadas = (esMatriz && contenedorTf)
+      ? Array.from(contenedorTf.querySelectorAll('.chk-temporalidad-variable:checked')).map(chk => chk.value)
+      : null;
+
+    const idGuardado = await catalogoGuardar(configVariables);
+
+    if(idGuardado && temporalidadesSeleccionadas !== null){
+      await sincronizarTemporalidadesDeVariable(idGuardado, temporalidadesSeleccionadas);
+    }
+    resetVariableFormMatriz();
+  }
+
+  // Sprint UX-2A — envuelve catalogoEditar() para además marcar los
+  // checkboxes de Temporalidades ya vinculadas y mostrar/ocultar el bloque
+  // de configuración de matriz según el tipo de la Variable que se edita.
+  async function editarVariable(id){
+    catalogoEditar(configVariables, id);
+    actualizarVisibilidadConfigMatriz();
+    await marcarTemporalidadesDeVariable(id);
+  }
+
   async function toggleEstadoVariable(id){ await catalogoToggleEstado(configVariables, id); }
-  function attachVariablesListeners(){ catalogoAttachListeners(configVariables); }
+
+  function attachVariablesListeners(){
+    // Sprint UX-2A — se usan los ganchos manejadorGuardarPersonalizado /
+    // manejadorCancelarPersonalizado (ver catalog.js) en vez del comportamiento
+    // genérico, para poder sincronizar las Temporalidades de la matriz.
+    configVariables.manejadorGuardarPersonalizado = guardarVariable;
+    configVariables.manejadorCancelarPersonalizado = resetVariableFormMatriz;
+    catalogoAttachListeners(configVariables);
+
+    const selectTipo = document.getElementById('selectDataTypeVariable');
+    if(selectTipo) selectTipo.addEventListener('change', actualizarVisibilidadConfigMatriz);
+  }
 
   function poblarSelectCategoriaParaVariable(){
     return catalogoPoblarSelectFK({
@@ -290,6 +339,108 @@
       ordenarPor: 'name',
       etiquetaFn: (row) => row.name
     });
+  }
+
+  /* ============================================================
+     SPRINT UX-2A — Motor de Indicadores Técnicos
+     Soporte para Variables de tipo "timeframe_matrix" (ej. EMA): un campo
+     de Período (dentro de config, genérico) y un selector de qué
+     Temporalidades usa esa Variable en particular (tabla de relación
+     trading_variable_timeframes, mismo patrón que trading_horizon_timeframes).
+     ============================================================ */
+
+  // Independiente del fetch de data_types que ya hace variablesObservadas.js
+  // (mismo criterio de no acoplar módulos más de lo necesario) — aquí solo
+  // se necesita para saber si el tipo seleccionado en ESTE formulario es
+  // "timeframe_matrix", y así mostrar/ocultar el bloque de configuración.
+  let dataTypesPorIdParaVariables = {};
+
+  async function cargarDataTypesParaFormularioVariable(){
+    const { data, error } = await supabaseClient.from('data_types').select('id, code');
+    if(error){
+      console.error('No se pudieron cargar los tipos de dato para el formulario de Variables:', error);
+      dataTypesPorIdParaVariables = {};
+      return;
+    }
+    dataTypesPorIdParaVariables = {};
+    (data || []).forEach(dt => { dataTypesPorIdParaVariables[dt.id] = dt.code; });
+  }
+
+  function esTipoMatrizSeleccionado(){
+    const select = document.getElementById('selectDataTypeVariable');
+    return !!(select && dataTypesPorIdParaVariables[select.value] === 'timeframe_matrix');
+  }
+
+  // Muestra/oculta el bloque "Período + Temporalidades" según el Tipo de
+  // dato elegido — genérico (no exclusivo de EMA): cualquier Variable futura
+  // de tipo timeframe_matrix obtiene este mismo bloque automáticamente.
+  function actualizarVisibilidadConfigMatriz(){
+    const wrapper = document.getElementById('configMatrizVariableWrapper');
+    if(!wrapper) return;
+    wrapper.style.display = esTipoMatrizSeleccionado() ? '' : 'none';
+  }
+
+  // Puebla los checkboxes de Temporalidades reutilizando temporalidadesGenerales
+  // — un arreglo que YA carga y mantiene js/catalogosGenerales.js (Fase 3).
+  // Cero consultas nuevas para esto.
+  function poblarTemporalidadesParaVariable(){
+    const contenedor = document.getElementById('temporalidadesVariableContainer');
+    if(!contenedor) return;
+    if(typeof temporalidadesGenerales === 'undefined'){
+      console.error('[Variables] temporalidadesGenerales no está definido — revisa que catalogosGenerales.js cargue antes que variables.js.');
+      return;
+    }
+    const activas = temporalidadesGenerales.filter(t => t.estado === 'Activo');
+    contenedor.innerHTML = activas.map(t => `
+      <label style="display:inline-flex; align-items:center; gap:6px; margin-right:14px; margin-bottom:8px; font-weight:400;">
+        <input type="checkbox" class="chk-temporalidad-variable" value="${t.id}"> ${escapeHtml(t.codigo)}
+      </label>
+    `).join('');
+  }
+
+  // Reemplaza TODOS los vínculos de la Variable por los que estén marcados
+  // ahora mismo — mismo criterio simple ya usado para variable_options
+  // (borrar y volver a insertar, sin intentar diffing).
+  async function sincronizarTemporalidadesDeVariable(variableId, temporalidadIds){
+    const { error: errorBorrar } = await supabaseClient
+      .from('trading_variable_timeframes').delete().eq('variable_id', variableId);
+    if(errorBorrar){
+      console.error('No se pudieron limpiar las temporalidades previas de la Variable:', errorBorrar);
+      showToast('danger', 'No se pudieron actualizar las temporalidades', errorBorrar.message);
+      return;
+    }
+    if(temporalidadIds.length === 0) return;
+
+    const filas = temporalidadIds.map((tfId, i) => ({ variable_id: variableId, timeframe_id: tfId, sort_order: i }));
+    const { error: errorInsertar } = await supabaseClient.from('trading_variable_timeframes').insert(filas);
+    if(errorInsertar){
+      console.error('No se pudieron guardar las temporalidades de la Variable:', errorInsertar);
+      showToast('danger', 'No se pudieron guardar las temporalidades', errorInsertar.message);
+    }
+  }
+
+  async function marcarTemporalidadesDeVariable(variableId){
+    const contenedor = document.getElementById('temporalidadesVariableContainer');
+    if(!contenedor) return;
+    contenedor.querySelectorAll('.chk-temporalidad-variable').forEach(chk => { chk.checked = false; });
+
+    const { data, error } = await supabaseClient
+      .from('trading_variable_timeframes').select('timeframe_id').eq('variable_id', variableId);
+    if(error){
+      console.error('No se pudieron cargar las temporalidades vinculadas a la Variable:', error);
+      return;
+    }
+    const idsVinculados = new Set((data || []).map(r => r.timeframe_id));
+    contenedor.querySelectorAll('.chk-temporalidad-variable').forEach(chk => {
+      chk.checked = idsVinculados.has(chk.value);
+    });
+  }
+
+  function resetVariableFormMatriz(){
+    catalogoResetForm(configVariables);
+    const contenedor = document.getElementById('temporalidadesVariableContainer');
+    if(contenedor) contenedor.querySelectorAll('.chk-temporalidad-variable').forEach(chk => { chk.checked = false; });
+    actualizarVisibilidadConfigMatriz();
   }
 
 
@@ -424,6 +575,14 @@
     await poblarSelectCategoriaParaVariable();
     await poblarSelectDataTypeParaVariable();
     await poblarSelectVariableParaOpcion();
+
+    // Sprint UX-2A — cargarDataTypesParaFormularioVariable() no depende de
+    // nada más, se puede correr aquí. poblarTemporalidadesParaVariable() NO
+    // se llama aquí a propósito: necesita temporalidadesGenerales, que
+    // carga Fase 3 (inicializarCatalogosGenerales) DESPUÉS de este módulo
+    // en app.js — se llama desde ahí, en el orden correcto.
+    await cargarDataTypesParaFormularioVariable();
+    actualizarVisibilidadConfigMatriz();
 
     renderCategoriasVariablesTable();
     renderVariablesTable();
