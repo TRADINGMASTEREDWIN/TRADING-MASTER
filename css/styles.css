@@ -3,17 +3,23 @@
      1. VARIABLES GLOBALES (design tokens) — igual a Fase 1
      ============================================================ */
   :root{
-    --color-bg: #111827;
-    --color-panel: #1F2937;
-    --color-panel-alt: #263142;
-    --color-border: #2D3748;
-    --color-border-strong: #374151;
+    /* Sprint UX-2 — Paleta A "Azul refinado" (CoinMarketCap): fondo mucho
+       más profundo (#0B0E14, no un gris-azulado genérico), azul con más
+       carácter, y verde esmeralda en vez del verde Tailwind por defecto.
+       Estos 3 acentos (--color-primary/--color-success + soft) también
+       aplican al tema claro, porque el bloque [data-theme="light"] de abajo
+       nunca los sobreescribe — un solo cambio corrige ambos temas. */
+    --color-bg: #0B0E14;
+    --color-panel: #151922;
+    --color-panel-alt: #1B212C;
+    --color-border: #232935;
+    --color-border-strong: #2E3644;
 
-    --color-primary: #2563EB;
-    --color-primary-hover: #1D4ED8;
-    --color-primary-soft: rgba(37,99,235,0.15);
-    --color-success: #22C55E;
-    --color-success-soft: rgba(34,197,94,0.12);
+    --color-primary: #3B82F6;
+    --color-primary-hover: #2563EB;
+    --color-primary-soft: rgba(59,130,246,0.15);
+    --color-success: #10B981;
+    --color-success-soft: rgba(16,185,129,0.12);
     --color-danger: #EF4444;
     --color-danger-soft: rgba(239,68,68,0.12);
     --color-warning: #F59E0B;
@@ -87,16 +93,22 @@
   }
 
   [data-theme="light"]{
-    --color-bg: #F3F4F6;
+    /* Sprint UX-2 — completa la Paleta A en el tema claro: antes usaba la
+       familia "gray" genérica de Tailwind sin tocar (#F3F4F6/#111827/etc.),
+       mientras el tema oscuro y los acentos ya se habían refinado. Ahora
+       usa la familia "slate" (tono más frío, con un dejo azulado) que
+       combina mejor con el azul de acento — la misma idea de "Azul
+       refinado" aplicada de forma consistente en los 2 temas. */
+    --color-bg: #F8FAFC;
     --color-panel: #FFFFFF;
-    --color-panel-alt: #F9FAFB;
-    --color-border: #E5E7EB;
-    --color-border-strong: #D1D5DB;
-    --color-text: #111827;
-    --color-text-secondary: #4B5563;
-    --color-text-muted: #9CA3AF;
-    --color-primary-soft: rgba(37,99,235,0.08);
-    --color-success-soft: rgba(34,197,94,0.10);
+    --color-panel-alt: #F1F5F9;
+    --color-border: #E2E8F0;
+    --color-border-strong: #CBD5E1;
+    --color-text: #0F172A;
+    --color-text-secondary: #475569;
+    --color-text-muted: #94A3B8;
+    --color-primary-soft: rgba(59,130,246,0.08);
+    --color-success-soft: rgba(16,185,129,0.10);
     --color-danger-soft: rgba(239,68,68,0.10);
     --color-warning-soft: rgba(245,158,11,0.10);
   }
@@ -543,7 +555,7 @@
     border: 1px solid transparent;
   }
   .badge-dot{ width: 6px; height: 6px; border-radius: 50%; }
-  .badge.success{ background: var(--color-success-soft); color: var(--color-success); border-color: rgba(34,197,94,0.35); }
+  .badge.success{ background: var(--color-success-soft); color: var(--color-success); border-color: rgba(16,185,129,0.35); }
   .badge.success .badge-dot{ background: var(--color-success); }
   .badge.danger{ background: var(--color-danger-soft); color: var(--color-danger); border-color: rgba(239,68,68,0.35); }
   .badge.danger .badge-dot{ background: var(--color-danger); }
@@ -552,7 +564,7 @@
   /* DS-01 — variantes que completan el lenguaje de badges: azul (información,
      ej. "Abierto") y gris (neutral, ej. "Pendiente"). Mismo componente base,
      sin badges "sueltos" de color aleatorio en ninguna parte de la app. */
-  .badge.info{ background: var(--color-info-soft); color: var(--color-info); border-color: rgba(37,99,235,0.35); }
+  .badge.info{ background: var(--color-info-soft); color: var(--color-info); border-color: rgba(59,130,246,0.35); }
   .badge.info .badge-dot{ background: var(--color-info); }
   .badge.neutral{ background: var(--color-panel-alt); color: var(--color-text-secondary); border-color: var(--color-border-strong); }
   .badge.neutral .badge-dot{ background: var(--color-text-secondary); }
