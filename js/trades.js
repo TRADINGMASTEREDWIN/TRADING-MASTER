@@ -89,23 +89,14 @@
     });
   }
 
-  function actualizarTemporalidadesVisibles(){
-    const tipoTrade = document.getElementById('selectTipoTrade').value;
-    const config = TEMPORALIDADES_POR_TIPO_TRADE[tipoTrade] || TEMPORALIDADES_POR_DEFECTO;
-
-    document.querySelectorAll('#contextoMercadoGrid .contexto-fila').forEach(fila => {
-      const tf = fila.dataset.timeframe;
-      const visible = config.visibles.includes(tf);
-      fila.style.display = visible ? 'flex' : 'none';
-      fila.classList.toggle('contexto-fila-opcional', config.opcionales.includes(tf));
-    });
-
-    document.querySelectorAll('#contextoMercadoGrid .contexto-bloque').forEach(bloque => {
-      const algunaFilaVisible = Array.from(bloque.querySelectorAll('.contexto-fila'))
-        .some(fila => fila.style.display !== 'none');
-      bloque.style.display = algunaFilaVisible ? 'flex' : 'none';
-    });
-  }
+  // Sprint 4.1 — se eliminó actualizarTemporalidadesVisibles() de aquí: su
+  // única función era mostrar/ocultar filas de #contextoMercadoGrid, que ya
+  // no existe desde el Sprint UX-2A (Indicadores Técnicos lo reemplazó) —
+  // esta función seguía corriendo en cada cambio de Tipo de Trade sin
+  // ningún efecto real. TEMPORALIDADES_POR_TIPO_TRADE (la constante que
+  // usaba) también se eliminó por completo del proyecto. En su lugar,
+  // poblarSelectTemporalidadSegunTipoTrade() (js/catalogosGenerales.js)
+  // filtra de verdad el selector de Temporalidad usando Supabase.
 
   function actualizarVisibilidadOtroConfirmacion(){
     const container = document.getElementById('confirmacionesCheckboxGroup');
@@ -635,7 +626,14 @@
     aplicarVariablesObservadasData(op.variablesObservadas); // Sprint 3
 
     // Compatibilidad: operaciones antiguas no tienen estos campos — quedan vacíos/sin marcar.
-    actualizarTemporalidadesVisibles(); // IMP-03: según el Tipo de Trade de esta operación
+    // Sprint 4.1 — el Tipo de Trade de esta operación ya se asignó arriba
+    // (bucle genérico de [data-field]); ahora se repuebla Temporalidad según
+    // ESE Tipo de Trade y se vuelve a aplicar el valor guardado — el bucle
+    // genérico corrió antes de que el selector tuviera las opciones
+    // correctas filtradas, así que su primer intento no cuenta.
+    poblarSelectTemporalidadSegunTipoTrade();
+    const selectTemporalidadEl = document.getElementById('selectTemporalidad');
+    if(selectTemporalidadEl) selectTemporalidadEl.value = op.temporalidad || '';
     // Sprint UX-2A — se retiró aplicarContextoTecnico(op.contextoTecnico) de
     // aquí: el HTML del EMA50 fijo ya no existe. aplicarVariablesObservadasData(),
     // arriba, ya repuebla Indicadores Técnicos para operaciones que los tengan
@@ -980,7 +978,7 @@
     // mismo motivo: su HTML ya no existe, ahora son dinámicas.
     aplicarVariablesObservadasData([]); // Sprint 3
     // Sprint UX-2A — se retiró aplicarContextoTecnico({}) de aquí, mismo motivo.
-    actualizarTemporalidadesVisibles(); // IMP-03: vuelve al estado por defecto (Tipo de Trade en blanco)
+    poblarSelectTemporalidadSegunTipoTrade(); // Sprint 4.1 — vuelve al estado por defecto (Tipo de Trade en blanco)
     // Sprint UX-1 — se retiró aplicarSeleccionEnGrupo(...[]) de aquí, mismo motivo.
     actualizarVisibilidadOtroConfirmacion();
     actualizarVisibilidadActivoOtro();
@@ -1709,11 +1707,10 @@
 
     document.getElementById('removeImageBtn').addEventListener('click', removeImage);
 
-    // IMP-03: el Contexto Técnico (EMA50) se adapta en vivo al Tipo de Trade.
-    const selectTipoTradeEl = document.getElementById('selectTipoTrade');
-    if(selectTipoTradeEl){
-      selectTipoTradeEl.addEventListener('change', actualizarTemporalidadesVisibles);
-    }
+    // Sprint 4.1 — se eliminó este listener de aquí: apuntaba a
+    // actualizarTemporalidadesVisibles() (ya eliminada). El nuevo listener
+    // vive en js/catalogosGenerales.js (attachTemporalidadPorTipoTradeListener),
+    // junto al resto de la lógica de Temporalidades filtradas por Horizonte.
 
     // Activo: mostrar/ocultar el campo de texto libre cuando se selecciona "Otro..."
     const selectActivoEl = document.getElementById('selectActivo');

@@ -239,6 +239,68 @@
       activos.map(h => `<option value="${escapeHtml(h.codigo)}">${escapeHtml(h.nombre)}</option>`).join('');
   }
 
+  /* ============================================================
+     SPRINT 4.1 — Temporalidades filtradas por Horizonte de Trading
+     Reemplaza por completo la lógica de TEMPORALIDADES_POR_TIPO_TRADE
+     (constante fija en index.html). Usa trading_horizon_timeframes —
+     la tabla de relación que YA existía desde el esquema original,
+     mismo patrón exacto ya probado con trading_variable_timeframes
+     en el Sprint UX-2A.
+     ============================================================ */
+  let temporalidadesPorHorizonteId = {};
+
+  async function cargarTemporalidadesDeHorizontes(){
+    const { data, error } = await supabaseClient
+      .from('trading_horizon_timeframes')
+      .select('trading_horizon_id, sort_order, timeframes(code, name)')
+      .order('sort_order', { ascending: true });
+
+    if(error){
+      console.error('No se pudieron cargar las temporalidades de los horizontes:', error);
+      temporalidadesPorHorizonteId = {};
+      return;
+    }
+    temporalidadesPorHorizonteId = {};
+    (data || []).forEach(row => {
+      if(!row.timeframes) return;
+      if(!temporalidadesPorHorizonteId[row.trading_horizon_id]) temporalidadesPorHorizonteId[row.trading_horizon_id] = [];
+      temporalidadesPorHorizonteId[row.trading_horizon_id].push({ code: row.timeframes.code, name: row.timeframes.name });
+    });
+  }
+
+  // Repuebla #selectTemporalidad según el Horizonte (#selectTipoTrade)
+  // seleccionado ahora mismo. Sin Tipo de Trade elegido (o sin temporalidades
+  // vinculadas todavía desde el administrador), muestra todas las
+  // Temporalidades activas — mismo respaldo que ya existía antes.
+  // Preserva la selección actual si sigue siendo una opción válida (para
+  // no perder el valor al editar un Trade).
+  function poblarSelectTemporalidadSegunTipoTrade(){
+    const selectTipoTrade = document.getElementById('selectTipoTrade');
+    const selectTemporalidad = document.getElementById('selectTemporalidad');
+    if(!selectTipoTrade || !selectTemporalidad) return;
+
+    const valorPrevio = selectTemporalidad.value;
+    const codigoHorizonte = selectTipoTrade.value;
+    const horizonte = horizontesGenerales.find(h => h.codigo === codigoHorizonte);
+    const vinculadas = horizonte ? (temporalidadesPorHorizonteId[horizonte.id] || []) : [];
+
+    const temporalidadesAMostrar = vinculadas.length > 0
+      ? vinculadas
+      : temporalidadesGenerales.filter(t => t.estado === 'Activo').map(t => ({ code: t.codigo }));
+
+    selectTemporalidad.innerHTML = `<option value="">Selecciona…</option>` +
+      temporalidadesAMostrar.map(t => `<option value="${escapeHtml(t.code)}">${escapeHtml(t.code)}</option>`).join('');
+
+    if(Array.from(selectTemporalidad.options).some(opt => opt.value === valorPrevio)){
+      selectTemporalidad.value = valorPrevio;
+    }
+  }
+
+  function attachTemporalidadPorTipoTradeListener(){
+    const selectTipoTrade = document.getElementById('selectTipoTrade');
+    if(selectTipoTrade) selectTipoTrade.addEventListener('change', poblarSelectTemporalidadSegunTipoTrade);
+  }
+
 
   /* ============================================================
      5. TIPOS DE ENTRADA (concepto nuevo — Mercado/Límite/Stop/Stop Limit)
@@ -379,10 +441,11 @@
     await cargarHorizontesGeneralesDesdeSupabase();
     await cargarTiposEntradaGeneralesDesdeSupabase();
     await cargarDireccionesGeneralesDesdeSupabase();
+    await cargarTemporalidadesDeHorizontes(); // Sprint 4.1
 
     poblarSelectMercadoOperacion();
-    poblarSelectTemporalidadOperacion();
     poblarSelectTipoTradeOperacion();
+    poblarSelectTemporalidadSegunTipoTrade(); // Sprint 4.1 — reemplaza a poblarSelectTemporalidadOperacion() aquí
     poblarSelectTipoEntradaOperacion();
     renderDireccionSegmentedOperacion();
 
@@ -402,4 +465,5 @@
     attachTiposEntradaGeneralesListeners();
     attachDireccionesGeneralesListeners();
     attachDireccionSegmentedOperacionListener();
+    attachTemporalidadPorTipoTradeListener(); // Sprint 4.1
   }

@@ -149,7 +149,12 @@
     // AC-01: el selector de Cuenta ya no se puebla aquí (dato estático) sino
     // en poblarSelectCuentaOperacion(), después de cargar las cuentas guardadas.
     poblarContextoTecnicoChips(document.getElementById('contextoMercadoGrid'));
-    actualizarTemporalidadesVisibles(); // IMP-03: estado inicial según Tipo de Trade (vacío al arrancar)
+    // Sprint 4.1 — se eliminó actualizarTemporalidadesVisibles() de aquí:
+    // dependía de datos que Supabase aún no ha cargado en este punto
+    // (construirCamposDinamicos corre de forma síncrona, antes de los
+    // await de más abajo). poblarSelectTemporalidadSegunTipoTrade(), en
+    // inicializarCatalogosGenerales() (más abajo), ya deja el estado
+    // inicial correcto una vez los datos reales están disponibles.
 
     // ARQ-01 — Variable de Decisión: Liquidez
     // (value = código corto para análisis; texto visible = etiqueta larga)
