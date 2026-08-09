@@ -487,11 +487,12 @@
               </div>
             </div>
 
-            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Contexto Técnico (EMA50)</div>
-            <div class="form-field-full" style="margin-bottom: var(--space-2);">
-              <label>Precio respecto a la EMA50 — un clic por fila</label>
-            </div>
-            <div class="contexto-mercado-container" id="contextoMercadoGrid"></div>
+            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Indicadores Técnicos</div>
+<div class="card" style="background: var(--color-bg);">
+  <div class="card-body" style="padding: var(--space-4);">
+    <div id="indicadoresTecnicosDinamicaContainer"></div>
+  </div>
+</div>
 
             <!-- ARQ-01: Variable de Decisión — Liquidez. Primera de una serie
                  de "variables de decisión" (Analytics futuro las recorrerá
@@ -1194,10 +1195,24 @@
               <div class="form-field">
                 <label>Estado</label>
                 <div class="segmented" id="estadoVariableSegmented">
+                
                   <button class="buy active" type="button" data-valor="activo">Activo</button>
                   <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
                 </div>
               </div>
+                <div class="form-field-full" id="configMatrizVariableWrapper" style="display:none; margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--color-border);">
+  <div class="form-grid">
+    <div class="form-field">
+      <label>Período (opcional)</label>
+      <input type="text" inputmode="decimal" class="input-numerico" data-variable-campo="periodo" placeholder="ej. 50">
+      <span class="dropzone-hint">Solo para indicadores con período configurable (ej. EMA). Se combina con el nombre: "EMA" + 50 → "EMA 50".</span>
+    </div>
+  </div>
+  <div class="form-field form-field-full" style="margin-top: var(--space-3);">
+    <label>Temporalidades que usa esta Variable</label>
+    <div id="temporalidadesVariableContainer"></div>
+  </div>
+</div>
             </div>
             <div class="form-actions">
               <button class="btn-secondary" id="variableCancelBtn" type="button">Cancelar</button>
