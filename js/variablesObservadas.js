@@ -183,19 +183,18 @@
     'price_action': 'priceActionDinamicaContainer',
     'desequilibrios': 'desequilibriosDinamicaContainer',
     'volumen': 'volumenDinamicaContainer',
-    'indicadores_tecnicos': 'indicadoresTecnicosDinamicaContainer'
+    'indicadores_tecnicos': 'indicadoresTecnicosDinamicaContainer',
+    'estado_mental': 'estadoMentalDinamicaContainer'
   };
 
   // HTML de una categoría completa — reutilizado tanto por el cajón genérico
   // como por los bloques propios (Liquidez), para no duplicar esta plantilla.
-  function construirHtmlCategoria(grupo, opciones){
-    opciones = opciones || {};
-    const { categoria, variables } = grupo;
-
-    const titulo = opciones.ocultarTitulo ? '' :
-      `<div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin-bottom: var(--space-2);">${escapeHtml(categoria.nombre)}</div>`;
-
-    const cuerpo = variables.map(({ variable, tipo, opciones: opcionesVar, temporalidadesMatriz }, i) => {
+  // Sprint 4.2 — extraído de construirHtmlCategoria() para poder reutilizarlo
+  // tanto cuando todas las Variables comparten Fase (caso de hoy: Liquidez,
+  // Estructura, etc. — sin cambios) como cuando una categoría mezcla varias
+  // Fases (caso nuevo: Estado Mental del Trader).
+  function construirCuerpoVariables(variables){
+    return variables.map(({ variable, tipo, opciones: opcionesVar, temporalidadesMatriz }, i) => {
       const etiqueta = construirEtiquetaVariable(variable); // Sprint UX-2A — "EMA" + config.periodo si existe
       const controlHtml = tipo === 'timeframe_matrix'
         ? construirControlMatrizTemporalidad(temporalidadesMatriz || [], opcionesVar)
@@ -216,6 +215,37 @@
       </div>
     `;
     }).join('');
+  }
+
+  const ORDEN_FASES = ['PRE_TRADE', 'DURING_TRADE', 'POST_TRADE'];
+  const ETIQUETA_FASE = { PRE_TRADE: 'Antes del Trade', DURING_TRADE: 'Durante el Trade', POST_TRADE: 'Después del Trade' };
+
+  function construirHtmlCategoria(grupo, opciones){
+    opciones = opciones || {};
+    const { categoria, variables } = grupo;
+
+    const titulo = opciones.ocultarTitulo ? '' :
+      `<div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin-bottom: var(--space-2);">${escapeHtml(categoria.nombre)}</div>`;
+
+    // Sprint 4.2 — si las Variables de esta categoría abarcan más de una
+    // Fase (ej. Estado Mental del Trader), se agrupan con subtítulos en
+    // orden Antes → Durante → Después. Si todas comparten la misma Fase
+    // (el caso de HOY para Liquidez, Estructura, Price Action, etc.), se
+    // renderiza exactamente igual que siempre — cero cambio visual ahí.
+    const fasesPresentes = [...new Set(variables.map(v => v.variable.fase || 'PRE_TRADE'))];
+
+    let cuerpo;
+    if(fasesPresentes.length > 1){
+      cuerpo = ORDEN_FASES
+        .filter(fase => fasesPresentes.includes(fase))
+        .map(fase => {
+          const variablesDeFase = variables.filter(v => (v.variable.fase || 'PRE_TRADE') === fase);
+          const subtitulo = `<div class="form-field-full" style="font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">${ETIQUETA_FASE[fase] || fase}</div>`;
+          return subtitulo + construirCuerpoVariables(variablesDeFase);
+        }).join('');
+    }else{
+      cuerpo = construirCuerpoVariables(variables);
+    }
 
     if(opciones.sinTarjeta){
       return titulo + cuerpo;

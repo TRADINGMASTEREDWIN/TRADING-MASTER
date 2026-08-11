@@ -551,7 +551,11 @@
     // automáticamente. Si están los 3 datos mínimos de cierre, quedó Cerrado;
     // si falta cualquiera, quedó Abierto. Esta es la única fuente de verdad.
     data.estadoTrade = (data.fechaSalida && data.horaSalida && data.precioSalida) ? 'Cerrado' : 'Abierto';
-    data.psicologia = obtenerPsicologiaData();
+    // Sprint 4.2 — se retiró data.psicologia = obtenerPsicologiaData() de
+    // aquí: "Estado Mental del Trader" migró por completo al motor de
+    // Variables Observadas. obtenerPsicologiaData()/aplicarPsicologiaData()
+    // siguen existiendo sin usarse — la Ficha Técnica las necesita para
+    // operaciones ANTIGUAS.
     // ARQ-01: todas las variables de decisión viven bajo un solo objeto,
     // extensible sin tocar collectFormData en el futuro (solo se agrega
     // la llamada correspondiente aquí cuando exista una nueva).
@@ -610,10 +614,10 @@
       btn.classList.toggle('active', btn.dataset.direction === op.direccion);
     });
 
-    // Compatibilidad: operaciones anteriores a la 0.4.4 no tienen el objeto `psicologia`
-    // agrupado — quedan todos los chips/campos sin marcar (no se pierden sus datos
-    // antiguos, la Ficha Técnica los sigue mostrando por separado).
-    aplicarPsicologiaData(op.psicologia);
+    // Sprint 4.2 — se retiró aplicarPsicologiaData(op.psicologia) de aquí:
+    // el HTML fijo de Psicología ya no existe. aplicarVariablesObservadasData(),
+    // ya llamado arriba, repuebla Estado Mental del Trader para operaciones
+    // que lo tengan guardado en el modelo nuevo.
     // ARQ-01: compatibilidad automática — si la operación es anterior a este
     // módulo, `op.decisiones` no existe; aplicarDecisionLiquidez ya maneja
     // ese caso con su propio fallback `{}` y deja el toggle en "No".
@@ -972,7 +976,7 @@
     document.querySelectorAll('[data-field]').forEach(el => { el.value = ''; });
     document.querySelector('#direccionSegmented button[data-direction="Compra"]').click();
     establecerModoCierre(false);
-    resetearPsicologia();
+    // Sprint 4.2 — se retiró resetearPsicologia() de aquí, mismo motivo.
     // Sprint 4/5 — se retiraron las 5 líneas aplicarDecisionX({}) que iban
     // aquí (Liquidez, Estructura, Price Action, Desequilibrios, Volumen),
     // mismo motivo: su HTML ya no existe, ahora son dinámicas.

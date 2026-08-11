@@ -163,6 +163,7 @@
       code: data.codigo,
       name: data.nombre,
       config,
+      phase: data.fase || 'PRE_TRADE', // Sprint 4.2
       importance_enabled: data.importancia === 'si',
       is_required: data.requerida === 'si',
       is_ai_enabled: data.ia === 'si',
@@ -182,6 +183,7 @@
       tipoDatoNombre: row.data_types ? row.data_types.name : '',
       tipoDatoCodigo: row.data_types ? row.data_types.code : '',
       periodo: config.periodo !== undefined ? String(config.periodo) : '',
+      fase: row.phase || 'PRE_TRADE', // Sprint 4.2
       importancia: row.importance_enabled,
       requerida: row.is_required,
       ia: row.is_ai_enabled,
