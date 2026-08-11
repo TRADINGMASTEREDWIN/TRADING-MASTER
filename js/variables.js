@@ -165,6 +165,7 @@
       config,
       phase: data.fase || 'PRE_TRADE', // Sprint 4.2
       importance_enabled: data.importancia === 'si',
+      influence_enabled: data.influye !== 'no', // Sprint 4.3 — default true si el campo no viene en el HTML (compatibilidad)
       is_required: data.requerida === 'si',
       is_ai_enabled: data.ia === 'si',
       is_active: data.estado === 'activo'
@@ -185,6 +186,7 @@
       periodo: config.periodo !== undefined ? String(config.periodo) : '',
       fase: row.phase || 'PRE_TRADE', // Sprint 4.2
       importancia: row.importance_enabled,
+      influye: row.influence_enabled, // Sprint 4.3 — mismo patrón que importancia/requerida/ia
       requerida: row.is_required,
       ia: row.is_ai_enabled,
       estado: row.is_active ? 'Activo' : 'Inactivo'
@@ -211,7 +213,8 @@
     camposSegmentedExtra: [
       { idSegmented: 'importanciaVariableSegmented', dataKey: 'importancia', valorDefault: 'no' },
       { idSegmented: 'requeridaVariableSegmented', dataKey: 'requerida', valorDefault: 'no' },
-      { idSegmented: 'iaVariableSegmented', dataKey: 'ia', valorDefault: 'si' }
+      { idSegmented: 'iaVariableSegmented', dataKey: 'ia', valorDefault: 'si' },
+      { idSegmented: 'influenciaVariableSegmented', dataKey: 'influye', valorDefault: 'si' } // Sprint 4.3
     ],
 
     camposRequeridos: [

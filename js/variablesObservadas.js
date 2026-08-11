@@ -184,7 +184,8 @@
     'desequilibrios': 'desequilibriosDinamicaContainer',
     'volumen': 'volumenDinamicaContainer',
     'indicadores_tecnicos': 'indicadoresTecnicosDinamicaContainer',
-    'estado_mental': 'estadoMentalDinamicaContainer'
+    'estado_mental': 'estadoMentalDinamicaContainer',
+    'plan_operacion': 'planOperacionDinamicaContainer'
   };
 
   // HTML de una categoría completa — reutilizado tanto por el cajón genérico
@@ -199,19 +200,25 @@
       const controlHtml = tipo === 'timeframe_matrix'
         ? construirControlMatrizTemporalidad(temporalidadesMatriz || [], opcionesVar)
         : construirControlValorObservado(tipo, opcionesVar);
+      // Sprint 4.3 — el control "¿Influyó?" ahora es condicional. Por
+      // defecto siempre se muestra (influence_enabled=true en la base de
+      // datos para TODA variable existente) — cero cambio visual salvo en
+      // Variables donde se desactivó explícitamente (ej. Hipótesis del Trade).
+      const mostrarInfluyo = variable.influye !== false;
       return `
       <div class="form-field form-field-full vo-variable" data-variable-id="${variable.id}" data-tipo="${tipo}"
            style="${i > 0 ? 'margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--color-border);' : ''}">
         <label>${escapeHtml(etiqueta)}</label>
         <div class="vo-control">${controlHtml}</div>
         ${variable.importancia ? construirControlImportancia() : ''}
+        ${mostrarInfluyo ? `
         <div style="margin-top: var(--space-2); display:flex; align-items:center; gap: var(--space-3);">
           <span style="font-size: var(--fs-xs); color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.04em;">¿Influyó en mi decisión?</span>
           <div class="segmented vo-influyo-segmented">
             <button class="sell active" type="button" data-valor="no">No</button>
             <button class="buy" type="button" data-valor="si">Sí</button>
           </div>
-        </div>
+        </div>` : ''}
       </div>
     `;
     }).join('');

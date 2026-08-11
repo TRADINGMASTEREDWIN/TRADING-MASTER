@@ -160,7 +160,8 @@
     obtenerEstadoArray: () => temporalidadesGenerales, establecerEstadoArray: (n) => { temporalidadesGenerales = n; },
     obtenerEditingId: () => editingTemporalidadGeneralId, establecerEditingId: (id) => { editingTemporalidadGeneralId = id; },
     mapearUIaDB: mapearTemporalidadUIaSupabase, mapearDBaUI: mapearTemporalidadSupabaseAUI,
-    alTerminarGuardar: () => { poblarSelectTemporalidadOperacion(); }, alTerminarToggle: () => { poblarSelectTemporalidadOperacion(); },
+    alTerminarGuardar: () => { poblarSelectTemporalidadOperacion(); poblarSelectTemporalidadDecisionOperacion(); },
+    alTerminarToggle: () => { poblarSelectTemporalidadOperacion(); poblarSelectTemporalidadDecisionOperacion(); },
     renderFila: (t) => `<tr>
       <td>${escapeHtml(t.nombre || '—')} <span style="color:var(--color-text-muted); font-size:var(--fs-xs);">(${escapeHtml(t.codigo)})</span></td>
       <td>${t.minutos || '—'}</td>
@@ -181,12 +182,30 @@
   // temporalidades se ven/ocultan según el Tipo de Trade, IMP-03) — esa
   // lógica sigue en app.js tal cual; usaría trading_horizon_timeframes y es
   // una pieza más grande que queda fuera del alcance de esta Fase.
-  function poblarSelectTemporalidadOperacion(){
-    const select = document.getElementById('selectTemporalidad');
+  // Sprint 4.3 — extraída para reutilizarla en 2 selects distintos:
+  // "Temporalidad de ejecución" (ya existía) y "Temporalidad de Decisión"
+  // (nueva) — ambos leen el mismo catálogo, sin duplicar la lista en
+  // ningún lado. Ninguno de los 2 se filtra por Horizonte aquí (el
+  // filtrado por Horizonte de "ejecución" vive aparte, en
+  // poblarSelectTemporalidadSegunTipoTrade).
+  function poblarSelectTemporalidadPorId(idSelect){
+    const select = document.getElementById(idSelect);
     if(!select) return;
     const activas = temporalidadesGenerales.filter(t => t.estado === 'Activo');
     select.innerHTML = `<option value="">Selecciona…</option>` +
       activas.map(t => `<option value="${escapeHtml(t.codigo)}">${escapeHtml(t.codigo)}</option>`).join('');
+  }
+
+  function poblarSelectTemporalidadOperacion(){
+    poblarSelectTemporalidadPorId('selectTemporalidad');
+  }
+
+  // Sprint 4.3 — "Temporalidad de Decisión": campo estructural nuevo,
+  // consume DIRECTAMENTE el catálogo `timeframes` ya existente — cero
+  // variable_options, cero duplicado. Sin filtrar por Horizonte a propósito
+  // (puedes decidir en 4H y ejecutar en 15m).
+  function poblarSelectTemporalidadDecisionOperacion(){
+    poblarSelectTemporalidadPorId('selectTemporalidadDecision');
   }
 
 
@@ -446,6 +465,7 @@
     poblarSelectMercadoOperacion();
     poblarSelectTipoTradeOperacion();
     poblarSelectTemporalidadSegunTipoTrade(); // Sprint 4.1 — reemplaza a poblarSelectTemporalidadOperacion() aquí
+    poblarSelectTemporalidadDecisionOperacion(); // Sprint 4.3
     poblarSelectTipoEntradaOperacion();
     renderDireccionSegmentedOperacion();
 
