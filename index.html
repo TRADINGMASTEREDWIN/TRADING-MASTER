@@ -464,11 +464,6 @@
             <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin-bottom: var(--space-2);">Estrategia</div>
             <div class="form-grid">
               <div class="form-field">
-                <label>Nombre de estrategia *</label>
-                <select data-field="estrategiaNombre" id="selectEstrategia"></select>
-                <span class="field-error" data-error-for="estrategiaNombre">Selecciona una estrategia.</span>
-              </div>
-              <div class="form-field">
                 <label>Tipo de Trade</label>
                 <select data-field="tipoTrade" id="selectTipoTrade"></select>
               </div>
@@ -477,16 +472,13 @@
                 <select data-field="temporalidad" id="selectTemporalidad"></select>
                 <span class="field-error" data-error-for="temporalidad">Selecciona la temporalidad de ejecución.</span>
               </div>
-              <div class="form-field">
-                <label>Condición del mercado</label>
-                <select data-field="condicionMercado">
-                  <option>Tendencia alcista</option>
-                  <option>Tendencia bajista</option>
-                  <option>Rango / lateral</option>
-                </select>
+             <div class="form-field">
+                <label>Temporalidad de Decisión</label>
+                <select data-field="temporalidadDecision" id="selectTemporalidadDecision"></select>
               </div>
             </div>
-
+<div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Plan de la Operación</div>
+<div id="planOperacionDinamicaContainer"></div>
             <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Indicadores Técnicos</div>
 <div class="card" style="background: var(--color-bg);">
   <div class="card-body" style="padding: var(--space-4);">
@@ -1135,6 +1127,13 @@
                   <button class="buy active" type="button" data-valor="si">Sí</button>
                 </div>
               </div>
+              <div class="form-field">
+  <label>¿Permite marcar "Influyó en mi decisión"?</label>
+  <div class="segmented" id="influenciaVariableSegmented">
+    <button class="sell" type="button" data-valor="no">No</button>
+    <button class="buy active" type="button" data-valor="si">Sí</button>
+  </div>
+</div>
               <div class="form-field">
                 <label>Estado</label>
                 <div class="segmented" id="estadoVariableSegmented">
@@ -2139,7 +2138,7 @@
     { campo: 'tipoOperacion', etiqueta: 'Tipo de operación' },
     { campo: 'activo', etiqueta: 'Activo' },
     { campo: 'direccion', etiqueta: 'Dirección' },
-    { campo: 'estrategiaNombre', etiqueta: 'Estrategia' },
+    
     { campo: 'temporalidad', etiqueta: 'Temporalidad de ejecución' },
     { campo: 'precioEntrada', etiqueta: 'Precio entrada' },
     { campo: 'stopLoss', etiqueta: 'Stop Loss' },
@@ -2154,8 +2153,7 @@
   // flujo de "🔒 Cerrar Trade". Los campos de cierre (fechaSalida, horaSalida,
   // precioSalida, comisiones, evidencia, psicología) nunca están en esta lista.
   const CAMPOS_APERTURA_BLOQUEABLES = [
-    'cuenta', 'fecha', 'horaEntrada', 'mercado', 'tipoOperacion', 'activo',
-    'estrategiaNombre', 'temporalidad', 'precioEntrada', 'stopLoss', 'takeProfit',
+    'cuenta', 'fecha', 'horaEntrada', 'mercado', 'tipoOperacion', 'activo', 'temporalidad', 'precioEntrada', 'stopLoss', 'takeProfit',
     'margenUtilizado', 'apalancamiento', 'tamanoPosicion', 'riesgoPct'
   ];
 
