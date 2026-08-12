@@ -1554,6 +1554,52 @@
           </table>
         </div>
       </section>
+        <!-- ===== 7. TIPO DE OPERACIÓN (Spot/Futuros/Margin/Loan) — Sprint 4.4 ===== -->
+      <section class="card" style="margin-bottom: var(--space-6);" id="tipooperaciongen-form-card">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div><h2>7. Tipo de Operación</h2><div class="card-header-sub" id="tipoOperacionGenFormSub">Registra un nuevo tipo de operación</div></div>
+          </div>
+          <span class="badge gold" id="tipoOperacionGenEditBadge" style="display:none;">Editando tipo de operación</span>
+        </div>
+        <div class="card-body">
+          <div class="form-field-full" style="margin-bottom: var(--space-3); font-size: var(--fs-sm); color: var(--color-text-secondary);">
+            El "Código" es el valor interno que se guarda en cada Trade — el "Nombre" es lo que ve el usuario en el formulario.
+          </div>
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Código (interno) *</label>
+              <input type="text" data-tipooperaciongen-campo="codigo" placeholder="ej. Spot">
+              <span class="field-error" data-tipooperaciongen-error-for="codigo">El código es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Nombre (visible) *</label>
+              <input type="text" data-tipooperaciongen-campo="nombre" placeholder="ej. Spot">
+              <span class="field-error" data-tipooperaciongen-error-for="nombre">El nombre es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Estado</label>
+              <div class="segmented" id="estadoTipoOperacionGenSegmented">
+                <button class="buy active" type="button" data-valor="activo">Activo</button>
+                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-secondary" id="tipoOperacionGenCancelBtn" type="button">Cancelar</button>
+            <button class="btn-primary" id="tipoOperacionGenSaveBtn" type="button"><span id="tipoOperacionGenSaveBtnLabel">Guardar tipo de operación</span></button>
+          </div>
+        </div>
+      </section>
+      <section class="card">
+        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Tipos de Operación</h2><div class="card-header-sub"><span id="tiposOperacionGenCount">0</span> tipos de operación registrados</div></div></div></div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead><tr><th>Tipo de Operación</th><th class="col-actions">Acciones</th></tr></thead>
+            <tbody id="tiposOperacionGenTableBody"></tbody>
+          </table>
+        </div>
+      </section>
       </div><!-- /vistaConfiguracion -->
       
       <!-- ===================== HISTORIAL DE OPERACIONES ===================== -->
