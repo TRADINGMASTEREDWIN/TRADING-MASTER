@@ -247,8 +247,19 @@
     // es EXACTAMENTE el mismo de siempre — ningún catálogo existente los usa.
     const manejarGuardar = config.manejadorGuardarPersonalizado || (() => catalogoGuardar(config));
     const manejarCancelar = config.manejadorCancelarPersonalizado || (() => catalogoResetForm(config));
-    document.getElementById(config.idBotonGuardar).addEventListener('click', manejarGuardar);
-    document.getElementById(config.idBotonCancelar).addEventListener('click', manejarCancelar);
+
+    // Sprint 4.4 — guardias null agregadas aquí (mismo criterio que ya
+    // usaba catalogoRenderTabla con `if(!tbody) return;`). Antes, un
+    // catálogo cuya lógica JS se entregara ANTES que su HTML del
+    // administrador (ej. Tipo de Operación en este mismo Sprint) rompía
+    // el arranque completo de la app con "Cannot read properties of null
+    // (reading 'addEventListener')". Ahora, si el HTML todavía no existe,
+    // esta función simplemente no conecta nada para ese catálogo — sin
+    // afectar a los demás ni al resto de initApp().
+    const btnGuardar = document.getElementById(config.idBotonGuardar);
+    if(btnGuardar) btnGuardar.addEventListener('click', manejarGuardar);
+    const btnCancelar = document.getElementById(config.idBotonCancelar);
+    if(btnCancelar) btnCancelar.addEventListener('click', manejarCancelar);
 
     document.querySelectorAll(`[data-${config.atributoCampo}]`).forEach(el => {
       el.addEventListener('input', () => {
@@ -259,7 +270,9 @@
       });
     });
 
-    document.getElementById(config.idTablaBody).addEventListener('click', (e) => {
+    const tbody = document.getElementById(config.idTablaBody);
+    if(!tbody) return;
+    tbody.addEventListener('click', (e) => {
       const editBtn = e.target.closest(`.${config.claseBotonEditar}`);
       const toggleBtn = e.target.closest(`.${config.claseBotonToggle}`);
       const deleteBtn = config.claseBotonEliminar ? e.target.closest(`.${config.claseBotonEliminar}`) : null;
