@@ -372,6 +372,62 @@
       activos.map(t => `<option value="${escapeHtml(t.codigo)}">${escapeHtml(t.nombre)}</option>`).join('');
   }
 
+  /* ============================================================
+     SPRINT 4.4 — TIPO DE OPERACIÓN (Spot/Futuros/Margin/Loan — reemplaza
+     TIPOS_OPERACION hardcodeado). Copia exacta del patrón de Tipos de
+     Entrada/Direcciones — NO es lo mismo que Dirección (Long/Short), es
+     un concepto distinto que ya existía como campo separado en el
+     formulario ("Tipo de operación").
+     ============================================================ */
+  let tiposOperacionGenerales = [];
+  let editingTipoOperacionGeneralId = null;
+
+  function mapearTipoOperacionUIaSupabase(data){ return { code: data.codigo, name: data.nombre, is_active: data.estado === 'activo' }; }
+  function mapearTipoOperacionSupabaseAUI(row){ return { id: row.id, codigo: row.code, nombre: row.name, estado: row.is_active ? 'Activo' : 'Inactivo' }; }
+  const configTiposOperacion = {
+    tabla: 'operation_types', ordenarPor: 'sort_order',
+    atributoCampo: 'tipooperaciongen-campo', datasetCampo: 'tipooperaciongenCampo',
+    atributoErrorFor: 'tipooperaciongen-error-for', datasetErrorFor: 'tipooperaciongenErrorFor',
+    idSegmentedEstado: 'estadoTipoOperacionGenSegmented', estadoActivoLabel: 'Activo', estadoInactivoLabel: 'Inactivo', valorEstadoActivoDefault: 'activo',
+    camposRequeridos: [{ campo: 'codigo', etiqueta: 'Código' }, { campo: 'nombre', etiqueta: 'Nombre' }],
+    idBotonGuardar: 'tipoOperacionGenSaveBtn', idBotonCancelar: 'tipoOperacionGenCancelBtn', idBadgeEditando: 'tipoOperacionGenEditBadge',
+    idSubtitulo: 'tipoOperacionGenFormSub', idLabelBotonGuardar: 'tipoOperacionGenSaveBtnLabel',
+    textoSubtituloDefault: 'Registra un nuevo tipo de operación', textoBotonGuardarDefault: 'Guardar tipo de operación', textoBotonGuardarEditando: 'Actualizar tipo de operación',
+    idFormCard: 'tipooperaciongen-form-card',
+    idTablaBody: 'tiposOperacionGenTableBody', idContador: 'tiposOperacionGenCount', colspanVacio: 2,
+    mensajeVacio: 'Aún no has registrado ningún tipo de operación.',
+    claseBotonEditar: 'btn-edit-tipooperaciongen', claseBotonToggle: 'btn-toggle-tipooperaciongen', claseBotonEliminar: 'btn-delete-tipooperaciongen',
+    campoNombrePrincipal: 'nombre', nombreSingular: 'Tipo de Operación', nombreParaToast: (d) => d.nombre,
+    obtenerEstadoArray: () => tiposOperacionGenerales, establecerEstadoArray: (n) => { tiposOperacionGenerales = n; },
+    obtenerEditingId: () => editingTipoOperacionGeneralId, establecerEditingId: (id) => { editingTipoOperacionGeneralId = id; },
+    mapearUIaDB: mapearTipoOperacionUIaSupabase, mapearDBaUI: mapearTipoOperacionSupabaseAUI,
+    alTerminarGuardar: () => { poblarSelectTipoOperacionOperacion(); }, alTerminarToggle: () => { poblarSelectTipoOperacionOperacion(); },
+    renderFila: (t) => `<tr>
+      <td>${escapeHtml(t.nombre || '—')} <span style="color:var(--color-text-muted); font-size:var(--fs-xs);">(${escapeHtml(t.codigo)})</span></td>
+      <td class="col-actions"><div class="row-actions">
+        <button class="btn-edit-tipooperaciongen" data-id="${t.id}" title="Editar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg></button>
+        <button class="btn-toggle-tipooperaciongen" data-id="${t.id}" title="${t.estado === 'Activo' ? 'Inactivar' : 'Activar'}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg></button>
+        <button class="btn-delete-tipooperaciongen" data-id="${t.id}" title="Eliminar definitivamente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg></button>
+      </div></td></tr>`
+  };
+  async function cargarTiposOperacionGeneralesDesdeSupabase(){ await catalogoCargarDesdeSupabase(configTiposOperacion); }
+  function renderTiposOperacionGeneralesTable(){ catalogoRenderTabla(configTiposOperacion); }
+  async function guardarTipoOperacionGeneral(){ await catalogoGuardar(configTiposOperacion); }
+  function editarTipoOperacionGeneral(id){ catalogoEditar(configTiposOperacion, id); }
+  async function toggleEstadoTipoOperacionGeneral(id){ await catalogoToggleEstado(configTiposOperacion, id); }
+  function attachTiposOperacionGeneralesListeners(){ catalogoAttachListeners(configTiposOperacion); }
+
+  // Reemplaza al poblarSelect(..., TIPOS_OPERACION, ...) hardcodeado que
+  // vivía en construirCamposDinamicos() (app.js) — ese llamado se retira
+  // como parte de este mismo Sprint.
+  function poblarSelectTipoOperacionOperacion(){
+    const select = document.getElementById('selectTipoOperacion');
+    if(!select) return;
+    const activos = tiposOperacionGenerales.filter(t => t.estado === 'Activo');
+    select.innerHTML = `<option value="">Selecciona…</option>` +
+      activos.map(t => `<option value="${escapeHtml(t.codigo)}">${escapeHtml(t.nombre)}</option>`).join('');
+  }
+
 
   /* ============================================================
      6. DIRECCIONES (Long/Short — reemplaza Compra/Venta hardcodeado)
@@ -460,6 +516,7 @@
     await cargarHorizontesGeneralesDesdeSupabase();
     await cargarTiposEntradaGeneralesDesdeSupabase();
     await cargarDireccionesGeneralesDesdeSupabase();
+    await cargarTiposOperacionGeneralesDesdeSupabase(); // Sprint 4.4
     await cargarTemporalidadesDeHorizontes(); // Sprint 4.1
 
     poblarSelectMercadoOperacion();
@@ -467,6 +524,7 @@
     poblarSelectTemporalidadSegunTipoTrade(); // Sprint 4.1 — reemplaza a poblarSelectTemporalidadOperacion() aquí
     poblarSelectTemporalidadDecisionOperacion(); // Sprint 4.3
     poblarSelectTipoEntradaOperacion();
+    poblarSelectTipoOperacionOperacion(); // Sprint 4.4 — reemplaza al poblarSelect(...TIPOS_OPERACION...) hardcodeado
     renderDireccionSegmentedOperacion();
 
     renderBrokersGeneralesTable();
@@ -475,6 +533,7 @@
     renderHorizontesGeneralesTable();
     renderTiposEntradaGeneralesTable();
     renderDireccionesGeneralesTable();
+    renderTiposOperacionGeneralesTable(); // Sprint 4.4
   }
 
   function attachCatalogosGeneralesListeners(){
@@ -484,6 +543,7 @@
     attachHorizontesGeneralesListeners();
     attachTiposEntradaGeneralesListeners();
     attachDireccionesGeneralesListeners();
+    attachTiposOperacionGeneralesListeners(); // Sprint 4.4
     attachDireccionSegmentedOperacionListener();
     attachTemporalidadPorTipoTradeListener(); // Sprint 4.1
   }

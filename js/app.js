@@ -88,7 +88,9 @@
     construirCamposDinamicos();
     mostrarEstadoCargando();
     await cargarContadorCuentas();  // ID permanente de Cuenta (AC-01.1)
-    await cargarCuentas();          // Gestión de Cuentas (AC-01)
+    await cargarCuentasDesdeSupabase();  // Sprint 4.4 — corrige bug: cargarCuentas() (storage.js/window.storage)
+                                          // nunca cargaba nada real; esta es la función correcta (accounts.js),
+                                          // ya usada por el propio CRUD de Cuentas, ahora también en el arranque.
     await migrarIdsCuentas();       // Asigna idCuenta a cuentas creadas antes de AC-01.1
     await cargarActivosDesdeSupabase(); // Gestión de Activos
     await poblarSelectMercadoActivo();  // Select de Mercado del formulario de Activos
@@ -139,7 +141,10 @@
     // (listas estáticas) sino en inicializarCatalogosGenerales(), después de
     // cargar sus catálogos desde Supabase — mismo criterio ya usado para
     // Cuenta y Activo.
-    poblarSelect(document.getElementById('selectTipoOperacion'), TIPOS_OPERACION, 'Selecciona…');
+    // Sprint 4.4 — se retiró poblarSelect(...TIPOS_OPERACION...) de aquí:
+    // TIPOS_OPERACION (hardcodeada) migró a la tabla operation_types.
+    // poblarSelectTipoOperacionOperacion() (catalogosGenerales.js) hace
+    // esto ahora, con datos reales de Supabase.
     poblarSelect(document.getElementById('selectTipoCuenta'), TIPOS_CUENTA, 'Selecciona…');
     poblarSelect(document.getElementById('selectMonedaCuenta'), MONEDAS, 'Selecciona…');
     // Gestión de Activos: el selector de Activo ya no se puebla aquí (dato
