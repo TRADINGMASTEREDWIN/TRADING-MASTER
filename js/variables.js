@@ -33,6 +33,29 @@
   let editingOpcionVariableId = null;
 
   /* ============================================================
+     SPRINT — Administrador de Variables con navegación jerárquica
+     (Categoría → Variables de la categoría → Opciones de la Variable).
+     Estado de navegación puro — no toca variable_categories,
+     trading_variables, ni variable_options. Solo decide qué subconjunto
+     de los arreglos ya cargados se muestra en cada tabla.
+     ============================================================ */
+  let categoriaVariablesSeleccionadaId = null; // null = "Todas"
+  let variableSeleccionadaId = null;           // qué Variable muestra sus Opciones ahora mismo
+
+  // Filtra por trading_variables.category_id — la misma relación que ya
+  // existe, ninguna nueva. null = sin filtrar ("Todas").
+  function variablesDeLaCategoriaSeleccionada(){
+    if(!categoriaVariablesSeleccionadaId) return variablesTrading;
+    return variablesTrading.filter(v => v.categoria === categoriaVariablesSeleccionadaId);
+  }
+
+  // Filtra por variable_options.variable_id — igual, relación ya existente.
+  function opcionesDeLaVariableSeleccionada(){
+    if(!variableSeleccionadaId) return [];
+    return opcionesVariables.filter(o => o.variable === variableSeleccionadaId);
+  }
+
+  /* ============================================================
      1. CATEGORÍAS DE VARIABLES (variable_categories)
      ============================================================ */
 
@@ -133,8 +156,9 @@
 
     // Al crear/editar/activar una categoría, el select de Categoría del
     // formulario de Variables (más abajo) debe reflejar el cambio.
-    alTerminarGuardar: () => { poblarSelectCategoriaParaVariable(); },
-    alTerminarToggle: () => { poblarSelectCategoriaParaVariable(); }
+    // Sprint — también el sidebar de navegación jerárquica.
+    alTerminarGuardar: () => { poblarSelectCategoriaParaVariable(); renderCategoriasVariablesSidebar(); },
+    alTerminarToggle: () => { poblarSelectCategoriaParaVariable(); renderCategoriasVariablesSidebar(); }
   };
 
   async function cargarCategoriasVariablesDesdeSupabase(){ await catalogoCargarDesdeSupabase(configCategoriasVariables); }
@@ -247,7 +271,7 @@
     nombreSingular: 'Variable',
     nombreParaToast: (data) => data.nombre,
 
-    obtenerEstadoArray: () => variablesTrading,
+    obtenerEstadoArray: () => variablesDeLaCategoriaSeleccionada(), // Sprint — filtrado por categoría; establecerEstadoArray sigue guardando el arreglo COMPLETO
     establecerEstadoArray: (nuevo) => { variablesTrading = nuevo; },
     obtenerEditingId: () => editingVariableTradingId,
     establecerEditingId: (id) => { editingVariableTradingId = id; },
@@ -264,6 +288,9 @@
         : `<span class="badge neutral"><span class="badge-dot"></span>Inactivo</span>`}</td>
       <td class="col-actions">
         <div class="row-actions">
+          <button class="btn-ver-opciones-variable" data-id="${v.id}" title="Ver Opciones">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
           <button class="btn-edit-variable" data-id="${v.id}" title="Editar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg>
           </button>
@@ -277,12 +304,100 @@
       </td>
     </tr>`,
 
-    alTerminarGuardar: () => { poblarSelectVariableParaOpcion(); },
-    alTerminarToggle: () => { poblarSelectVariableParaOpcion(); }
+    alTerminarGuardar: () => { poblarSelectVariableParaOpcion(); renderVariablesTable(); },
+    alTerminarToggle: () => { poblarSelectVariableParaOpcion(); renderVariablesTable(); }
   };
 
   async function cargarVariablesDesdeSupabase(){ await catalogoCargarDesdeSupabase(configVariables); }
   function renderVariablesTable(){ catalogoRenderTabla(configVariables); }
+
+  /* ============================================================
+     SPRINT — Navegación jerárquica: sidebar de Categorías (dinámico,
+     desde Supabase — nunca hardcodeado), breadcrumb, y el cambio entre
+     el panel "Variables de la categoría" y "Opciones de la Variable".
+     ============================================================ */
+
+  function renderCategoriasVariablesSidebar(){
+    const contenedor = document.getElementById('variablesCategoriaSidebar');
+    if(!contenedor) return;
+    const activas = categoriasVariables.filter(c => c.estado === 'Activo');
+    const itemTodas = `<a class="config-subnav-item${!categoriaVariablesSeleccionadaId ? ' active' : ''}" data-var-categoria="">Todas</a>`;
+    const itemsCategorias = activas.map(c => `
+      <a class="config-subnav-item${categoriaVariablesSeleccionadaId === c.id ? ' active' : ''}" data-var-categoria="${c.id}">${escapeHtml(c.nombre)}</a>
+    `).join('');
+    contenedor.innerHTML = itemTodas + itemsCategorias;
+  }
+
+  function attachCategoriasVariablesSidebarListener(){
+    const contenedor = document.getElementById('variablesCategoriaSidebar');
+    if(!contenedor) return;
+    contenedor.addEventListener('click', (e) => {
+      const item = e.target.closest('[data-var-categoria]');
+      if(!item) return;
+      categoriaVariablesSeleccionadaId = item.dataset.varCategoria || null;
+      variableSeleccionadaId = null; // al cambiar de categoría, se sale de cualquier Variable abierta
+      mostrarPanelVariables();
+      renderCategoriasVariablesSidebar();
+      renderVariablesTable();
+      actualizarBreadcrumbVariables();
+    });
+  }
+
+  function nombreCategoriaSeleccionada(){
+    if(!categoriaVariablesSeleccionadaId) return 'Todas';
+    const cat = categoriasVariables.find(c => c.id === categoriaVariablesSeleccionadaId);
+    return cat ? cat.nombre : 'Todas';
+  }
+
+  function actualizarBreadcrumbVariables(){
+    const el = document.getElementById('variablesBreadcrumb');
+    if(!el) return;
+    let texto = `Variables / ${nombreCategoriaSeleccionada()}`;
+    if(variableSeleccionadaId){
+      const v = variablesTrading.find(x => x.id === variableSeleccionadaId);
+      texto += ` / ${v ? v.nombre : ''}`;
+    }
+    el.textContent = texto; // textContent ya es seguro por sí mismo, no necesita escapeHtml
+  }
+
+  function mostrarPanelVariables(){
+    const panelVariables = document.getElementById('panelListaVariables');
+    const panelOpciones = document.getElementById('panelListaOpciones');
+    if(panelVariables) panelVariables.style.display = '';
+    if(panelOpciones) panelOpciones.style.display = 'none';
+  }
+
+  function mostrarPanelOpciones(){
+    const panelVariables = document.getElementById('panelListaVariables');
+    const panelOpciones = document.getElementById('panelListaOpciones');
+    if(panelVariables) panelVariables.style.display = 'none';
+    if(panelOpciones) panelOpciones.style.display = '';
+  }
+
+  function verOpcionesDeVariable(variableId){
+    variableSeleccionadaId = variableId;
+    mostrarPanelOpciones();
+    renderOpcionesTable();
+    actualizarBreadcrumbVariables();
+  }
+
+  function volverAVariables(){
+    variableSeleccionadaId = null;
+    mostrarPanelVariables();
+    actualizarBreadcrumbVariables();
+  }
+
+  function attachVerOpcionesListener(){
+    const tbody = document.getElementById('variablesTableBody');
+    if(tbody){
+      tbody.addEventListener('click', (e) => {
+        const btn = e.target.closest('.btn-ver-opciones-variable');
+        if(btn) verOpcionesDeVariable(btn.dataset.id);
+      });
+    }
+    const volverBtn = document.getElementById('volverAVariablesBtn');
+    if(volverBtn) volverBtn.addEventListener('click', volverAVariables);
+  }
 
   // Sprint UX-2A — envuelve catalogoGuardar() (sin modificarlo) para además
   // sincronizar las Temporalidades vinculadas cuando el tipo de dato es
@@ -521,7 +636,7 @@
     nombreSingular: 'Opción',
     nombreParaToast: (data) => data.etiqueta,
 
-    obtenerEstadoArray: () => opcionesVariables,
+    obtenerEstadoArray: () => opcionesDeLaVariableSeleccionada(), // Sprint — filtrado por Variable; establecerEstadoArray sigue guardando el arreglo COMPLETO
     establecerEstadoArray: (nuevo) => { opcionesVariables = nuevo; },
     obtenerEditingId: () => editingOpcionVariableId,
     establecerEditingId: (id) => { editingOpcionVariableId = id; },
@@ -592,10 +707,21 @@
     renderCategoriasVariablesTable();
     renderVariablesTable();
     renderOpcionesTable();
+
+    // Sprint — Navegación jerárquica: sidebar dinámico de Categorías +
+    // breadcrumb inicial ("Variables / Todas"). El panel de Opciones
+    // arranca vacío porque opcionesDeLaVariableSeleccionada() devuelve []
+    // hasta que se entra a una Variable — comportamiento correcto, no un
+    // caso especial que haya que manejar aquí.
+    renderCategoriasVariablesSidebar();
+    mostrarPanelVariables();
+    actualizarBreadcrumbVariables();
   }
 
   function attachModuloVariablesListeners(){
     attachCategoriasVariablesListeners();
     attachVariablesListeners();
     attachOpcionesListeners();
+    attachCategoriasVariablesSidebarListener(); // Sprint — Navegación jerárquica
+    attachVerOpcionesListener();                // Sprint — Navegación jerárquica
   }
