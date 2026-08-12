@@ -1389,6 +1389,7 @@
           </div>
         </div>
 
+
         <!-- ===== 1. CATEGORÍAS DE VARIABLES ===== -->
         <section class="card" style="margin-bottom: var(--space-6);" id="categoriavar-form-card">
           <div class="card-header">
@@ -1461,6 +1462,19 @@
           </div>
         </section>
 
+
+      <!-- ===================== SPRINT: Administrador de Variables con navegación jerárquica ===================== -->
+      <!-- Categoría → Variables de la categoría → Opciones de la Variable. Mismo patrón
+           visual/técnico que el submenú de Configuración (cambiarConfigSubvista). -->
+      <div class="config-layout">
+        <nav class="config-subnav" id="variablesCategoriaSidebar">
+          <!-- Poblado dinámicamente por renderCategoriasVariablesSidebar() — NUNCA hardcodeado. -->
+        </nav>
+
+        <div class="config-content">
+          <div class="variables-breadcrumb" id="variablesBreadcrumb">Variables / Todas</div>
+
+          <div id="panelListaVariables">
         <!-- ===== 2. VARIABLES ===== -->
         <section class="card" style="margin-bottom: var(--space-6);" id="variable-form-card">
           <div class="card-header">
@@ -1569,6 +1583,14 @@
           </div>
         </section>
 
+
+          </div><!-- /panelListaVariables -->
+
+          <div id="panelListaOpciones" style="display:none;">
+            <button class="btn-secondary" id="volverAVariablesBtn" type="button" style="margin-bottom: var(--space-4);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+              Volver a Variables
+            </button>
         <!-- ===== 3. OPCIONES DE VARIABLES ===== -->
         <section class="card" style="margin-bottom: var(--space-6);" id="opcionvar-form-card">
           <div class="card-header">
@@ -1630,6 +1652,11 @@
             </table>
           </div>
         </section>
+
+
+          </div><!-- /panelListaOpciones -->
+        </div><!-- /config-content -->
+      </div><!-- /config-layout -->
 
       </div><!-- /vistaVariables -->
 
