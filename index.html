@@ -1965,16 +1965,7 @@
   // IMP-03 — configuración de temporalidades por Tipo de Trade. Es un mapa de
   // datos, no un if/else: agregar una estrategia futura (o redefinir Position)
   // es cambiar esta constante, nunca la lógica de abajo.
-  const TEMPORALIDADES_POR_TIPO_TRADE = {
-    'Scalping': { visibles: ['1W', '1D', '4H', '1H', '15m', '5m'], opcionales: [] },
-    'Intradía': { visibles: ['1W', '1D', '4H', '1H', '15m'], opcionales: ['15m'] },
-    'Swing': { visibles: ['1W', '1D', '4H', '1H'], opcionales: [] },
-    // Position: mismo comportamiento que Swing por ahora (según lo pedido) —
-    // el día que tenga arquitectura propia, solo se agrega su propia entrada aquí.
-    'Position': { visibles: ['1W', '1D', '4H', '1H'], opcionales: [] }
-  };
-  // Mientras no se haya elegido Tipo de Trade: se muestra la unión de todo lo
-  // que pueda llegar a pedirse, para no ocultar información antes de tiempo.
+ 
   const TEMPORALIDADES_POR_DEFECTO = { visibles: ['1W', '1D', '4H', '1H', '15m', '5m'], opcionales: [] };
 
   // Muestra/oculta cada fila del grid según el Tipo de Trade actual, y oculta
