@@ -58,26 +58,9 @@
         <span class="nav-label">📈 Trades</span>
       </a>
       <a class="nav-item" data-nav="historial">
-
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-
         <span class="nav-label">🕒 Historial de Trades</span>
-
-     
-
       </a>
-      <a class="nav-item" data-nav="cuentas">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3v4M8 3v4"/><line x1="2" y1="11" x2="22" y2="11"/></svg>
-        <span class="nav-label">💼 Cuentas</span>
-      </a>
-      <a class="nav-item" data-nav="activos">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-  <span class="nav-label">💠 Activos</span>
-</a>
-     <a class="nav-item" data-nav="variables">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-  <span class="nav-label">🧩 Variables</span>
-</a> 
       <a class="nav-item" data-nav="estrategias">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
         <span class="nav-label">🎯 Estrategias</span>
@@ -93,8 +76,7 @@
       <a class="nav-item" data-nav="configuracion">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
         <span class="nav-label">⚙️ Configuración</span>
-         </a>
-       
+      </a>
     </nav>
 
     <div class="sidebar-footer">
@@ -774,7 +756,71 @@
       </div><!-- /vistaPlanTrading -->
 
       <!-- ===================== GESTIÓN DE CUENTAS (AC-01) ===================== -->
-      <div id="vistaCuentas" style="display:none;">
+      <!-- ===================== ESTRATEGIAS (NAV-01) — en desarrollo ===================== -->
+      <div id="vistaEstrategias" style="display:none;">
+        <section class="card">
+          <div class="card-header">
+            <div class="card-header-title-group">
+              <div class="card-header-icon icon-purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
+              <div><h2>🎯 Estrategias</h2></div>
+            </div>
+          </div>
+          <div class="card-body">
+            <p style="color: var(--color-text-secondary);">Módulo en desarrollo.</p>
+          </div>
+        </section>
+      </div><!-- /vistaEstrategias -->
+
+      <!-- ===================== ANALYTICS (NAV-01) — próximamente ===================== -->
+      <div id="vistaAnalytics" style="display:none;">
+        <section class="card">
+          <div class="card-header">
+            <div class="card-header-title-group">
+              <div class="card-header-icon icon-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="5" height="9" rx="1"/><rect x="9.5" y="7" width="5" height="14" rx="1"/><rect x="16" y="3" width="5" height="18" rx="1"/></svg></div>
+              <div><h2>📊 Analytics</h2></div>
+            </div>
+          </div>
+          <div class="card-body">
+            <p style="color: var(--color-text-secondary);">Próximamente.</p>
+          </div>
+        </section>
+      </div><!-- /vistaAnalytics -->
+
+      <!-- ===================== CONFIGURACIÓN (NAV-01) — preparada para el futuro ===================== -->
+      <div id="vistaConfiguracion" style="display:none;">
+       <!-- ===================== FASE 3 — CATÁLOGOS GENERALES ===================== -->
+      <!-- Reemplaza el contenido de vistaConfiguracion (antes vacío/placeholder) -->
+
+      <div class="card" style="margin-bottom: var(--space-6);">
+        <div class="card-body">
+          <h2 style="font-size: var(--fs-xl); margin-bottom: var(--space-2);">⚙️ Configuración</h2>
+          <p class="plan-header-intro">Centro administrativo — Cuentas, Activos, Brokers, Mercados, catálogos generales y Variables, todos en un solo lugar.</p>
+        </div>
+      </div>
+
+      <!-- ===================== SPRINT: Reorganización de Navegación ===================== -->
+      <div class="config-layout">
+<nav class="config-subnav">
+          <div class="config-subnav-group-title">Trading</div>
+          <a class="config-subnav-item active" data-config-nav="cuentas">💼 Cuentas</a>
+          <a class="config-subnav-item" data-config-nav="activos">💠 Activos</a>
+          <a class="config-subnav-item" data-config-nav="brokers">🏦 Brokers</a>
+          <a class="config-subnav-item" data-config-nav="mercados">📊 Mercados</a>
+
+          <div class="config-subnav-group-title">Catálogos</div>
+          <a class="config-subnav-item" data-config-nav="temporalidades">⏱️ Temporalidades</a>
+          <a class="config-subnav-item" data-config-nav="horizontes">🎯 Horizontes</a>
+          <a class="config-subnav-item" data-config-nav="direcciones">↕️ Direcciones</a>
+          <a class="config-subnav-item" data-config-nav="tipos-entrada">📥 Tipos de Entrada</a>
+          <a class="config-subnav-item" data-config-nav="tipos-operacion">🔄 Tipos de Operación</a>
+          <a class="config-subnav-item" data-config-nav="variables">🧩 Variables</a>
+
+          <div class="config-subnav-group-title">Sistema</div>
+          <a class="config-subnav-item" data-config-nav="apariencia">🎨 Apariencia</a>
+        </nav>
+
+        <div class="config-content">
+      <div id="vistaCuentas" >
 
         <!-- Formulario de Cuenta (crear/editar) -->
         <section class="card" style="margin-bottom: var(--space-6);" id="cuenta-form-card">
@@ -912,7 +958,7 @@
         </section>
 
       </div><!-- /vistaCuentas -->
-<!-- ===================== GESTIÓN DE ACTIVOS ===================== -->
+
       <div id="vistaActivos" style="display:none;">
 
         <section class="card" style="margin-bottom: var(--space-6);" id="activo-form-card">
@@ -990,7 +1036,350 @@
         </section>
 
       </div><!-- /vistaActivos -->
-      <!-- ===================== GESTIÓN DE VARIABLES ===================== -->
+
+<div id="configPanelBrokers" style="display:none;">
+      <!-- ===== 1. BROKERS ===== -->
+      <section class="card" style="margin-bottom: var(--space-6);" id="broker-form-card">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div><h2>1. Brokers</h2><div class="card-header-sub" id="brokerFormSub">Registra un nuevo broker</div></div>
+          </div>
+          <span class="badge gold" id="brokerEditBadge" style="display:none;">Editando broker</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Nombre *</label>
+              <input type="text" data-broker-campo="nombre" placeholder="ej. Binance">
+              <span class="field-error" data-broker-error-for="nombre">El nombre es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Sitio web</label>
+              <input type="text" data-broker-campo="sitioWeb" placeholder="https://...">
+            </div>
+            <div class="form-field">
+              <label>Logo (URL)</label>
+              <input type="text" data-broker-campo="logoUrl" placeholder="https://...">
+            </div>
+            <div class="form-field">
+              <label>Estado</label>
+              <div class="segmented" id="estadoBrokerSegmented">
+                <button class="buy active" type="button" data-valor="activo">Activo</button>
+                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-secondary" id="brokerCancelBtn" type="button">Cancelar</button>
+            <button class="btn-primary" id="brokerSaveBtn" type="button"><span id="brokerSaveBtnLabel">Guardar broker</span></button>
+          </div>
+        </div>
+      </section>
+      <section class="card" style="margin-bottom: var(--space-6);">
+        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Brokers</h2><div class="card-header-sub"><span id="brokersCount">0</span> brokers registrados</div></div></div></div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead><tr><th>Nombre</th><th>Estado</th><th class="col-actions">Acciones</th></tr></thead>
+            <tbody id="brokersTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+
+      </div><!-- /configPanelBrokers -->
+
+<div id="configPanelMercados" style="display:none;">
+      <!-- ===== 2. MERCADOS ===== -->
+      <section class="card" style="margin-bottom: var(--space-6);" id="mercadogen-form-card">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div><h2>2. Mercados</h2><div class="card-header-sub" id="mercadoGenFormSub">Registra un nuevo mercado</div></div>
+          </div>
+          <span class="badge gold" id="mercadoGenEditBadge" style="display:none;">Editando mercado</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Nombre *</label>
+              <input type="text" data-mercadogen-campo="nombre" placeholder="ej. Forex">
+              <span class="field-error" data-mercadogen-error-for="nombre">El nombre es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Estado</label>
+              <div class="segmented" id="estadoMercadoGenSegmented">
+                <button class="buy active" type="button" data-valor="activo">Activo</button>
+                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-secondary" id="mercadoGenCancelBtn" type="button">Cancelar</button>
+            <button class="btn-primary" id="mercadoGenSaveBtn" type="button"><span id="mercadoGenSaveBtnLabel">Guardar mercado</span></button>
+          </div>
+        </div>
+      </section>
+      <section class="card" style="margin-bottom: var(--space-6);">
+        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Mercados</h2><div class="card-header-sub"><span id="mercadosGenCount">0</span> mercados registrados</div></div></div></div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead><tr><th>Nombre</th><th class="col-actions">Acciones</th></tr></thead>
+            <tbody id="mercadosGenTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+
+      </div><!-- /configPanelMercados -->
+
+<div id="configPanelTemporalidades" style="display:none;">
+      <!-- ===== 3. TEMPORALIDADES ===== -->
+      <section class="card" style="margin-bottom: var(--space-6);" id="temporalidadgen-form-card">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div><h2>3. Temporalidades</h2><div class="card-header-sub" id="temporalidadGenFormSub">Registra una nueva temporalidad</div></div>
+          </div>
+          <span class="badge gold" id="temporalidadGenEditBadge" style="display:none;">Editando temporalidad</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Código *</label>
+              <input type="text" data-temporalidadgen-campo="codigo" placeholder="ej. 4H">
+              <span class="field-error" data-temporalidadgen-error-for="codigo">El código es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Nombre *</label>
+              <input type="text" data-temporalidadgen-campo="nombre" placeholder="ej. 4 Horas">
+              <span class="field-error" data-temporalidadgen-error-for="nombre">El nombre es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Minutos equivalentes *</label>
+              <input type="text" inputmode="decimal" class="input-numerico" data-temporalidadgen-campo="minutos" placeholder="ej. 240">
+              <span class="field-error" data-temporalidadgen-error-for="minutos">Ingresa un número válido.</span>
+            </div>
+            <div class="form-field">
+              <label>Estado</label>
+              <div class="segmented" id="estadoTemporalidadGenSegmented">
+                <button class="buy active" type="button" data-valor="activo">Activo</button>
+                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-secondary" id="temporalidadGenCancelBtn" type="button">Cancelar</button>
+            <button class="btn-primary" id="temporalidadGenSaveBtn" type="button"><span id="temporalidadGenSaveBtnLabel">Guardar temporalidad</span></button>
+          </div>
+        </div>
+      </section>
+      <section class="card" style="margin-bottom: var(--space-6);">
+        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Temporalidades</h2><div class="card-header-sub"><span id="temporalidadesGenCount">0</span> temporalidades registradas</div></div></div></div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead><tr><th>Temporalidad</th><th>Minutos</th><th class="col-actions">Acciones</th></tr></thead>
+            <tbody id="temporalidadesGenTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+
+      </div><!-- /configPanelTemporalidades -->
+
+<div id="configPanelHorizontes" style="display:none;">
+      <!-- ===== 4. HORIZONTES DE TRADING ===== -->
+      <section class="card" style="margin-bottom: var(--space-6);" id="horizontegen-form-card">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div><h2>4. Horizontes de Trading</h2><div class="card-header-sub" id="horizonteGenFormSub">Registra un nuevo horizonte de trading</div></div>
+          </div>
+          <span class="badge gold" id="horizonteGenEditBadge" style="display:none;">Editando horizonte</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Código *</label>
+              <input type="text" data-horizontegen-campo="codigo" placeholder="ej. Swing">
+              <span class="field-error" data-horizontegen-error-for="codigo">El código es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Nombre *</label>
+              <input type="text" data-horizontegen-campo="nombre" placeholder="ej. Swing Trading">
+              <span class="field-error" data-horizontegen-error-for="nombre">El nombre es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Estado</label>
+              <div class="segmented" id="estadoHorizonteGenSegmented">
+                <button class="buy active" type="button" data-valor="activo">Activo</button>
+                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-secondary" id="horizonteGenCancelBtn" type="button">Cancelar</button>
+            <button class="btn-primary" id="horizonteGenSaveBtn" type="button"><span id="horizonteGenSaveBtnLabel">Guardar horizonte</span></button>
+          </div>
+        </div>
+      </section>
+      <section class="card" style="margin-bottom: var(--space-6);">
+        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Horizontes</h2><div class="card-header-sub"><span id="horizontesGenCount">0</span> horizontes registrados</div></div></div></div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead><tr><th>Horizonte</th><th class="col-actions">Acciones</th></tr></thead>
+            <tbody id="horizontesGenTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+
+      </div><!-- /configPanelHorizontes -->
+
+<div id="configPanelDirecciones" style="display:none;">
+      <!-- ===== 6. DIRECCIONES (Long/Short) ===== -->
+      <section class="card" style="margin-bottom: var(--space-6);" id="direcciongen-form-card">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div><h2>6. Direcciones</h2><div class="card-header-sub" id="direccionGenFormSub">Registra una nueva dirección</div></div>
+          </div>
+          <span class="badge gold" id="direccionGenEditBadge" style="display:none;">Editando dirección</span>
+        </div>
+        <div class="card-body">
+          <div class="form-field-full" style="margin-bottom: var(--space-3); font-size: var(--fs-sm); color: var(--color-text-secondary);">
+            El "Código" es el valor interno que usa el motor de cálculos (debe seguir siendo "Compra" o "Venta" para las 2 direcciones existentes) — el "Nombre" es lo único que ve el usuario en el formulario.
+          </div>
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Código (interno) *</label>
+              <input type="text" data-direcciongen-campo="codigo" placeholder="ej. Compra">
+              <span class="field-error" data-direcciongen-error-for="codigo">El código es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Nombre (visible) *</label>
+              <input type="text" data-direcciongen-campo="nombre" placeholder="ej. Long">
+              <span class="field-error" data-direcciongen-error-for="nombre">El nombre es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Estado</label>
+              <div class="segmented" id="estadoDireccionGenSegmented">
+                <button class="buy active" type="button" data-valor="activo">Activo</button>
+                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-secondary" id="direccionGenCancelBtn" type="button">Cancelar</button>
+            <button class="btn-primary" id="direccionGenSaveBtn" type="button"><span id="direccionGenSaveBtnLabel">Guardar dirección</span></button>
+          </div>
+        </div>
+      </section>
+      <section class="card">
+        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Direcciones</h2><div class="card-header-sub"><span id="direccionesGenCount">0</span> direcciones registradas</div></div></div></div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead><tr><th>Dirección</th><th class="col-actions">Acciones</th></tr></thead>
+            <tbody id="direccionesGenTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      </div><!-- /configPanelDirecciones -->
+
+<div id="configPanelTiposEntrada" style="display:none;">
+      <!-- ===== 5. TIPOS DE ENTRADA ===== -->
+      <section class="card" style="margin-bottom: var(--space-6);" id="tipoentradagen-form-card">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div><h2>5. Tipos de Entrada</h2><div class="card-header-sub" id="tipoEntradaGenFormSub">Registra un nuevo tipo de entrada</div></div>
+          </div>
+          <span class="badge gold" id="tipoEntradaGenEditBadge" style="display:none;">Editando tipo de entrada</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Código *</label>
+              <input type="text" data-tipoentradagen-campo="codigo" placeholder="ej. Stop">
+              <span class="field-error" data-tipoentradagen-error-for="codigo">El código es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Nombre *</label>
+              <input type="text" data-tipoentradagen-campo="nombre" placeholder="ej. Stop">
+              <span class="field-error" data-tipoentradagen-error-for="nombre">El nombre es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Estado</label>
+              <div class="segmented" id="estadoTipoEntradaGenSegmented">
+                <button class="buy active" type="button" data-valor="activo">Activo</button>
+                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-secondary" id="tipoEntradaGenCancelBtn" type="button">Cancelar</button>
+            <button class="btn-primary" id="tipoEntradaGenSaveBtn" type="button"><span id="tipoEntradaGenSaveBtnLabel">Guardar tipo de entrada</span></button>
+          </div>
+        </div>
+      </section>
+      <section class="card" style="margin-bottom: var(--space-6);">
+        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Tipos de Entrada</h2><div class="card-header-sub"><span id="tiposEntradaGenCount">0</span> tipos registrados</div></div></div></div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead><tr><th>Tipo de Entrada</th><th class="col-actions">Acciones</th></tr></thead>
+            <tbody id="tiposEntradaGenTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+
+      </div><!-- /configPanelTiposEntrada -->
+
+<div id="configPanelTiposOperacion" style="display:none;">
+        <!-- ===== 7. TIPO DE OPERACIÓN (Spot/Futuros/Margin/Loan) — Sprint 4.4 ===== -->
+      <section class="card" style="margin-bottom: var(--space-6);" id="tipooperaciongen-form-card">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div><h2>7. Tipo de Operación</h2><div class="card-header-sub" id="tipoOperacionGenFormSub">Registra un nuevo tipo de operación</div></div>
+          </div>
+          <span class="badge gold" id="tipoOperacionGenEditBadge" style="display:none;">Editando tipo de operación</span>
+        </div>
+        <div class="card-body">
+          <div class="form-field-full" style="margin-bottom: var(--space-3); font-size: var(--fs-sm); color: var(--color-text-secondary);">
+            El "Código" es el valor interno que se guarda en cada Trade — el "Nombre" es lo que ve el usuario en el formulario.
+          </div>
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Código (interno) *</label>
+              <input type="text" data-tipooperaciongen-campo="codigo" placeholder="ej. Spot">
+              <span class="field-error" data-tipooperaciongen-error-for="codigo">El código es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Nombre (visible) *</label>
+              <input type="text" data-tipooperaciongen-campo="nombre" placeholder="ej. Spot">
+              <span class="field-error" data-tipooperaciongen-error-for="nombre">El nombre es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Estado</label>
+              <div class="segmented" id="estadoTipoOperacionGenSegmented">
+                <button class="buy active" type="button" data-valor="activo">Activo</button>
+                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-secondary" id="tipoOperacionGenCancelBtn" type="button">Cancelar</button>
+            <button class="btn-primary" id="tipoOperacionGenSaveBtn" type="button"><span id="tipoOperacionGenSaveBtnLabel">Guardar tipo de operación</span></button>
+          </div>
+        </div>
+      </section>
+      <section class="card">
+        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Tipos de Operación</h2><div class="card-header-sub"><span id="tiposOperacionGenCount">0</span> tipos de operación registrados</div></div></div></div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead><tr><th>Tipo de Operación</th><th class="col-actions">Acciones</th></tr></thead>
+            <tbody id="tiposOperacionGenTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      </div><!-- /configPanelTiposOperacion -->
+
       <div id="vistaVariables" style="display:none;">
 
         <div class="card" style="margin-bottom: var(--space-6);">
@@ -1243,363 +1632,24 @@
         </section>
 
       </div><!-- /vistaVariables -->
-      <!-- ===================== ESTRATEGIAS (NAV-01) — en desarrollo ===================== -->
-      <div id="vistaEstrategias" style="display:none;">
+
+<div id="configPanelApariencia" style="display:none;">
         <section class="card">
           <div class="card-header">
             <div class="card-header-title-group">
-              <div class="card-header-icon icon-purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
-              <div><h2>🎯 Estrategias</h2></div>
+              <div><h2>Apariencia</h2><div class="card-header-sub">Tema claro u oscuro para toda la aplicación</div></div>
             </div>
           </div>
           <div class="card-body">
-            <p style="color: var(--color-text-secondary);">Módulo en desarrollo.</p>
+            <p style="color: var(--color-text-secondary); margin-bottom: var(--space-4);">El cambio de tema es el mismo botón que ya tienes en la barra superior — este acceso es solo un atajo, no es una función nueva.</p>
+            <button class="btn-secondary" id="apparienciaThemeToggleShortcut" type="button">Cambiar tema claro / oscuro</button>
           </div>
         </section>
-      </div><!-- /vistaEstrategias -->
+      </div><!-- /configPanelApariencia -->
 
-      <!-- ===================== ANALYTICS (NAV-01) — próximamente ===================== -->
-      <div id="vistaAnalytics" style="display:none;">
-        <section class="card">
-          <div class="card-header">
-            <div class="card-header-title-group">
-              <div class="card-header-icon icon-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="5" height="9" rx="1"/><rect x="9.5" y="7" width="5" height="14" rx="1"/><rect x="16" y="3" width="5" height="18" rx="1"/></svg></div>
-              <div><h2>📊 Analytics</h2></div>
-            </div>
-          </div>
-          <div class="card-body">
-            <p style="color: var(--color-text-secondary);">Próximamente.</p>
-          </div>
-        </section>
-      </div><!-- /vistaAnalytics -->
+        </div><!-- /config-content -->
+      </div><!-- /config-layout -->
 
-      <!-- ===================== CONFIGURACIÓN (NAV-01) — preparada para el futuro ===================== -->
-      <div id="vistaConfiguracion" style="display:none;">
-       <!-- ===================== FASE 3 — CATÁLOGOS GENERALES ===================== -->
-      <!-- Reemplaza el contenido de vistaConfiguracion (antes vacío/placeholder) -->
-
-      <div class="card" style="margin-bottom: var(--space-6);">
-        <div class="card-body">
-          <h2 style="font-size: var(--fs-xl); margin-bottom: var(--space-2);">⚙️ Catálogos Generales</h2>
-          <p class="plan-header-intro">Brokers, Mercados, Temporalidades, Horizontes de Trading, Tipos de Entrada y Direcciones — todos alimentan directamente el formulario de Trades.</p>
-        </div>
-      </div>
-
-      <!-- ===== 1. BROKERS ===== -->
-      <section class="card" style="margin-bottom: var(--space-6);" id="broker-form-card">
-        <div class="card-header">
-          <div class="card-header-title-group">
-            <div><h2>1. Brokers</h2><div class="card-header-sub" id="brokerFormSub">Registra un nuevo broker</div></div>
-          </div>
-          <span class="badge gold" id="brokerEditBadge" style="display:none;">Editando broker</span>
-        </div>
-        <div class="card-body">
-          <div class="form-grid">
-            <div class="form-field">
-              <label>Nombre *</label>
-              <input type="text" data-broker-campo="nombre" placeholder="ej. Binance">
-              <span class="field-error" data-broker-error-for="nombre">El nombre es obligatorio.</span>
-            </div>
-            <div class="form-field">
-              <label>Sitio web</label>
-              <input type="text" data-broker-campo="sitioWeb" placeholder="https://...">
-            </div>
-            <div class="form-field">
-              <label>Logo (URL)</label>
-              <input type="text" data-broker-campo="logoUrl" placeholder="https://...">
-            </div>
-            <div class="form-field">
-              <label>Estado</label>
-              <div class="segmented" id="estadoBrokerSegmented">
-                <button class="buy active" type="button" data-valor="activo">Activo</button>
-                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
-              </div>
-            </div>
-          </div>
-          <div class="form-actions">
-            <button class="btn-secondary" id="brokerCancelBtn" type="button">Cancelar</button>
-            <button class="btn-primary" id="brokerSaveBtn" type="button"><span id="brokerSaveBtnLabel">Guardar broker</span></button>
-          </div>
-        </div>
-      </section>
-      <section class="card" style="margin-bottom: var(--space-6);">
-        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Brokers</h2><div class="card-header-sub"><span id="brokersCount">0</span> brokers registrados</div></div></div></div>
-        <div class="table-wrap" style="max-height: none;">
-          <table class="data-table">
-            <thead><tr><th>Nombre</th><th>Estado</th><th class="col-actions">Acciones</th></tr></thead>
-            <tbody id="brokersTableBody"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- ===== 2. MERCADOS ===== -->
-      <section class="card" style="margin-bottom: var(--space-6);" id="mercadogen-form-card">
-        <div class="card-header">
-          <div class="card-header-title-group">
-            <div><h2>2. Mercados</h2><div class="card-header-sub" id="mercadoGenFormSub">Registra un nuevo mercado</div></div>
-          </div>
-          <span class="badge gold" id="mercadoGenEditBadge" style="display:none;">Editando mercado</span>
-        </div>
-        <div class="card-body">
-          <div class="form-grid">
-            <div class="form-field">
-              <label>Nombre *</label>
-              <input type="text" data-mercadogen-campo="nombre" placeholder="ej. Forex">
-              <span class="field-error" data-mercadogen-error-for="nombre">El nombre es obligatorio.</span>
-            </div>
-            <div class="form-field">
-              <label>Estado</label>
-              <div class="segmented" id="estadoMercadoGenSegmented">
-                <button class="buy active" type="button" data-valor="activo">Activo</button>
-                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
-              </div>
-            </div>
-          </div>
-          <div class="form-actions">
-            <button class="btn-secondary" id="mercadoGenCancelBtn" type="button">Cancelar</button>
-            <button class="btn-primary" id="mercadoGenSaveBtn" type="button"><span id="mercadoGenSaveBtnLabel">Guardar mercado</span></button>
-          </div>
-        </div>
-      </section>
-      <section class="card" style="margin-bottom: var(--space-6);">
-        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Mercados</h2><div class="card-header-sub"><span id="mercadosGenCount">0</span> mercados registrados</div></div></div></div>
-        <div class="table-wrap" style="max-height: none;">
-          <table class="data-table">
-            <thead><tr><th>Nombre</th><th class="col-actions">Acciones</th></tr></thead>
-            <tbody id="mercadosGenTableBody"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- ===== 3. TEMPORALIDADES ===== -->
-      <section class="card" style="margin-bottom: var(--space-6);" id="temporalidadgen-form-card">
-        <div class="card-header">
-          <div class="card-header-title-group">
-            <div><h2>3. Temporalidades</h2><div class="card-header-sub" id="temporalidadGenFormSub">Registra una nueva temporalidad</div></div>
-          </div>
-          <span class="badge gold" id="temporalidadGenEditBadge" style="display:none;">Editando temporalidad</span>
-        </div>
-        <div class="card-body">
-          <div class="form-grid">
-            <div class="form-field">
-              <label>Código *</label>
-              <input type="text" data-temporalidadgen-campo="codigo" placeholder="ej. 4H">
-              <span class="field-error" data-temporalidadgen-error-for="codigo">El código es obligatorio.</span>
-            </div>
-            <div class="form-field">
-              <label>Nombre *</label>
-              <input type="text" data-temporalidadgen-campo="nombre" placeholder="ej. 4 Horas">
-              <span class="field-error" data-temporalidadgen-error-for="nombre">El nombre es obligatorio.</span>
-            </div>
-            <div class="form-field">
-              <label>Minutos equivalentes *</label>
-              <input type="text" inputmode="decimal" class="input-numerico" data-temporalidadgen-campo="minutos" placeholder="ej. 240">
-              <span class="field-error" data-temporalidadgen-error-for="minutos">Ingresa un número válido.</span>
-            </div>
-            <div class="form-field">
-              <label>Estado</label>
-              <div class="segmented" id="estadoTemporalidadGenSegmented">
-                <button class="buy active" type="button" data-valor="activo">Activo</button>
-                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
-              </div>
-            </div>
-          </div>
-          <div class="form-actions">
-            <button class="btn-secondary" id="temporalidadGenCancelBtn" type="button">Cancelar</button>
-            <button class="btn-primary" id="temporalidadGenSaveBtn" type="button"><span id="temporalidadGenSaveBtnLabel">Guardar temporalidad</span></button>
-          </div>
-        </div>
-      </section>
-      <section class="card" style="margin-bottom: var(--space-6);">
-        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Temporalidades</h2><div class="card-header-sub"><span id="temporalidadesGenCount">0</span> temporalidades registradas</div></div></div></div>
-        <div class="table-wrap" style="max-height: none;">
-          <table class="data-table">
-            <thead><tr><th>Temporalidad</th><th>Minutos</th><th class="col-actions">Acciones</th></tr></thead>
-            <tbody id="temporalidadesGenTableBody"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- ===== 4. HORIZONTES DE TRADING ===== -->
-      <section class="card" style="margin-bottom: var(--space-6);" id="horizontegen-form-card">
-        <div class="card-header">
-          <div class="card-header-title-group">
-            <div><h2>4. Horizontes de Trading</h2><div class="card-header-sub" id="horizonteGenFormSub">Registra un nuevo horizonte de trading</div></div>
-          </div>
-          <span class="badge gold" id="horizonteGenEditBadge" style="display:none;">Editando horizonte</span>
-        </div>
-        <div class="card-body">
-          <div class="form-grid">
-            <div class="form-field">
-              <label>Código *</label>
-              <input type="text" data-horizontegen-campo="codigo" placeholder="ej. Swing">
-              <span class="field-error" data-horizontegen-error-for="codigo">El código es obligatorio.</span>
-            </div>
-            <div class="form-field">
-              <label>Nombre *</label>
-              <input type="text" data-horizontegen-campo="nombre" placeholder="ej. Swing Trading">
-              <span class="field-error" data-horizontegen-error-for="nombre">El nombre es obligatorio.</span>
-            </div>
-            <div class="form-field">
-              <label>Estado</label>
-              <div class="segmented" id="estadoHorizonteGenSegmented">
-                <button class="buy active" type="button" data-valor="activo">Activo</button>
-                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
-              </div>
-            </div>
-          </div>
-          <div class="form-actions">
-            <button class="btn-secondary" id="horizonteGenCancelBtn" type="button">Cancelar</button>
-            <button class="btn-primary" id="horizonteGenSaveBtn" type="button"><span id="horizonteGenSaveBtnLabel">Guardar horizonte</span></button>
-          </div>
-        </div>
-      </section>
-      <section class="card" style="margin-bottom: var(--space-6);">
-        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Horizontes</h2><div class="card-header-sub"><span id="horizontesGenCount">0</span> horizontes registrados</div></div></div></div>
-        <div class="table-wrap" style="max-height: none;">
-          <table class="data-table">
-            <thead><tr><th>Horizonte</th><th class="col-actions">Acciones</th></tr></thead>
-            <tbody id="horizontesGenTableBody"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- ===== 5. TIPOS DE ENTRADA ===== -->
-      <section class="card" style="margin-bottom: var(--space-6);" id="tipoentradagen-form-card">
-        <div class="card-header">
-          <div class="card-header-title-group">
-            <div><h2>5. Tipos de Entrada</h2><div class="card-header-sub" id="tipoEntradaGenFormSub">Registra un nuevo tipo de entrada</div></div>
-          </div>
-          <span class="badge gold" id="tipoEntradaGenEditBadge" style="display:none;">Editando tipo de entrada</span>
-        </div>
-        <div class="card-body">
-          <div class="form-grid">
-            <div class="form-field">
-              <label>Código *</label>
-              <input type="text" data-tipoentradagen-campo="codigo" placeholder="ej. Stop">
-              <span class="field-error" data-tipoentradagen-error-for="codigo">El código es obligatorio.</span>
-            </div>
-            <div class="form-field">
-              <label>Nombre *</label>
-              <input type="text" data-tipoentradagen-campo="nombre" placeholder="ej. Stop">
-              <span class="field-error" data-tipoentradagen-error-for="nombre">El nombre es obligatorio.</span>
-            </div>
-            <div class="form-field">
-              <label>Estado</label>
-              <div class="segmented" id="estadoTipoEntradaGenSegmented">
-                <button class="buy active" type="button" data-valor="activo">Activo</button>
-                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
-              </div>
-            </div>
-          </div>
-          <div class="form-actions">
-            <button class="btn-secondary" id="tipoEntradaGenCancelBtn" type="button">Cancelar</button>
-            <button class="btn-primary" id="tipoEntradaGenSaveBtn" type="button"><span id="tipoEntradaGenSaveBtnLabel">Guardar tipo de entrada</span></button>
-          </div>
-        </div>
-      </section>
-      <section class="card" style="margin-bottom: var(--space-6);">
-        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Tipos de Entrada</h2><div class="card-header-sub"><span id="tiposEntradaGenCount">0</span> tipos registrados</div></div></div></div>
-        <div class="table-wrap" style="max-height: none;">
-          <table class="data-table">
-            <thead><tr><th>Tipo de Entrada</th><th class="col-actions">Acciones</th></tr></thead>
-            <tbody id="tiposEntradaGenTableBody"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- ===== 6. DIRECCIONES (Long/Short) ===== -->
-      <section class="card" style="margin-bottom: var(--space-6);" id="direcciongen-form-card">
-        <div class="card-header">
-          <div class="card-header-title-group">
-            <div><h2>6. Direcciones</h2><div class="card-header-sub" id="direccionGenFormSub">Registra una nueva dirección</div></div>
-          </div>
-          <span class="badge gold" id="direccionGenEditBadge" style="display:none;">Editando dirección</span>
-        </div>
-        <div class="card-body">
-          <div class="form-field-full" style="margin-bottom: var(--space-3); font-size: var(--fs-sm); color: var(--color-text-secondary);">
-            El "Código" es el valor interno que usa el motor de cálculos (debe seguir siendo "Compra" o "Venta" para las 2 direcciones existentes) — el "Nombre" es lo único que ve el usuario en el formulario.
-          </div>
-          <div class="form-grid">
-            <div class="form-field">
-              <label>Código (interno) *</label>
-              <input type="text" data-direcciongen-campo="codigo" placeholder="ej. Compra">
-              <span class="field-error" data-direcciongen-error-for="codigo">El código es obligatorio.</span>
-            </div>
-            <div class="form-field">
-              <label>Nombre (visible) *</label>
-              <input type="text" data-direcciongen-campo="nombre" placeholder="ej. Long">
-              <span class="field-error" data-direcciongen-error-for="nombre">El nombre es obligatorio.</span>
-            </div>
-            <div class="form-field">
-              <label>Estado</label>
-              <div class="segmented" id="estadoDireccionGenSegmented">
-                <button class="buy active" type="button" data-valor="activo">Activo</button>
-                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
-              </div>
-            </div>
-          </div>
-          <div class="form-actions">
-            <button class="btn-secondary" id="direccionGenCancelBtn" type="button">Cancelar</button>
-            <button class="btn-primary" id="direccionGenSaveBtn" type="button"><span id="direccionGenSaveBtnLabel">Guardar dirección</span></button>
-          </div>
-        </div>
-      </section>
-      <section class="card">
-        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Direcciones</h2><div class="card-header-sub"><span id="direccionesGenCount">0</span> direcciones registradas</div></div></div></div>
-        <div class="table-wrap" style="max-height: none;">
-          <table class="data-table">
-            <thead><tr><th>Dirección</th><th class="col-actions">Acciones</th></tr></thead>
-            <tbody id="direccionesGenTableBody"></tbody>
-          </table>
-        </div>
-      </section>
-        <!-- ===== 7. TIPO DE OPERACIÓN (Spot/Futuros/Margin/Loan) — Sprint 4.4 ===== -->
-      <section class="card" style="margin-bottom: var(--space-6);" id="tipooperaciongen-form-card">
-        <div class="card-header">
-          <div class="card-header-title-group">
-            <div><h2>7. Tipo de Operación</h2><div class="card-header-sub" id="tipoOperacionGenFormSub">Registra un nuevo tipo de operación</div></div>
-          </div>
-          <span class="badge gold" id="tipoOperacionGenEditBadge" style="display:none;">Editando tipo de operación</span>
-        </div>
-        <div class="card-body">
-          <div class="form-field-full" style="margin-bottom: var(--space-3); font-size: var(--fs-sm); color: var(--color-text-secondary);">
-            El "Código" es el valor interno que se guarda en cada Trade — el "Nombre" es lo que ve el usuario en el formulario.
-          </div>
-          <div class="form-grid">
-            <div class="form-field">
-              <label>Código (interno) *</label>
-              <input type="text" data-tipooperaciongen-campo="codigo" placeholder="ej. Spot">
-              <span class="field-error" data-tipooperaciongen-error-for="codigo">El código es obligatorio.</span>
-            </div>
-            <div class="form-field">
-              <label>Nombre (visible) *</label>
-              <input type="text" data-tipooperaciongen-campo="nombre" placeholder="ej. Spot">
-              <span class="field-error" data-tipooperaciongen-error-for="nombre">El nombre es obligatorio.</span>
-            </div>
-            <div class="form-field">
-              <label>Estado</label>
-              <div class="segmented" id="estadoTipoOperacionGenSegmented">
-                <button class="buy active" type="button" data-valor="activo">Activo</button>
-                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
-              </div>
-            </div>
-          </div>
-          <div class="form-actions">
-            <button class="btn-secondary" id="tipoOperacionGenCancelBtn" type="button">Cancelar</button>
-            <button class="btn-primary" id="tipoOperacionGenSaveBtn" type="button"><span id="tipoOperacionGenSaveBtnLabel">Guardar tipo de operación</span></button>
-          </div>
-        </div>
-      </section>
-      <section class="card">
-        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Tipos de Operación</h2><div class="card-header-sub"><span id="tiposOperacionGenCount">0</span> tipos de operación registrados</div></div></div></div>
-        <div class="table-wrap" style="max-height: none;">
-          <table class="data-table">
-            <thead><tr><th>Tipo de Operación</th><th class="col-actions">Acciones</th></tr></thead>
-            <tbody id="tiposOperacionGenTableBody"></tbody>
-          </table>
-        </div>
-      </section>
       </div><!-- /vistaConfiguracion -->
       
       <!-- ===================== HISTORIAL DE OPERACIONES ===================== -->
@@ -2415,15 +2465,17 @@
     const MODULOS_NAV = {
       'inicio': 'vistaInicio',
       'trades': 'vistaTrades',
-      'cuentas': 'vistaCuentas',
-      'activos': 'vistaActivos',
-      'variables': 'vistaVariables',
       'estrategias': 'vistaEstrategias',
       'analytics': 'vistaAnalytics',
       'plan-trading': 'vistaPlanTrading',
       'historial': 'vistaHistorial',
       'configuracion': 'vistaConfiguracion'
     };
+    // Sprint — Reorganización de Navegación: 'cuentas', 'activos' y 'variables'
+    // se retiraron de MODULOS_NAV (ya no son destinos de nivel superior) — ahora
+    // viven dentro de Configuración, controlados por CONFIG_SUBMODULOS más abajo.
+    // Sus ids de vista (vistaCuentas, vistaActivos, vistaVariables) NO cambiaron
+    // en absoluto — solo cambió desde dónde se les controla la visibilidad.
 
     function cambiarVista(navId){
       Object.values(MODULOS_NAV).forEach(vid => {
@@ -2435,6 +2487,12 @@
         const destino = document.getElementById(idDestino);
         if(destino) destino.style.display = '';
       }
+      // Sprint — Reorganización de Navegación: al entrar a Configuración,
+      // siempre abre mostrando "Cuentas" por defecto (estado determinista,
+      // igual que ya hacía cambiarVista('inicio') al arrancar la app).
+      if(navId === 'configuracion'){
+        cambiarConfigSubvista('cuentas');
+      }
     }
 
     document.querySelectorAll('.nav-item').forEach(item => {
@@ -2444,6 +2502,53 @@
         cambiarVista(item.dataset.nav);
       });
     });
+
+    /* ============================================================
+       SPRINT — Reorganización de Navegación: submenú interno de
+       Configuración. Mismo patrón exacto que MODULOS_NAV/cambiarVista()
+       de arriba, un nivel más adentro — nada de arquitectura nueva.
+       ============================================================ */
+    const CONFIG_SUBMODULOS = {
+      'cuentas': 'vistaCuentas',
+      'activos': 'vistaActivos',
+      'brokers': 'configPanelBrokers',
+      'mercados': 'configPanelMercados',
+      'temporalidades': 'configPanelTemporalidades',
+      'horizontes': 'configPanelHorizontes',
+      'direcciones': 'configPanelDirecciones',
+      'tipos-entrada': 'configPanelTiposEntrada',
+      'tipos-operacion': 'configPanelTiposOperacion',
+      'variables': 'vistaVariables',
+      'apariencia': 'configPanelApariencia'
+    };
+
+    function cambiarConfigSubvista(subNavId){
+      Object.values(CONFIG_SUBMODULOS).forEach(pid => {
+        const el = document.getElementById(pid);
+        if(el) el.style.display = 'none';
+      });
+      document.querySelectorAll('.config-subnav-item').forEach(item => item.classList.remove('active'));
+      const idDestino = CONFIG_SUBMODULOS[subNavId];
+      if(idDestino){
+        const destino = document.getElementById(idDestino);
+        if(destino) destino.style.display = '';
+      }
+      const navItem = document.querySelector(`.config-subnav-item[data-config-nav="${subNavId}"]`);
+      if(navItem) navItem.classList.add('active');
+    }
+
+    document.querySelectorAll('.config-subnav-item').forEach(item => {
+      item.addEventListener('click', () => cambiarConfigSubvista(item.dataset.configNav));
+    });
+
+    // Apariencia: reutiliza el botón YA existente de la topbar (mismo
+    // listener, cero lógica duplicada) — solo le dispara un clic real.
+    const apparienciaShortcut = document.getElementById('apparienciaThemeToggleShortcut');
+    if(apparienciaShortcut){
+      apparienciaShortcut.addEventListener('click', () => {
+        document.getElementById('themeToggleBtn').click();
+      });
+    }
 
     // Vista inicial al cargar Trading Master: 🏠 Inicio (Dashboard Ejecutivo).
     cambiarVista('inicio');
