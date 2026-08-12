@@ -723,11 +723,40 @@
   /* ============================================================
      15. RESPONSIVE
      ============================================================ */
+
+  /* Sprint — Submenú interno de Configuración. Mismo lenguaje visual que
+     .nav-item (sidebar principal), aplicado un nivel más adentro. */
+  .config-layout{ display: flex; gap: var(--space-6); align-items: flex-start; }
+  .config-subnav{
+    flex-shrink: 0; width: 220px;
+    display: flex; flex-direction: column; gap: var(--space-1);
+    position: sticky; top: var(--space-4);
+  }
+  .config-subnav-group-title{
+    font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--color-text-muted); padding: var(--space-3) var(--space-3) var(--space-1);
+  }
+  .config-subnav-group-title:not(:first-child){ margin-top: var(--space-3); }
+  .config-subnav-item{
+    display: block; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md);
+    color: var(--color-text-secondary); text-decoration: none; cursor: pointer; font-size: var(--fs-sm);
+    transition: background var(--transition-fast), color var(--transition-fast);
+  }
+  .config-subnav-item:hover{ background: var(--color-panel-alt); color: var(--color-text); }
+  .config-subnav-item.active{ background: var(--color-primary-soft); color: var(--color-primary); font-weight: 600; }
+  .config-content{ flex: 1; min-width: 0; }
+
+  @media (max-width: 900px){
+    .config-layout{ flex-direction: column; }
+    .config-subnav{ width: 100%; flex-direction: row; flex-wrap: wrap; position: static; }
+  }
+
   @media (max-width: 1024px){
     .app{ grid-template-columns: var(--sidebar-width-collapsed) 1fr; }
     .app .nav-label, .app .nav-group-title, .app .sidebar-brand-text{ display: none; }
     .topbar-search{ display: none; }
   }
+
   @media (max-width: 720px){
     .app{ grid-template-columns: 1fr; }
     .sidebar{ position: fixed; left: 0; top: 0; z-index: 50; width: var(--sidebar-width); transform: translateX(-100%); transition: transform var(--transition-base); }
