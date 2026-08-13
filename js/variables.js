@@ -136,11 +136,15 @@
     renderFila: (c) => `<tr>
       <td>${escapeHtml(c.nombre || '—')} <span style="color:var(--color-text-muted); font-size:var(--fs-xs);">(${escapeHtml(c.codigo)})</span></td>
       <td>${escapeHtml(c.fase || '—')}</td>
+      <td>${contarVariablesDeCategoria(c.id)}</td>
       <td>${c.estado === 'Activo'
         ? `<span class="badge success"><span class="badge-dot"></span>Activo</span>`
         : `<span class="badge neutral"><span class="badge-dot"></span>Inactivo</span>`}</td>
       <td class="col-actions">
         <div class="row-actions">
+          <button class="btn-entrar-categoriavar" data-id="${c.id}" title="Entrar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
           <button class="btn-edit-categoriavar" data-id="${c.id}" title="Editar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg>
           </button>
@@ -157,16 +161,68 @@
     // Al crear/editar/activar una categoría, el select de Categoría del
     // formulario de Variables (más abajo) debe reflejar el cambio.
     // Sprint — también el sidebar de navegación jerárquica.
-    alTerminarGuardar: () => { poblarSelectCategoriaParaVariable(); renderCategoriasVariablesSidebar(); },
+    // Corrección UX — al guardar con éxito, el formulario vuelve a
+    // ocultarse (regresa a la vista limpia de la lista).
+    alTerminarGuardar: () => { poblarSelectCategoriaParaVariable(); renderCategoriasVariablesSidebar(); ocultarFormularioCategoria(); },
     alTerminarToggle: () => { poblarSelectCategoriaParaVariable(); renderCategoriasVariablesSidebar(); }
   };
 
   async function cargarCategoriasVariablesDesdeSupabase(){ await catalogoCargarDesdeSupabase(configCategoriasVariables); }
   function renderCategoriasVariablesTable(){ catalogoRenderTabla(configCategoriasVariables); }
   async function guardarCategoriaVariable(){ await catalogoGuardar(configCategoriasVariables); }
-  function editarCategoriaVariable(id){ catalogoEditar(configCategoriasVariables, id); }
+
+  // Corrección UX — al Editar una categoría existente, el formulario debe
+  // revelarse (antes de este Sprint ya estaba siempre visible; ahora hay
+  // que mostrarlo explícitamente).
+  function editarCategoriaVariable(id){
+    catalogoEditar(configCategoriasVariables, id);
+    mostrarFormularioCategoria();
+  }
+
   async function toggleEstadoCategoriaVariable(id){ await catalogoToggleEstado(configCategoriasVariables, id); }
-  function attachCategoriasVariablesListeners(){ catalogoAttachListeners(configCategoriasVariables); }
+
+  /* ============================================================
+     SPRINT — Entrada limpia al Administrador de Variables. El formulario
+     de Categorías (crear/editar) ya NO aparece automáticamente — vive
+     oculto dentro de #categoriaVarFormWrapper, y solo se muestra al
+     pulsar "+ Nueva categoría" o "Editar" en una fila. Su interior (ids,
+     campos, botones, validación) no cambió — solo se envolvió.
+     ============================================================ */
+  function mostrarFormularioCategoria(){
+    const wrapper = document.getElementById('categoriaVarFormWrapper');
+    if(wrapper) wrapper.style.display = '';
+  }
+  function ocultarFormularioCategoria(){
+    const wrapper = document.getElementById('categoriaVarFormWrapper');
+    if(wrapper) wrapper.style.display = 'none';
+  }
+
+  function cancelarFormularioCategoria(){
+    catalogoResetForm(configCategoriasVariables);
+    ocultarFormularioCategoria();
+  }
+
+  function abrirNuevaCategoria(){
+    catalogoResetForm(configCategoriasVariables); // asegura modo "crear", no quedar editando algo previo
+    mostrarFormularioCategoria();
+  }
+
+  function attachCategoriasVariablesListeners(){
+    configCategoriasVariables.manejadorCancelarPersonalizado = cancelarFormularioCategoria;
+    catalogoAttachListeners(configCategoriasVariables);
+
+    const nuevaBtn = document.getElementById('nuevaCategoriaVarBtn');
+    if(nuevaBtn) nuevaBtn.addEventListener('click', abrirNuevaCategoria);
+
+    // "Entrar →" — misma navegación que el sidebar, delegado sobre la tabla.
+    const tbody = document.getElementById('categoriasVarTableBody');
+    if(tbody){
+      tbody.addEventListener('click', (e) => {
+        const btn = e.target.closest('.btn-entrar-categoriavar');
+        if(btn) entrarACategoria(btn.dataset.id);
+      });
+    }
+  }
 
 
   /* ============================================================
@@ -334,14 +390,28 @@
     contenedor.addEventListener('click', (e) => {
       const item = e.target.closest('[data-var-categoria]');
       if(!item) return;
-      categoriaVariablesSeleccionadaId = item.dataset.varCategoria || null;
-      variableSeleccionadaId = null; // al cambiar de categoría, se sale de cualquier Variable abierta
-      irAPanelVariables();
-      renderCategoriasVariablesSidebar();
-      renderVariablesTable();
-      actualizarBreadcrumbVariables();
-      sincronizarSelectCategoriaConNavegacion(); // Corrección UX — el formulario hereda la categoría activa
+      entrarACategoria(item.dataset.varCategoria || null); // Corrección UX — misma función que usa "Entrar →"
     });
+  }
+
+  // Corrección UX — Entrada limpia. Cuenta real de Variables por Categoría,
+  // calculada de los datos YA cargados desde Supabase — nunca hardcodeada.
+  function contarVariablesDeCategoria(categoriaId){
+    return variablesTrading.filter(v => v.categoria === categoriaId).length;
+  }
+
+  // Lógica de navegación compartida — MISMA función que usan tanto el
+  // sidebar (clic en "Liquidez") como la nueva lista de aterrizaje (botón
+  // "Entrar →"). Antes vivía duplicada dentro del listener del sidebar;
+  // se extrae aquí para no repetir código.
+  function entrarACategoria(categoriaId){
+    categoriaVariablesSeleccionadaId = categoriaId || null;
+    variableSeleccionadaId = null;
+    irAPanelVariables();
+    renderCategoriasVariablesSidebar();
+    renderVariablesTable();
+    actualizarBreadcrumbVariables();
+    sincronizarSelectCategoriaConNavegacion();
   }
 
   function nombreCategoriaSeleccionada(){
@@ -753,15 +823,13 @@
     renderVariablesTable();
     renderOpcionesTable();
 
-    // Sprint — Navegación jerárquica: sidebar dinámico de Categorías +
-    // breadcrumb inicial ("Variables / Todas"). El panel de Opciones
-    // arranca vacío porque opcionesDeLaVariableSeleccionada() devuelve []
-    // hasta que se entra a una Variable — comportamiento correcto, no un
-    // caso especial que haya que manejar aquí.
+    // Corrección UX — Entrada limpia. La pantalla de aterrizaje ahora es
+    // la lista de Categorías (sin el formulario abierto), no "Todas las
+    // Variables". El sidebar sigue disponible para saltar directo a una
+    // categoría si se prefiere.
     renderCategoriasVariablesSidebar();
-    irAPanelVariables();
-    actualizarBreadcrumbVariables();
-    sincronizarSelectCategoriaConNavegacion(); // Corrección UX — estado inicial correcto ("Todas" = select libre)
+    irAPanelCategorias();
+    sincronizarSelectCategoriaConNavegacion(); // "Todas" = select del formulario de Variables libre
   }
 
   function attachModuloVariablesListeners(){
