@@ -340,6 +340,7 @@
       renderCategoriasVariablesSidebar();
       renderVariablesTable();
       actualizarBreadcrumbVariables();
+      sincronizarSelectCategoriaConNavegacion(); // Corrección UX — el formulario hereda la categoría activa
     });
   }
 
@@ -586,6 +587,25 @@
     const contenedor = document.getElementById('temporalidadesVariableContainer');
     if(contenedor) contenedor.querySelectorAll('.chk-temporalidad-variable').forEach(chk => { chk.checked = false; });
     actualizarVisibilidadConfigMatriz();
+    sincronizarSelectCategoriaConNavegacion(); // Corrección UX — catalogoResetForm() limpia el select a "", esto lo vuelve a fijar según la categoría activa en el sidebar
+  }
+
+  // Corrección UX — Categoría heredada del formulario de Variables.
+  // Mientras se navega DENTRO de una categoría específica (no "Todas"), el
+  // <select> de Categoría del formulario se fija a esa categoría y se
+  // bloquea (no se puede elegir otra por error). En "Todas" queda libre,
+  // como siempre. No es una segunda fuente de verdad: lee directamente
+  // categoriaVariablesSeleccionadaId, la misma variable que ya controla
+  // la navegación — nunca se duplica el estado.
+  function sincronizarSelectCategoriaConNavegacion(){
+    const select = document.getElementById('selectCategoriaVariable');
+    if(!select) return;
+    if(categoriaVariablesSeleccionadaId){
+      select.value = categoriaVariablesSeleccionadaId;
+      select.disabled = true;
+    }else{
+      select.disabled = false;
+    }
   }
 
 
@@ -741,6 +761,7 @@
     renderCategoriasVariablesSidebar();
     irAPanelVariables();
     actualizarBreadcrumbVariables();
+    sincronizarSelectCategoriaConNavegacion(); // Corrección UX — estado inicial correcto ("Todas" = select libre)
   }
 
   function attachModuloVariablesListeners(){
