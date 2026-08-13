@@ -2580,6 +2580,21 @@
       }
       const navItem = document.querySelector(`.config-subnav-item[data-config-nav="${subNavId}"]`);
       if(navItem) navItem.classList.add('active');
+
+      // Corrección — Entrada limpia a Variables. inicializarModuloVariables()
+      // solo corre UNA VEZ, al cargar la página completa — pero entrar y
+      // salir de "Variables" dentro de Configuración NO recarga la página,
+      // así que la categoría/Variable que se hubiera navegado antes se
+      // quedaba pegada. Cada vez que se entra aquí, se reinicia a la
+      // vista limpia de Categorías — solo se fija una categoría cuando el
+      // usuario hace clic explícitamente sobre ella.
+      if(subNavId === 'variables' && typeof irAPanelCategorias === 'function'){
+        categoriaVariablesSeleccionadaId = null;
+        variableSeleccionadaId = null;
+        renderCategoriasVariablesSidebar();
+        irAPanelCategorias();
+        sincronizarSelectCategoriaConNavegacion();
+      }
     }
 
     document.querySelectorAll('.config-subnav-item').forEach(item => {
