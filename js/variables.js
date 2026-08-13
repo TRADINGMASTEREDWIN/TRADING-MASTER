@@ -321,9 +321,9 @@
     const contenedor = document.getElementById('variablesCategoriaSidebar');
     if(!contenedor) return;
     const activas = categoriasVariables.filter(c => c.estado === 'Activo');
-    const itemTodas = `<a class="config-subnav-item${!categoriaVariablesSeleccionadaId ? ' active' : ''}" data-var-categoria="">Todas</a>`;
+    const itemTodas = `<a class="variables-subnav-item${!categoriaVariablesSeleccionadaId ? ' active' : ''}" data-var-categoria="">Todas</a>`;
     const itemsCategorias = activas.map(c => `
-      <a class="config-subnav-item${categoriaVariablesSeleccionadaId === c.id ? ' active' : ''}" data-var-categoria="${c.id}">${escapeHtml(c.nombre)}</a>
+      <a class="variables-subnav-item${categoriaVariablesSeleccionadaId === c.id ? ' active' : ''}" data-var-categoria="${c.id}">${escapeHtml(c.nombre)}</a>
     `).join('');
     contenedor.innerHTML = itemTodas + itemsCategorias;
   }
