@@ -336,7 +336,7 @@
       if(!item) return;
       categoriaVariablesSeleccionadaId = item.dataset.varCategoria || null;
       variableSeleccionadaId = null; // al cambiar de categoría, se sale de cualquier Variable abierta
-      mostrarPanelVariables();
+      irAPanelVariables();
       renderCategoriasVariablesSidebar();
       renderVariablesTable();
       actualizarBreadcrumbVariables();
@@ -360,30 +360,53 @@
     el.textContent = texto; // textContent ya es seguro por sí mismo, no necesita escapeHtml
   }
 
-  function mostrarPanelVariables(){
-    const panelVariables = document.getElementById('panelListaVariables');
-    const panelOpciones = document.getElementById('panelListaOpciones');
-    if(panelVariables) panelVariables.style.display = '';
-    if(panelOpciones) panelOpciones.style.display = 'none';
+  /* ============================================================
+     CORRECCIÓN DE UX — switcher de 3 paneles (Categorías / Variables /
+     Opciones), UNO visible a la vez — mismo patrón exacto que
+     cambiarConfigSubvista() en index.html. Antes, "Categorías" vivía
+     fuera de este mecanismo y quedaba siempre visible; ahora es un panel
+     más, intercambiable igual que los otros 2.
+     ============================================================ */
+  const VARIABLES_PANELES = {
+    'categorias': 'panelCategoriasVariables',
+    'variables': 'panelListaVariables',
+    'opciones': 'panelListaOpciones'
+  };
+
+  function mostrarPanelVariablesAdmin(panelId){
+    Object.values(VARIABLES_PANELES).forEach(pid => {
+      const el = document.getElementById(pid);
+      if(el) el.style.display = 'none';
+    });
+    const idDestino = VARIABLES_PANELES[panelId];
+    if(idDestino){
+      const destino = document.getElementById(idDestino);
+      if(destino) destino.style.display = '';
+    }
   }
 
-  function mostrarPanelOpciones(){
-    const panelVariables = document.getElementById('panelListaVariables');
-    const panelOpciones = document.getElementById('panelListaOpciones');
-    if(panelVariables) panelVariables.style.display = 'none';
-    if(panelOpciones) panelOpciones.style.display = '';
+  function irAPanelVariables(){
+    mostrarPanelVariablesAdmin('variables');
+  }
+
+  function irAPanelCategorias(){
+    variableSeleccionadaId = null;
+    mostrarPanelVariablesAdmin('categorias');
+    renderCategoriasVariablesTable();
+    const el = document.getElementById('variablesBreadcrumb');
+    if(el) el.textContent = 'Variables / Administrar categorías';
   }
 
   function verOpcionesDeVariable(variableId){
     variableSeleccionadaId = variableId;
-    mostrarPanelOpciones();
+    mostrarPanelVariablesAdmin('opciones');
     renderOpcionesTable();
     actualizarBreadcrumbVariables();
   }
 
   function volverAVariables(){
     variableSeleccionadaId = null;
-    mostrarPanelVariables();
+    irAPanelVariables();
     actualizarBreadcrumbVariables();
   }
 
@@ -397,6 +420,8 @@
     }
     const volverBtn = document.getElementById('volverAVariablesBtn');
     if(volverBtn) volverBtn.addEventListener('click', volverAVariables);
+    const gestionCategoriasBtn = document.getElementById('verGestionCategoriasBtn');
+    if(gestionCategoriasBtn) gestionCategoriasBtn.addEventListener('click', irAPanelCategorias);
   }
 
   // Sprint UX-2A — envuelve catalogoGuardar() (sin modificarlo) para además
@@ -714,7 +739,7 @@
     // hasta que se entra a una Variable — comportamiento correcto, no un
     // caso especial que haya que manejar aquí.
     renderCategoriasVariablesSidebar();
-    mostrarPanelVariables();
+    irAPanelVariables();
     actualizarBreadcrumbVariables();
   }
 
