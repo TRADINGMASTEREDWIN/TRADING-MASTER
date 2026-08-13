@@ -1390,6 +1390,22 @@
         </div>
 
 
+
+      <!-- ===================== SPRINT: Administrador de Variables con navegación jerárquica ===================== -->
+      <!-- Categoría → Variables de la categoría → Opciones de la Variable. Mismo patrón
+           visual/técnico que el submenú de Configuración (cambiarConfigSubvista). -->
+      <div class="config-layout">
+        <nav class="config-subnav" id="variablesCategoriaSidebar">
+          <!-- Poblado dinámicamente por renderCategoriasVariablesSidebar() — NUNCA hardcodeado. -->
+        </nav>
+        <div style="padding: 0 var(--space-1); margin-bottom: var(--space-3);">
+          <a class="config-subnav-item" id="verGestionCategoriasBtn" style="font-size: var(--fs-xs); color: var(--color-text-muted);">⚙️ Administrar categorías</a>
+        </div>
+
+        <div class="config-content">
+          <div class="variables-breadcrumb" id="variablesBreadcrumb">Variables / Todas</div>
+
+          <div id="panelCategoriasVariables" style="display:none;">
         <!-- ===== 1. CATEGORÍAS DE VARIABLES ===== -->
         <section class="card" style="margin-bottom: var(--space-6);" id="categoriavar-form-card">
           <div class="card-header">
@@ -1463,16 +1479,7 @@
         </section>
 
 
-      <!-- ===================== SPRINT: Administrador de Variables con navegación jerárquica ===================== -->
-      <!-- Categoría → Variables de la categoría → Opciones de la Variable. Mismo patrón
-           visual/técnico que el submenú de Configuración (cambiarConfigSubvista). -->
-      <div class="config-layout">
-        <nav class="config-subnav" id="variablesCategoriaSidebar">
-          <!-- Poblado dinámicamente por renderCategoriasVariablesSidebar() — NUNCA hardcodeado. -->
-        </nav>
-
-        <div class="config-content">
-          <div class="variables-breadcrumb" id="variablesBreadcrumb">Variables / Todas</div>
+          </div><!-- /panelCategoriasVariables -->
 
           <div id="panelListaVariables">
         <!-- ===== 2. VARIABLES ===== -->
