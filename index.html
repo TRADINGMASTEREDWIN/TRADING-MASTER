@@ -1407,6 +1407,12 @@
 
           <div id="panelCategoriasVariables" style="display:none;">
         <!-- ===== 1. CATEGORÍAS DE VARIABLES ===== -->
+
+        <!-- Corrección UX — el formulario de creación/edición ya NO se abre
+             automáticamente. Vive envuelto aquí, oculto por defecto, y solo
+             se muestra al pulsar "+ Nueva categoría" o "Editar" en una fila.
+             Su interior no cambió ni un carácter. -->
+        <div id="categoriaVarFormWrapper" style="display:none; margin-bottom: var(--space-6);">
         <section class="card" style="margin-bottom: var(--space-6);" id="categoriavar-form-card">
           <div class="card-header">
             <div class="card-header-title-group">
@@ -1463,16 +1469,21 @@
             </div>
           </div>
         </section>
+        </div><!-- /categoriaVarFormWrapper -->
 
         <section class="card" style="margin-bottom: var(--space-6);">
           <div class="card-header">
             <div class="card-header-title-group">
-              <div><h2>Listado de Categorías</h2><div class="card-header-sub"><span id="categoriasVarCount">0</span> categorías registradas</div></div>
+              <div><h2>Categorías de Variables</h2><div class="card-header-sub"><span id="categoriasVarCount">0</span> categorías registradas</div></div>
             </div>
+            <button class="btn-primary" id="nuevaCategoriaVarBtn" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Nueva categoría
+            </button>
           </div>
           <div class="table-wrap" style="max-height: none;">
             <table class="data-table">
-              <thead><tr><th>Categoría</th><th>Fase</th><th>Estado</th><th class="col-actions">Acciones</th></tr></thead>
+              <thead><tr><th>Categoría</th><th>Fase</th><th>Variables</th><th>Estado</th><th class="col-actions">Acciones</th></tr></thead>
               <tbody id="categoriasVarTableBody"></tbody>
             </table>
           </div>
