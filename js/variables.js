@@ -412,6 +412,7 @@
     renderVariablesTable();
     actualizarBreadcrumbVariables();
     sincronizarSelectCategoriaConNavegacion();
+    ocultarFormularioVariable(); // Sprint 4.6 — listado primero, siempre, al entrar/cambiar de categoría
   }
 
   function nombreCategoriaSeleccionada(){
@@ -473,6 +474,8 @@
     mostrarPanelVariablesAdmin('opciones');
     renderOpcionesTable();
     actualizarBreadcrumbVariables();
+    sincronizarSelectVariableParaOpcion(); // Sprint 4.6 — el campo Variable del formulario queda implícito
+    ocultarFormularioOpcion(); // Sprint 4.6 — listado primero, nunca el formulario abierto por defecto
   }
 
   function volverAVariables(){
@@ -508,22 +511,48 @@
 
     const idGuardado = await catalogoGuardar(configVariables);
 
-    if(idGuardado && temporalidadesSeleccionadas !== null){
-      await sincronizarTemporalidadesDeVariable(idGuardado, temporalidadesSeleccionadas);
+    // Sprint 4.6 — antes esto corría SIEMPRE, incluso si catalogoGuardar()
+    // fallaba por validación (idGuardado sería null). Ahora que el reset
+    // también OCULTA el formulario, hacerlo en un fallo escondería el
+    // mensaje de error justo cuando el usuario más lo necesita. Solo se
+    // limpia/oculta en caso de éxito.
+    if(idGuardado){
+      if(temporalidadesSeleccionadas !== null){
+        await sincronizarTemporalidadesDeVariable(idGuardado, temporalidadesSeleccionadas);
+      }
+      resetVariableFormMatriz();
     }
-    resetVariableFormMatriz();
   }
 
   // Sprint UX-2A — envuelve catalogoEditar() para además marcar los
   // checkboxes de Temporalidades ya vinculadas y mostrar/ocultar el bloque
   // de configuración de matriz según el tipo de la Variable que se edita.
+  // Sprint 4.6 — también revela el formulario (antes siempre visible).
   async function editarVariable(id){
     catalogoEditar(configVariables, id);
     actualizarVisibilidadConfigMatriz();
     await marcarTemporalidadesDeVariable(id);
+    mostrarFormularioVariable();
   }
 
   async function toggleEstadoVariable(id){ await catalogoToggleEstado(configVariables, id); }
+
+  /* ============================================================
+     SPRINT 4.6 — Listado primero, formulario bajo demanda (Variables).
+     Mismo patrón exacto ya usado con Categorías.
+     ============================================================ */
+  function mostrarFormularioVariable(){
+    const wrapper = document.getElementById('variableFormWrapper');
+    if(wrapper) wrapper.style.display = '';
+  }
+  function ocultarFormularioVariable(){
+    const wrapper = document.getElementById('variableFormWrapper');
+    if(wrapper) wrapper.style.display = 'none';
+  }
+  function abrirNuevaVariable(){
+    resetVariableFormMatriz(); // asegura modo "crear" y categoría ya sincronizada
+    mostrarFormularioVariable();
+  }
 
   function attachVariablesListeners(){
     // Sprint UX-2A — se usan los ganchos manejadorGuardarPersonalizado /
@@ -535,6 +564,9 @@
 
     const selectTipo = document.getElementById('selectDataTypeVariable');
     if(selectTipo) selectTipo.addEventListener('change', actualizarVisibilidadConfigMatriz);
+
+    const nuevaBtn = document.getElementById('nuevaVariableBtn'); // Sprint 4.6
+    if(nuevaBtn) nuevaBtn.addEventListener('click', abrirNuevaVariable);
   }
 
   function poblarSelectCategoriaParaVariable(){
@@ -658,6 +690,7 @@
     if(contenedor) contenedor.querySelectorAll('.chk-temporalidad-variable').forEach(chk => { chk.checked = false; });
     actualizarVisibilidadConfigMatriz();
     sincronizarSelectCategoriaConNavegacion(); // Corrección UX — catalogoResetForm() limpia el select a "", esto lo vuelve a fijar según la categoría activa en el sidebar
+    ocultarFormularioVariable(); // Sprint 4.6 — Cancelar/Guardar con éxito regresan a la vista limpia de listado
   }
 
   // Corrección UX — Categoría heredada del formulario de Variables.
@@ -669,12 +702,15 @@
   // la navegación — nunca se duplica el estado.
   function sincronizarSelectCategoriaConNavegacion(){
     const select = document.getElementById('selectCategoriaVariable');
+    const wrapper = document.getElementById('categoriaVariableFieldWrapper'); // Sprint 4.6
     if(!select) return;
     if(categoriaVariablesSeleccionadaId){
       select.value = categoriaVariablesSeleccionadaId;
       select.disabled = true;
+      if(wrapper) wrapper.style.display = 'none'; // dentro de una categoría: el campo no hace falta verlo
     }else{
       select.disabled = false;
+      if(wrapper) wrapper.style.display = ''; // "Todas": debe poder elegirse explícitamente
     }
   }
 
@@ -783,10 +819,61 @@
 
   async function cargarOpcionesDesdeSupabase(){ await catalogoCargarDesdeSupabase(configOpciones); }
   function renderOpcionesTable(){ catalogoRenderTabla(configOpciones); }
-  async function guardarOpcionVariable(){ await catalogoGuardar(configOpciones); }
-  function editarOpcionVariable(id){ catalogoEditar(configOpciones, id); }
+
+  /* ============================================================
+     SPRINT 4.6 — Listado primero, formulario bajo demanda (Opciones).
+     El campo "Variable" del formulario queda SIEMPRE oculto — a
+     diferencia de Categoría en Variables, Opciones nunca tiene un
+     equivalente a "Todas" (siempre se entra desde una Variable
+     específica), así que no hace falta alternar su visibilidad.
+     ============================================================ */
+  function sincronizarSelectVariableParaOpcion(){
+    const select = document.getElementById('selectVariableOpcion');
+    if(select && variableSeleccionadaId) select.value = variableSeleccionadaId;
+  }
+
+  function mostrarFormularioOpcion(){
+    const wrapper = document.getElementById('opcionVarFormWrapper');
+    if(wrapper) wrapper.style.display = '';
+  }
+  function ocultarFormularioOpcion(){
+    const wrapper = document.getElementById('opcionVarFormWrapper');
+    if(wrapper) wrapper.style.display = 'none';
+  }
+  function abrirNuevaOpcion(){
+    resetFormularioOpcionCompleto();
+    mostrarFormularioOpcion();
+  }
+  function resetFormularioOpcionCompleto(){
+    catalogoResetForm(configOpciones);
+    sincronizarSelectVariableParaOpcion();
+    ocultarFormularioOpcion();
+  }
+
+  async function guardarOpcionVariable(){
+    const idGuardado = await catalogoGuardar(configOpciones);
+    // Sprint 4.6 — mismo cuidado que con Variables: solo se limpia/oculta
+    // en caso de éxito, para no esconder un mensaje de error de validación.
+    if(idGuardado){
+      resetFormularioOpcionCompleto();
+    }
+  }
+
+  function editarOpcionVariable(id){
+    catalogoEditar(configOpciones, id);
+    mostrarFormularioOpcion(); // Sprint 4.6 — Editar revela el formulario
+  }
+
   async function toggleEstadoOpcionVariable(id){ await catalogoToggleEstado(configOpciones, id); }
-  function attachOpcionesListeners(){ catalogoAttachListeners(configOpciones); }
+
+  function attachOpcionesListeners(){
+    configOpciones.manejadorGuardarPersonalizado = guardarOpcionVariable; // Sprint 4.6
+    configOpciones.manejadorCancelarPersonalizado = resetFormularioOpcionCompleto; // Sprint 4.6
+    catalogoAttachListeners(configOpciones);
+
+    const nuevaBtn = document.getElementById('nuevaOpcionBtn');
+    if(nuevaBtn) nuevaBtn.addEventListener('click', abrirNuevaOpcion);
+  }
 
   function poblarSelectVariableParaOpcion(){
     return catalogoPoblarSelectFK({
