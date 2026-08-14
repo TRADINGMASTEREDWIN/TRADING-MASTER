@@ -1494,6 +1494,9 @@
 
           <div id="panelListaVariables">
         <!-- ===== 2. VARIABLES ===== -->
+        <!-- Sprint 4.6 — el formulario ya NO aparece automáticamente. Vive
+             oculto aquí, se revela con "+ Nueva variable" o "Editar". -->
+        <div id="variableFormWrapper" style="display:none; margin-bottom: var(--space-6);">
         <section class="card" style="margin-bottom: var(--space-6);" id="variable-form-card">
           <div class="card-header">
             <div class="card-header-title-group">
@@ -1507,7 +1510,7 @@
           </div>
           <div class="card-body">
             <div class="form-grid">
-              <div class="form-field">
+              <div class="form-field" id="categoriaVariableFieldWrapper">
                 <label>Categoría *</label>
                 <select id="selectCategoriaVariable" data-variable-campo="categoria"></select>
                 <span class="field-error" data-variable-error-for="categoria">Selecciona una categoría.</span>
@@ -1586,12 +1589,17 @@
             </div>
           </div>
         </section>
+        </div><!-- /variableFormWrapper -->
 
         <section class="card" style="margin-bottom: var(--space-6);">
           <div class="card-header">
             <div class="card-header-title-group">
               <div><h2>Listado de Variables</h2><div class="card-header-sub"><span id="variablesCount">0</span> variables registradas</div></div>
             </div>
+            <button class="btn-primary" id="nuevaVariableBtn" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Nueva variable
+            </button>
           </div>
           <div class="table-wrap" style="max-height: none;">
             <table class="data-table">
@@ -1610,6 +1618,8 @@
               Volver a Variables
             </button>
         <!-- ===== 3. OPCIONES DE VARIABLES ===== -->
+        <!-- Sprint 4.6 — mismo criterio: oculto por defecto. -->
+        <div id="opcionVarFormWrapper" style="display:none; margin-bottom: var(--space-6);">
         <section class="card" style="margin-bottom: var(--space-6);" id="opcionvar-form-card">
           <div class="card-header">
             <div class="card-header-title-group">
@@ -1623,7 +1633,7 @@
           </div>
           <div class="card-body">
             <div class="form-grid">
-              <div class="form-field">
+              <div class="form-field" id="variableOpcionFieldWrapper" style="display:none;">
                 <label>Variable *</label>
                 <select id="selectVariableOpcion" data-opcionvar-campo="variable"></select>
                 <span class="field-error" data-opcionvar-error-for="variable">Selecciona una variable.</span>
@@ -1656,12 +1666,17 @@
             </div>
           </div>
         </section>
+        </div><!-- /opcionVarFormWrapper -->
 
         <section class="card" id="opcionesvar-listado">
           <div class="card-header">
             <div class="card-header-title-group">
               <div><h2>Listado de Opciones</h2><div class="card-header-sub"><span id="opcionesVarCount">0</span> opciones registradas</div></div>
             </div>
+            <button class="btn-primary" id="nuevaOpcionBtn" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Nueva opción
+            </button>
           </div>
           <div class="table-wrap" style="max-height: none;">
             <table class="data-table">
@@ -2594,6 +2609,8 @@
         renderCategoriasVariablesSidebar();
         irAPanelCategorias();
         sincronizarSelectCategoriaConNavegacion();
+        if(typeof ocultarFormularioVariable === 'function') ocultarFormularioVariable(); // Sprint 4.6 — refuerzo
+        if(typeof ocultarFormularioOpcion === 'function') ocultarFormularioOpcion(); // Sprint 4.6 — refuerzo
       }
     }
 
