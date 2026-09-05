@@ -355,9 +355,9 @@
                 <span class="field-error" data-error-for="precioSalida">Obligatorio y válido para cerrar el Trade.</span>
               </div>
               <div class="form-field">
-                <label>Stop Loss *</label>
+                <label>Stop Loss</label>
                 <input type="text" inputmode="decimal" class="input-numerico" data-field="stopLoss" placeholder="0.00">
-                <span class="field-error" data-error-for="stopLoss">El Stop Loss es obligatorio.</span>
+                <span class="field-error" data-error-for="stopLoss">Si ingresas un Stop Loss, debe ser un número válido.</span>
               </div>
               <div class="form-field"><label>Take Profit</label><input type="text" inputmode="decimal" class="input-numerico" data-field="takeProfit" placeholder="0.00"></div>
               <div class="form-field">
@@ -2288,9 +2288,12 @@
     
     { campo: 'temporalidad', etiqueta: 'Temporalidad de ejecución' },
     { campo: 'precioEntrada', etiqueta: 'Precio entrada' },
-    { campo: 'stopLoss', etiqueta: 'Stop Loss' },
     { campo: 'margenUtilizado', etiqueta: 'Margen utilizado' },
     { campo: 'apalancamiento', etiqueta: 'Apalancamiento' }
+    // Sprint UX-3.1 — 'stopLoss' se retiró de esta lista a propósito.
+    // Ya NO es obligatorio para guardar un Trade. Sigue en
+    // CAMPOS_OBLIGATORIOS_NUMERICOS (más abajo) — si el usuario escribe
+    // algo, debe ser un número válido; vacío ahora está permitido.
   ];
 
   // Entre los obligatorios, estos además deben ser un número válido (no solo "no vacíos").
