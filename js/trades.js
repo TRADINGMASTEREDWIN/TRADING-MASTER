@@ -885,6 +885,32 @@
       return;
     }
 
+    // Sprint UX-3.1 — Stop Loss ya no es obligatorio (retirado de
+    // CAMPOS_OBLIGATORIOS), pero se advierte antes de guardar sin él.
+    // "Volver y definir Stop Loss" = cerrar el modal sin hacer nada más;
+    // el formulario queda exactamente como estaba, sin perder ningún dato.
+    // "Continuar sin Stop Loss" = ejecutar el guardado real.
+    const stopLossVacio = data.stopLoss === undefined || data.stopLoss === null || String(data.stopLoss).trim() === '';
+    if(stopLossVacio){
+      openModal({
+        titulo: '⚠️ No has definido un Stop Loss',
+        cuerpo: 'Podrás continuar con el registro de esta operación, pero Trading Master no podrá calcular tu riesgo máximo ni algunas métricas relacionadas con la gestión del riesgo.',
+        textoCancelar: 'Volver y definir Stop Loss',
+        textoConfirmar: 'Continuar sin Stop Loss',
+        claseConfirmar: 'btn-primary',
+        onConfirm: () => { ejecutarGuardadoOperacion(data); }
+      });
+      return;
+    }
+
+    await ejecutarGuardadoOperacion(data);
+  }
+
+  // Sprint UX-3.1 — extraído de guardarOperacion() tal cual estaba, sin
+  // cambiar ni una línea de su lógica interna. Ahora se invoca directo
+  // (Stop Loss presente) o desde el modal de advertencia (Stop Loss
+  // vacío, usuario eligió continuar) — mismo comportamiento en ambos casos.
+  async function ejecutarGuardadoOperacion(data){
     const completitud = verificarCompletitudRegistro(data);
 
     if(editingId){
@@ -1643,10 +1669,20 @@
     }).join('');
   }
 
-  function openModal({ titulo, cuerpo, onConfirm }){
+  // Sprint UX-3.1 — 3 parámetros nuevos, todos OPCIONALES con el mismo
+  // valor por defecto que ya tenía el modal. El llamador existente
+  // (catalog.js, "Eliminar definitivamente") no pasa ninguno de los 3 —
+  // sigue viendo exactamente "Cancelar"/"Confirmar" en rojo, sin cambios.
+  function openModal({ titulo, cuerpo, onConfirm, textoCancelar, textoConfirmar, claseConfirmar }){
     document.getElementById('modalTitle').textContent = titulo;
     document.getElementById('modalBody').textContent = cuerpo;
+
+    const cancelBtn = document.getElementById('modalCancelBtn');
+    cancelBtn.textContent = textoCancelar || 'Cancelar';
+
     const confirmBtn = document.getElementById('modalConfirmBtn');
+    confirmBtn.textContent = textoConfirmar || 'Confirmar';
+    confirmBtn.className = claseConfirmar || 'btn-danger';
 
     const nuevoConfirmBtn = confirmBtn.cloneNode(true);
     confirmBtn.parentNode.replaceChild(nuevoConfirmBtn, confirmBtn);
