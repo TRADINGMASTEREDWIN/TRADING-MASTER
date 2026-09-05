@@ -288,7 +288,12 @@
               🔒 Completando el cierre de este Trade — los datos de apertura se muestran solo para consulta y quedan bloqueados en este flujo.
             </div>
 
-            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin-bottom: var(--space-2);">Información general</div>
+            <!-- Sprint UX-3.2A — reorganización visual en 4 bloques conceptuales.
+                 Mismos campos, mismos data-field, mismos ids, mismos mensajes de
+                 error — solo cambia el agrupamiento. Ningún campo se eliminó,
+                 renombró ni se le cambió su data-field. -->
+
+            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin-bottom: var(--space-2);">① Información de la operación</div>
             <div class="form-grid">
               <div class="form-field">
                 <label>Fecha de entrada *</label>
@@ -300,9 +305,6 @@
                 <input type="time" data-field="horaEntrada">
                 <span class="field-error" data-error-for="horaEntrada">La hora de entrada es obligatoria.</span>
               </div>
-          </div>
-            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Mercado</div>
-            <div class="form-grid">
               <div class="form-field">
                 <label>Mercado *</label>
                 <select data-field="mercado" id="selectMercado"></select>
@@ -337,29 +339,17 @@
               </div>
             </div>
 
-            <div class="form-field">
-  <label>Tipo de Entrada</label>
-  <select data-field="tipoEntrada" id="selectTipoEntrada"></select>
-</div>
-            
-            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Gestión</div>
+            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">② Entrada</div>
             <div class="form-grid">
+              <div class="form-field">
+                <label>Tipo de Entrada</label>
+                <select data-field="tipoEntrada" id="selectTipoEntrada"></select>
+              </div>
               <div class="form-field">
                 <label>Precio de entrada *</label>
                 <input type="text" inputmode="decimal" class="input-numerico" data-field="precioEntrada" placeholder="0.00">
                 <span class="field-error" data-error-for="precioEntrada">Ingresa un precio de entrada válido.</span>
               </div>
-              <div class="form-field">
-                <label>Precio de salida</label>
-                <input type="text" inputmode="decimal" class="input-numerico" data-field="precioSalida" placeholder="0.00">
-                <span class="field-error" data-error-for="precioSalida">Obligatorio y válido para cerrar el Trade.</span>
-              </div>
-              <div class="form-field">
-                <label>Stop Loss</label>
-                <input type="text" inputmode="decimal" class="input-numerico" data-field="stopLoss" placeholder="0.00">
-                <span class="field-error" data-error-for="stopLoss">Si ingresas un Stop Loss, debe ser un número válido.</span>
-              </div>
-              <div class="form-field"><label>Take Profit</label><input type="text" inputmode="decimal" class="input-numerico" data-field="takeProfit" placeholder="0.00"></div>
               <div class="form-field">
                 <label>Margen utilizado *</label>
                 <input type="text" inputmode="decimal" class="input-numerico" data-field="margenUtilizado" placeholder="0.00">
@@ -375,6 +365,16 @@
                 <input type="text" inputmode="decimal" class="input-numerico" data-field="tamanoPosicion" placeholder="0.00">
                 <span class="dropzone-hint">Se calcula solo (Margen × Apalancamiento) — puedes editarlo manualmente si lo necesitas.</span>
               </div>
+            </div>
+
+            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">③ Gestión y Riesgo</div>
+            <div class="form-grid">
+              <div class="form-field">
+                <label>Stop Loss</label>
+                <input type="text" inputmode="decimal" class="input-numerico" data-field="stopLoss" placeholder="0.00">
+                <span class="field-error" data-error-for="stopLoss">Si ingresas un Stop Loss, debe ser un número válido.</span>
+              </div>
+              <div class="form-field"><label>Take Profit</label><input type="text" inputmode="decimal" class="input-numerico" data-field="takeProfit" placeholder="0.00"></div>
               <div class="form-field">
                 <label>Riesgo %</label>
                 <input type="text" inputmode="decimal" class="input-numerico" data-field="riesgoPct" placeholder="0.5">
@@ -385,58 +385,55 @@
                 <input type="text" inputmode="decimal" class="input-numerico" data-field="comisionApertura" placeholder="0.00">
                 <span class="field-error" data-error-for="comisionApertura">No puede ser negativa.</span>
               </div>
-             
             </div>
-             <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Cierre de la operación</div>
+            <!-- Sprint UX-3.2A — vista previa en vivo. Reutiliza calcularOperacion(),
+                 la misma función que ya existe; ningún cálculo nuevo. Sin Stop Loss,
+                 estos campos muestran "—" (nunca 0), tal como ya hace calcularOperacion(). -->
+            <div class="form-field-full" style="margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-md); display: flex; gap: var(--space-6); flex-wrap: wrap;">
+              <div><span style="font-size: var(--fs-xs); color: var(--color-text-muted); display:block;">Riesgo ($)</span><span id="previewRiesgoDinero" style="font-weight:700;">—</span></div>
+              <div><span style="font-size: var(--fs-xs); color: var(--color-text-muted); display:block;">Riesgo (%)</span><span id="previewRiesgoPct" style="font-weight:700;">—</span></div>
+              <div><span style="font-size: var(--fs-xs); color: var(--color-text-muted); display:block;">Reward ($)</span><span id="previewRewardDinero" style="font-weight:700;">—</span></div>
+              <div><span style="font-size: var(--fs-xs); color: var(--color-text-muted); display:block;">RR planificado</span><span id="previewRRPlanificado" style="font-weight:700;">—</span></div>
+            </div>
 
+            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">④ Cierre / Resultado</div>
             <div class="form-grid">
-
               <div class="form-field">
-
                 <label>Fecha de salida</label>
-
                 <input type="date" data-field="fechaSalida">
-
                 <span class="field-error" data-error-for="fechaSalida">Obligatoria para cerrar el Trade.</span>
-
                 <span class="dropzone-hint">Solo si el Trade ya está cerrado.</span>
-
               </div>
-
               <div class="form-field">
-
                 <label>Hora de salida</label>
-
                 <input type="time" data-field="horaSalida">
-
                 <span class="field-error" data-error-for="horaSalida">Obligatoria para cerrar el Trade.</span>
-
                 <span class="dropzone-hint">Solo si el Trade ya está cerrado.</span>
-
               </div>
-
               <div class="form-field">
-
+                <label>Precio de salida</label>
+                <input type="text" inputmode="decimal" class="input-numerico" data-field="precioSalida" placeholder="0.00">
+                <span class="field-error" data-error-for="precioSalida">Obligatorio y válido para cerrar el Trade.</span>
+              </div>
+              <div class="form-field">
                 <label>Comisión cierre</label>
-
                 <input type="text" inputmode="decimal" class="input-numerico" data-field="comisionCierre" placeholder="0.00">
-
                 <span class="field-error" data-error-for="comisionCierre">No puede ser negativa.</span>
-
               </div>
-
               <div class="form-field">
-
                 <label>Costo adicional</label>
-
                 <input type="text" inputmode="decimal" class="input-numerico" data-field="costoAdicional" placeholder="0.00">
-
                 <span class="field-error" data-error-for="costoAdicional">No puede ser negativo.</span>
-
                 <span class="dropzone-hint">Funding fee, intereses, swap, etc.</span>
-
               </div>
-
+            </div>
+            <!-- Sprint UX-3.2A — vista previa en vivo del resultado. Mismo criterio:
+                 solo se muestra "Abierto"/"—" hasta que haya datos de cierre suficientes. -->
+            <div class="form-field-full" style="margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-md); display: flex; gap: var(--space-6); flex-wrap: wrap;">
+              <div><span style="font-size: var(--fs-xs); color: var(--color-text-muted); display:block;">PnL neto</span><span id="previewPnlNeto" style="font-weight:700;">—</span></div>
+              <div><span style="font-size: var(--fs-xs); color: var(--color-text-muted); display:block;">R Múltiple</span><span id="previewRMultiple" style="font-weight:700;">—</span></div>
+              <div><span style="font-size: var(--fs-xs); color: var(--color-text-muted); display:block;">Resultado %</span><span id="previewResultadoPct" style="font-weight:700;">—</span></div>
+              <div><span style="font-size: var(--fs-xs); color: var(--color-text-muted); display:block;">Estado</span><span id="previewEstadoResultado" style="font-weight:700;">🟡 Abierto</span></div>
             </div>
           </div>
 
