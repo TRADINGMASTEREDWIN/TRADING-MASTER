@@ -652,6 +652,8 @@
     }else{
       removeImage();
     }
+
+    actualizarPreviewCalculos(); // Sprint UX-3.2A — muestra de inmediato los cálculos ya guardados de este Trade
   }
 
   function establecerModoCierre(activo){
@@ -748,6 +750,7 @@
       pnl: null,
       pnlNeto: null,
       riesgoDinero: null,
+      riesgoPctCalculado: null, // Sprint UX-3.2A — nuevo: Riesgo($) expresado como % del Tamaño de posición. Es una expresión distinta del mismo riesgoDinero ya calculado, no un cálculo inventado.
       rewardDinero: null,
       rrPlanificado: null,
       rMultiple: null,
@@ -755,19 +758,58 @@
       estado: null
     };
 
-    // GT-01: un Trade Abierto aún no tiene resultado — se registra sin calcular
-    // nada todavía. Reutiliza la misma forma de "resultado" que ya existe para
-    // datos insuficientes; el Dashboard y las tablas ya saben tratar pnlNeto/estado
-    // nulos o distintos de Ganadora/Perdedora/Break Even, así que no requieren cambios.
+    const entrada = parseFloat(datos.precioEntrada);
+    const tamano = parseFloat(datos.tamanoPosicion);
+    const direccion = datos.direccion;
+
+    // ============================================================
+    // Sprint UX-3.2A — CÁLCULOS DE PLANIFICACIÓN.
+    // Riesgo($), Riesgo(%) y RR planificado NUNCA dependieron realmente del
+    // cierre del Trade — solo necesitan Precio de entrada + Tamaño de
+    // posición (para la cantidad) y Stop Loss/Take Profit. Antes quedaban
+    // atrapados detrás del "if Abierto → return" de más abajo, aunque
+    // conceptualmente son métricas de ANTES de operar. Se calculan aquí,
+    // antes de cualquier verificación de estado, para que estén disponibles
+    // tanto con el Trade Abierto como Cerrado.
+    // ============================================================
+    let cantidad = null;
+    if(!isNaN(entrada) && entrada !== 0 && !isNaN(tamano) && tamano !== 0){
+      cantidad = tamano / entrada;
+
+      // TM-003 (v0.4.5): riesgoDinero/rewardDinero se toman como magnitud
+      // absoluta — ver nota histórica conservada más abajo, sin cambios.
+      const stopLoss = parseFloat(datos.stopLoss);
+      if(datos.stopLoss !== '' && datos.stopLoss !== undefined && !isNaN(stopLoss)){
+        const riesgoUnitario = (direccion === 'Venta') ? (stopLoss - entrada) : (entrada - stopLoss);
+        const riesgoDinero = Math.abs(cantidad * riesgoUnitario);
+        resultado.riesgoDinero = riesgoDinero;
+        resultado.riesgoPctCalculado = (riesgoDinero / tamano) * 100;
+
+        const takeProfit = parseFloat(datos.takeProfit);
+        if(datos.takeProfit !== '' && datos.takeProfit !== undefined && !isNaN(takeProfit)){
+          const rewardUnitario = (direccion === 'Venta') ? (entrada - takeProfit) : (takeProfit - entrada);
+          const rewardDinero = Math.abs(cantidad * rewardUnitario);
+          resultado.rewardDinero = rewardDinero;
+
+          if(riesgoDinero !== 0){
+            resultado.rrPlanificado = rewardDinero / riesgoDinero;
+          }
+        }
+      }
+    }
+
+    // ============================================================
+    // CÁLCULOS DE RESULTADO — requieren Trade Cerrado (GT-01: un Trade
+    // Abierto aún no tiene resultado). Riesgo/Reward/RR ya quedaron
+    // calculados arriba si había datos suficientes; el Dashboard y las
+    // tablas ya saben tratar pnlNeto/estado nulos, así que no requieren cambios.
+    // ============================================================
     if(datos.estadoTrade === 'Abierto'){
       resultado.estado = 'Abierto';
       return resultado;
     }
 
-    const entrada = parseFloat(datos.precioEntrada);
     const salida = parseFloat(datos.precioSalida);
-    const tamano = parseFloat(datos.tamanoPosicion);
-    const direccion = datos.direccion;
 
     // Costo total de la operación (Fase 4.1): suma de Comisión apertura + Comisión cierre + Costo adicional.
     // Compatibilidad: operaciones de versiones 0.1–0.4 solo tenían un campo "comision" único.
@@ -782,12 +824,12 @@
       comisionFinal = isNaN(comisionVal) ? 0 : comisionVal;
     }
 
-    // Datos mínimos insuficientes: no se puede calcular nada de forma confiable.
-    if(isNaN(entrada) || entrada === 0 || isNaN(salida) || isNaN(tamano) || tamano === 0){
+    // Datos mínimos insuficientes para el RESULTADO final (distinto de los
+    // datos de planificación, ya evaluados arriba de forma independiente).
+    if(cantidad === null || isNaN(salida)){
       return resultado;
     }
 
-    const cantidad = tamano / entrada;
     const variacion = (direccion === 'Venta') ? (entrada - salida) : (salida - entrada);
 
     const pnl = cantidad * variacion;
@@ -801,32 +843,10 @@
     else if(pnlNeto > 0){ resultado.estado = 'Ganadora'; }
     else{ resultado.estado = 'Perdedora'; }
 
-    // Riesgo, Reward, RR planificado y R múltiple: solo con Stop Loss válido.
-    // TM-003 (v0.4.5): riesgoDinero/rewardDinero se toman como magnitud absoluta.
-    // Antes, un Stop Loss ubicado del lado incorrecto podía volver negativo el
-    // riesgo y así invertir el signo de R sin cambiar el Estado (basado en el
-    // PnL), generando incoherencias como "Ganadora" + R negativo. Con la
-    // magnitud absoluta, el signo de R SIEMPRE coincide con el signo del PnL neto.
-    const stopLoss = parseFloat(datos.stopLoss);
-    if(datos.stopLoss !== '' && datos.stopLoss !== undefined && !isNaN(stopLoss)){
-      const riesgoUnitario = (direccion === 'Venta') ? (stopLoss - entrada) : (entrada - stopLoss);
-      const riesgoDinero = Math.abs(cantidad * riesgoUnitario);
-      resultado.riesgoDinero = riesgoDinero;
-
-      if(riesgoDinero !== 0){
-        resultado.rMultiple = pnlNeto / riesgoDinero;
-      }
-
-      const takeProfit = parseFloat(datos.takeProfit);
-      if(datos.takeProfit !== '' && datos.takeProfit !== undefined && !isNaN(takeProfit)){
-        const rewardUnitario = (direccion === 'Venta') ? (entrada - takeProfit) : (takeProfit - entrada);
-        const rewardDinero = Math.abs(cantidad * rewardUnitario);
-        resultado.rewardDinero = rewardDinero;
-
-        if(riesgoDinero !== 0){
-          resultado.rrPlanificado = rewardDinero / riesgoDinero;
-        }
-      }
+    // R Múltiple REALIZADO: usa el riesgoDinero ya calculado arriba (si
+    // existía Stop Loss) contra el resultado final ya cerrado.
+    if(resultado.riesgoDinero !== null && resultado.riesgoDinero !== 0){
+      resultado.rMultiple = pnlNeto / resultado.riesgoDinero;
     }
 
     return resultado;
@@ -842,6 +862,44 @@
     const apalancamiento = parseFloat(apalancamientoEl.value);
     if(!isNaN(margen) && !isNaN(apalancamiento)){
       tamanoEl.value = (margen * apalancamiento).toFixed(2);
+    }
+  }
+
+  // Sprint UX-3.2A — vista previa en vivo de los autocálculos. Reutiliza
+  // collectFormData()/calcularOperacion() TAL CUAL — ningún cálculo nuevo,
+  // solo se muestra el mismo resultado que ya se vería después de guardar.
+  function actualizarPreviewCalculos(){
+    const elRiesgo = document.getElementById('previewRiesgoDinero');
+    const elRiesgoPct = document.getElementById('previewRiesgoPct');
+    const elReward = document.getElementById('previewRewardDinero');
+    const elRR = document.getElementById('previewRRPlanificado');
+    const elPnl = document.getElementById('previewPnlNeto');
+    const elR = document.getElementById('previewRMultiple');
+    const elPct = document.getElementById('previewResultadoPct');
+    const elEstado = document.getElementById('previewEstadoResultado');
+    if(!elRiesgo || !elPnl) return; // el panel de Operación no está en el DOM todavía
+
+    const data = collectFormData();
+    const calc = calcularOperacion(data);
+
+    // Sprint UX-3.2A — Riesgo($), Riesgo(%) y RR planificado ahora se
+    // calculan tanto con el Trade Abierto como Cerrado (ver calcularOperacion()).
+    elRiesgo.textContent = formatMoney(calc.riesgoDinero);
+    elRiesgoPct.textContent = formatPct(calc.riesgoPctCalculado);
+    elReward.textContent = formatMoney(calc.rewardDinero);
+    elRR.textContent = (calc.rrPlanificado === null || calc.rrPlanificado === undefined || isNaN(calc.rrPlanificado))
+      ? '—' : calc.rrPlanificado.toFixed(2);
+
+    if(data.estadoTrade === 'Abierto'){
+      elPnl.textContent = '—';
+      elR.textContent = '—';
+      elPct.textContent = '—';
+      elEstado.textContent = '🟡 Abierto';
+    }else{
+      elPnl.textContent = formatMoney(calc.pnlNeto);
+      elR.textContent = formatR(calc.rMultiple);
+      elPct.textContent = formatPct(calc.resultadoPct);
+      elEstado.textContent = calc.estado === 'Ganadora' ? '🟢 Ganadora' : calc.estado === 'Perdedora' ? '🔴 Perdedora' : calc.estado === 'Break Even' ? '🟡 Break Even' : '—';
     }
   }
 
@@ -998,6 +1056,26 @@
     if(fechaSalidaEl) fechaSalidaEl.focus();
   }
 
+  // Sprint UX-3.2A — Fecha/Hora automática. Se llama SOLO desde resetForm(),
+  // nunca desde populateForm()/editarOperacion() — son 2 caminos separados en
+  // el código, así que un Trade existente jamás pasa por aquí al editarse.
+  function proponerFechaHoraActual(){
+    const ahora = new Date();
+    const fechaEl = document.querySelector('[data-field="fecha"]');
+    const horaEl = document.querySelector('[data-field="horaEntrada"]');
+    if(fechaEl){
+      const yyyy = ahora.getFullYear();
+      const mm = String(ahora.getMonth() + 1).padStart(2, '0');
+      const dd = String(ahora.getDate()).padStart(2, '0');
+      fechaEl.value = `${yyyy}-${mm}-${dd}`;
+    }
+    if(horaEl){
+      const hh = String(ahora.getHours()).padStart(2, '0');
+      const min = String(ahora.getMinutes()).padStart(2, '0');
+      horaEl.value = `${hh}:${min}`;
+    }
+  }
+
   function resetForm(){
     document.querySelectorAll('[data-field]').forEach(el => { el.value = ''; });
     document.querySelector('#direccionSegmented button[data-direction="Compra"]').click();
@@ -1014,6 +1092,8 @@
     actualizarVisibilidadActivoOtro();
     removeImage();
     limpiarErroresCampo();
+    proponerFechaHoraActual(); // Sprint UX-3.2A — solo aplica al crear/limpiar, nunca al editar
+    actualizarPreviewCalculos(); // Sprint UX-3.2A — vuelve la vista previa a su estado neutro
 
     editingId = null;
     document.getElementById('editModeBadge').style.display = 'none';
@@ -1772,7 +1852,18 @@
         const msg = document.querySelector(`[data-error-for="${el.dataset.field}"]`);
         if(msg) msg.classList.remove('visible');
       });
+      // Sprint UX-3.2A — la vista previa se refresca en cada campo, mismo
+      // patrón ya usado por actualizarTamanoPosicionAutomatico().
+      el.addEventListener('input', actualizarPreviewCalculos);
     });
+
+    // Cambiar Dirección (Compra/Venta) también afecta el resultado calculado.
+    const direccionSegmentedEl = document.getElementById('direccionSegmented');
+    if(direccionSegmentedEl){
+      direccionSegmentedEl.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', actualizarPreviewCalculos);
+      });
+    }
 
     // TM-002 (v0.4.5 / reforzado en v0.4.5.1): validación JS real para campos
     // numéricos/monetarios — no basta con inputmode="decimal", eso no bloquea

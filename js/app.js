@@ -121,6 +121,8 @@
     renderPlanTrading();
     attachVisualListeners();   // theme, sidebar, tabs, chips, segmented (heredado de Fase 1)
     attachFormListeners();     // guardar, limpiar, cancelar, imagen
+    proponerFechaHoraActual(); // Sprint UX-3.2A — estado inicial correcto al abrir Trading Master por primera vez
+    actualizarPreviewCalculos(); // Sprint UX-3.2A — estado inicial de la vista previa
     attachTableListeners();    // delegación de editar/eliminar/ver
     attachModalListeners();
     attachFichaListeners();    // Ficha Técnica del Trade (Fase 4.2)
