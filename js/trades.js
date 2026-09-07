@@ -1821,6 +1821,108 @@
     return estado;
   }
 
+  /* ============================================================
+     Sprint TV-5A — Motor puro de precio promedio y resultado realizado.
+     Recibe movimientos + la dirección REAL del Trade ('Compra'/'Venta',
+     nunca LONG/SHORT) — nunca la deriva ni la pide al usuario. Ordena una
+     COPIA internamente (occurred_at ASC, created_at ASC de desempate);
+     el array recibido nunca se modifica. Solo procesa
+     movement_category === 'POSITION' — CAPITAL/COST no afectan cantidad
+     ni precio promedio, tal como ya lo respeta calcularEstadoVivoTrade().
+     ============================================================ */
+  function compararPorFechaMovimiento(a, b){
+    const ta = a.occurred_at ? new Date(a.occurred_at).getTime() : 0;
+    const tb = b.occurred_at ? new Date(b.occurred_at).getTime() : 0;
+    if(ta !== tb) return ta - tb;
+    const ca = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const cb = b.created_at ? new Date(b.created_at).getTime() : 0;
+    return ca - cb;
+  }
+
+  function calcularResultadoTrade(movimientos, direccionTrade){
+    const resultado = {
+      posicion: { cantidadActual: 0, precioPromedioActual: 0 },
+      realizado: { bruto: 0, comisiones: 0, neto: 0 },
+      resultadosExit: [],
+      advertencias: []
+    };
+
+    // Compra = signo +1 (LONG); cualquier otro valor (Venta) = signo -1
+    // (SHORT). Nunca se usan las palabras LONG/SHORT como valor interno —
+    // solo 'Compra'/'Venta', los valores reales del proyecto.
+    const signo = (direccionTrade === 'Venta') ? -1 : 1;
+
+    const lista = (movimientos || [])
+      .filter(m => m.movement_category === 'POSITION')
+      .slice() // copia — nunca se ordena ni se modifica el array original
+      .sort(compararPorFechaMovimiento);
+
+    let cantidadActual = 0;
+    let costoAcumulado = 0;
+    let precioPromedioActual = 0;
+
+    lista.forEach(mov => {
+      const quantity = numeroOCero(mov.quantity);
+      const price = numeroOCero(mov.price);
+      const commission = numeroOCero(mov.commission);
+
+      if(mov.movement_type === 'ENTRY'){
+        costoAcumulado += price * quantity;
+        cantidadActual += quantity;
+        precioPromedioActual = (cantidadActual !== 0) ? (costoAcumulado / cantidadActual) : 0;
+        resultado.realizado.comisiones += commission;
+
+      }else if(mov.movement_type === 'EXIT'){
+        let cantidadAEjecutar = quantity;
+        if(cantidadAEjecutar > cantidadActual){
+          resultado.advertencias.push('EXIT supera la posición reconstruida');
+          cantidadAEjecutar = cantidadActual; // NUNCA se inventa una posición contraria
+        }
+
+        const entryAveragePrice = precioPromedioActual;
+        const resultadoBruto = (price - entryAveragePrice) * cantidadAEjecutar * signo;
+        const resultadoNetoExit = resultadoBruto - commission;
+
+        resultado.realizado.bruto += resultadoBruto;
+        resultado.realizado.comisiones += commission;
+
+        resultado.resultadosExit.push({
+          movimientoId: mov.id !== undefined ? mov.id : null,
+          occurred_at: mov.occurred_at !== undefined ? mov.occurred_at : null,
+          quantity: cantidadAEjecutar,
+          entryAveragePrice,
+          exitPrice: price,
+          resultadoBruto,
+          commission,
+          resultadoNeto: resultadoNetoExit
+        });
+
+        // La posición restante conserva el MISMO precio promedio — un EXIT
+        // nunca lo recalcula ni lo altera artificialmente.
+        cantidadActual -= cantidadAEjecutar;
+        if(cantidadActual <= 0){
+          cantidadActual = 0; // nunca negativa
+          precioPromedioActual = 0; // cierre completo -> promedio se reinicia
+          costoAcumulado = 0;
+        }else{
+          costoAcumulado = cantidadActual * precioPromedioActual;
+        }
+      }
+      // Tipos que no sean ENTRY/EXIT dentro de POSITION (no debería ocurrir
+      // según la taxonomía real) se ignoran silenciosamente, mismo criterio
+      // que calcularEstadoVivoTrade().
+    });
+
+    resultado.posicion.cantidadActual = cantidadActual;
+    resultado.posicion.precioPromedioActual = precioPromedioActual;
+    // Neto global = bruto realizado menos TODAS las comisiones de POSICIÓN
+    // acumuladas (ENTRY + EXIT) — no confundir con resultadoNeto de cada
+    // fila de resultadosExit, que solo resta la comisión de ESE EXIT.
+    resultado.realizado.neto = resultado.realizado.bruto - resultado.realizado.comisiones;
+
+    return resultado;
+  }
+
   function categoriaActualMovimiento(){
     const activo = document.querySelector('#movimientoCategoriaSegmented button.active');
     return activo ? activo.dataset.valor : 'POSITION';
