@@ -1860,6 +1860,11 @@
     let cantidadActual = 0;
     let costoAcumulado = 0;
     let precioPromedioActual = 0;
+    // TV-5A.1 — mismo modelo de costo promedio ponderado, aplicado también
+    // a las comisiones de ENTRY: la comisión pagada al entrar no pertenece
+    // a un EXIT específico, pertenece a TODA la cantidad abierta en ese
+    // momento, y se va consumiendo proporcionalmente a medida que se cierra.
+    let comisionEntradaPendiente = 0;
 
     lista.forEach(mov => {
       const quantity = numeroOCero(mov.quantity);
@@ -1870,6 +1875,7 @@
         costoAcumulado += price * quantity;
         cantidadActual += quantity;
         precioPromedioActual = (cantidadActual !== 0) ? (costoAcumulado / cantidadActual) : 0;
+        comisionEntradaPendiente += commission; // TV-5A.1
         resultado.realizado.comisiones += commission;
 
       }else if(mov.movement_type === 'EXIT'){
@@ -1881,10 +1887,19 @@
 
         const entryAveragePrice = precioPromedioActual;
         const resultadoBruto = (price - entryAveragePrice) * cantidadAEjecutar * signo;
-        const resultadoNetoExit = resultadoBruto - commission;
+
+        // TV-5A.1 — proporción de la comisión de ENTRY pendiente que le
+        // corresponde a ESTA cantidad cerrada, bajo el mismo modelo de
+        // costo promedio ponderado (nunca FIFO/LIFO).
+        const cantidadAntesDelExit = cantidadActual;
+        const proporcionCerrada = (cantidadAntesDelExit !== 0) ? (cantidadAEjecutar / cantidadAntesDelExit) : 0;
+        const commissionEntryAllocated = comisionEntradaPendiente * proporcionCerrada;
+        const commissionExit = commission;
+        const commissionsTotal = commissionEntryAllocated + commissionExit;
+        const resultadoNetoExit = resultadoBruto - commissionsTotal;
 
         resultado.realizado.bruto += resultadoBruto;
-        resultado.realizado.comisiones += commission;
+        resultado.realizado.comisiones += commissionExit;
 
         resultado.resultadosExit.push({
           movimientoId: mov.id !== undefined ? mov.id : null,
@@ -1893,9 +1908,13 @@
           entryAveragePrice,
           exitPrice: price,
           resultadoBruto,
-          commission,
+          commissionEntryAllocated,
+          commissionExit,
+          commissionsTotal,
           resultadoNeto: resultadoNetoExit
         });
+
+        comisionEntradaPendiente -= commissionEntryAllocated; // TV-5A.1 — el resto queda con la posición que sigue abierta
 
         // La posición restante conserva el MISMO precio promedio — un EXIT
         // nunca lo recalcula ni lo altera artificialmente.
@@ -1904,6 +1923,7 @@
           cantidadActual = 0; // nunca negativa
           precioPromedioActual = 0; // cierre completo -> promedio se reinicia
           costoAcumulado = 0;
+          comisionEntradaPendiente = 0; // TV-5A.1 — cierre completo, nada queda pendiente
         }else{
           costoAcumulado = cantidadActual * precioPromedioActual;
         }
