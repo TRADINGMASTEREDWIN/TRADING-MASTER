@@ -1639,13 +1639,38 @@
   // un estado YA calculado (calcularEstadoVivoTrade). No consulta nada —
   // es puramente de presentación, reutilizando formatMoney/filaCampoFicha
   // ya existentes para mantener el mismo lenguaje visual de la Ficha Técnica.
-  function renderBloqueEstadoVivo(estado){
+  function renderBloqueEstadoVivo(estado, resultadoTrade){
+    // Sprint TV-5B — reutiliza calcularResultadoTrade() ya existente, sin
+    // tocar su lógica. Muestra la posición RECONSTRUIDA (con el mismo tope
+    // en 0 y advertencia que ya calcula el motor) junto a la posición
+    // simple ya existente de TV-4A — ambas se dejan visibles, sin ocultar
+    // ninguna, para no perder información.
+    const advertenciasHtml = (resultadoTrade.advertencias && resultadoTrade.advertencias.length)
+      ? `<div style="margin-top: var(--space-2); font-size: var(--fs-xs); color: var(--color-gold);">⚠ ${resultadoTrade.advertencias.map(a => escapeHtml(a)).join(' · ')}</div>`
+      : '';
+
+    const detalleExitsHtml = (resultadoTrade.resultadosExit && resultadoTrade.resultadosExit.length)
+      ? `<div style="margin-top: var(--space-3);">
+          <div class="ficha-block-title" style="font-size: var(--fs-sm);">Detalle por Salida</div>
+          <div class="ficha-field-list">
+            ${resultadoTrade.resultadosExit.map(ex => filaCampoFicha(
+              formatearFechaMovimiento(ex.occurred_at),
+              `Cant: ${escapeHtml(String(ex.quantity))} · Bruto: ${formatMoney(ex.resultadoBruto)} · Comisiones: ${formatMoney(ex.commissionsTotal)} · Neto: ${formatMoney(ex.resultadoNeto)}`
+            )).join('')}
+          </div>
+        </div>`
+      : '';
+
     return `
       <div class="ficha-block-title">Estado Vivo del Trade</div>
       <div class="ficha-field-list">
         ${filaCampoFicha('Total Entradas', escapeHtml(String(estado.posicion.entradas)))}
         ${filaCampoFicha('Total Salidas', escapeHtml(String(estado.posicion.salidas)))}
         ${filaCampoFicha('Posición Neta', escapeHtml(String(estado.posicion.neta)))}
+        ${filaCampoFicha('Cantidad Actual (reconstruida)', escapeHtml(String(resultadoTrade.posicion.cantidadActual)))}
+        ${filaCampoFicha('Precio Promedio Actual', resultadoTrade.posicion.precioPromedioActual ? escapeHtml(String(resultadoTrade.posicion.precioPromedioActual)) : '—')}
+        ${filaCampoFicha('Resultado Bruto Realizado', formatMoney(resultadoTrade.realizado.bruto))}
+        ${filaCampoFicha('Resultado Neto Realizado', formatMoney(resultadoTrade.realizado.neto))}
         ${filaCampoFicha('Capital Aportado', formatMoney(estado.capital.aportado))}
         ${filaCampoFicha('Capital Retirado', formatMoney(estado.capital.retirado))}
         ${filaCampoFicha('Capital Neto', formatMoney(estado.capital.neto))}
@@ -1657,6 +1682,8 @@
         ${filaCampoFicha('Otros Costos', formatMoney(estado.costos.otros))}
         ${filaCampoFicha('Costos Totales', formatMoney(estado.costos.total))}
       </div>
+      ${advertenciasHtml}
+      ${detalleExitsHtml}
     `;
   }
 
@@ -1669,13 +1696,22 @@
     // falló la carga.
     const botonRegistrar = `<button class="btn-secondary btn-registrar-movimiento" data-trade-id="${tradeId}" type="button" style="margin-top: var(--space-3);">➕ Registrar movimiento</button>`;
 
+    // Sprint TV-5B — misma forma exacta de obtener la dirección real que ya
+    // usa abrirModalMovimiento(): buscar en `operaciones`, ya cargado en
+    // memoria — cero consultas nuevas a Supabase.
+    const tradeAsociado = operaciones.find(o => o.id === tradeId);
+    const direccionTrade = tradeAsociado ? tradeAsociado.direccion : null;
+
     try{
       // Sprint TV-4B — UNA sola consulta; el mismo array `movimientos` se
       // reutiliza tanto para calcularEstadoVivoTrade() como para el
       // Historial — nunca se vuelve a llamar a cargarMovimientosDelTrade().
+      // Sprint TV-5B — el MISMO array se reutiliza también para
+      // calcularResultadoTrade(); sigue siendo una sola consulta.
       const movimientos = await cargarMovimientosDelTrade(tradeId);
       const estado = calcularEstadoVivoTrade(movimientos || []); // TV-4A ya soporta [] -> todo en 0
-      const bloqueEstadoVivo = renderBloqueEstadoVivo(estado);
+      const resultadoTrade = calcularResultadoTrade(movimientos || [], direccionTrade); // TV-5A/TV-5A.1
+      const bloqueEstadoVivo = renderBloqueEstadoVivo(estado, resultadoTrade);
 
       if(!movimientos || movimientos.length === 0){
         contenedor.innerHTML = `
