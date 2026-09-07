@@ -1826,6 +1826,84 @@
   </div>
 </div>
 
+<!-- ============================================================
+     REGISTRO MANUAL DE MOVIMIENTOS — Sprint TV-3A. Mismo patrón
+     estructural exacto que #fichaOverlay (.modal-overlay > .modal >
+     .modal-header/.modal-body) — solo que aquí el body es un formulario
+     real, reutilizando .form-field/.form-grid/.segmented ya existentes
+     en toda la app (mismas clases del formulario de Trades/Categorías).
+     ============================================================ -->
+<div class="modal-overlay" id="movimientoOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>➕ Registrar movimiento</h3>
+      <button class="icon-btn" id="movimientoCloseBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-field">
+        <label>Categoría *</label>
+        <div class="segmented" id="movimientoCategoriaSegmented">
+          <button class="buy active" type="button" data-valor="POSITION">Movimiento de posición</button>
+          <button class="sell" type="button" data-valor="CAPITAL">Movimiento de capital</button>
+          <button class="sell" type="button" data-valor="COST">Costo</button>
+        </div>
+      </div>
+      <div class="form-field">
+        <label>Tipo *</label>
+        <div class="segmented" id="movimientoTipoSegmented"></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-field">
+          <label>Fecha real del movimiento *</label>
+          <input type="date" id="movimientoFecha">
+          <span class="field-error" data-movimiento-error-for="fecha">La fecha es obligatoria.</span>
+        </div>
+        <div class="form-field">
+          <label>Hora real del movimiento *</label>
+          <input type="time" id="movimientoHora">
+          <span class="field-error" data-movimiento-error-for="hora">La hora es obligatoria.</span>
+        </div>
+      </div>
+      <div class="form-grid" id="movimientoCamposPosition" style="display:none;">
+        <div class="form-field">
+          <label>Precio *</label>
+          <input type="text" inputmode="decimal" class="input-numerico" id="movimientoPrecio" placeholder="0.00">
+          <span class="field-error" data-movimiento-error-for="price">El precio es obligatorio y debe ser válido.</span>
+        </div>
+        <div class="form-field">
+          <label>Cantidad *</label>
+          <input type="text" inputmode="decimal" class="input-numerico" id="movimientoCantidad" placeholder="0.00">
+          <span class="field-error" data-movimiento-error-for="quantity">La cantidad es obligatoria y debe ser válida.</span>
+        </div>
+        <div class="form-field">
+          <label>Comisión</label>
+          <input type="text" inputmode="decimal" class="input-numerico" id="movimientoComision" placeholder="0.00">
+        </div>
+      </div>
+      <div class="form-grid" id="movimientoCamposMonto" style="display:none;">
+        <div class="form-field">
+          <label>Monto *</label>
+          <input type="text" inputmode="decimal" class="input-numerico" id="movimientoMonto" placeholder="0.00">
+          <span class="field-error" data-movimiento-error-for="amount">El monto es obligatorio y debe ser válido.</span>
+        </div>
+      </div>
+      <div class="form-field">
+        <label>Notas</label>
+        <input type="text" id="movimientoNotas" placeholder="Notas opcionales...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="movimientoCancelBtn" type="button">Cancelar</button>
+      <button class="btn-primary" id="movimientoSaveBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Guardar movimiento
+      </button>
+    </div>
+  </div>
+</div>
+
 <script src="js/utils.js"></script>
 <script src="js/storage.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
