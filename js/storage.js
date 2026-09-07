@@ -197,6 +197,73 @@
     }
   }
 
+  /* ============================================================
+     Sprint TV-1C — capa de persistencia para trade_movements.
+     Únicamente estas 2 funciones. Ningún llamador todavía en el
+     proyecto (ninguna UI, ningún flujo real de creación de
+     movimientos) — eso queda explícitamente para un Sprint futuro.
+     Mismo patrón exacto que crearOperacionEnSupabase()/loadOperations()
+     de arriba: supabaseClient.auth.getUser() para el usuario, insert/
+     select con .single(), console.error + throw en el catch, sin
+     showToast aquí (lo maneja quien llame a estas funciones).
+     ============================================================ */
+  async function crearMovimientoEnSupabase(movimiento){
+    const { data: userData } = await supabaseClient.auth.getUser();
+    const userId = userData && userData.user ? userData.user.id : null;
+
+    if(!movimiento || !movimiento.trade_id){
+      throw new Error('crearMovimientoEnSupabase requiere movimiento.trade_id.');
+    }
+
+    // Solo los campos reales de la tabla (estructura confirmada en la
+    // auditoría TV-1A) — nunca se pasa el objeto de entrada tal cual.
+    const registro = {
+      trade_id: movimiento.trade_id,
+      user_id: userId,
+      movement_type: movimiento.movement_type,
+      movement_category: movimiento.movement_category,
+      occurred_at: movimiento.occurred_at,
+      price: movimiento.price !== undefined ? movimiento.price : null,
+      quantity: movimiento.quantity !== undefined ? movimiento.quantity : null,
+      // direction: en este Sprint se guarda tal cual venga en el objeto de
+      // entrada — la derivación automática (Trade.direccion + movement_type)
+      // es responsabilidad del Sprint futuro que construya el flujo real de
+      // creación de movimientos, no de esta capa de persistencia.
+      direction: movimiento.direction !== undefined ? movimiento.direction : null,
+      commission: movimiento.commission !== undefined ? movimiento.commission : null,
+      amount: movimiento.amount !== undefined ? movimiento.amount : null,
+      notes: movimiento.notes !== undefined ? movimiento.notes : null,
+      metadata: movimiento.metadata !== undefined ? movimiento.metadata : {}
+    };
+
+    const { data, error } = await supabaseClient
+      .from('trade_movements')
+      .insert(registro)
+      .select()
+      .single();
+
+    if(error){
+      console.error('No se pudo crear el movimiento en Supabase:', error);
+      throw error;
+    }
+    return data; // incluye el id real generado por Supabase
+  }
+
+  async function cargarMovimientosDelTrade(tradeId){
+    const { data, error } = await supabaseClient
+      .from('trade_movements')
+      .select()
+      .eq('trade_id', tradeId)
+      .order('occurred_at', { ascending: true })
+      .order('created_at', { ascending: true }); // desempate estable si occurred_at coincide
+
+    if(error){
+      console.error('No se pudieron cargar los movimientos del Trade:', error);
+      throw error;
+    }
+    return data || []; // Trade sin movimientos (histórico) -> [], nunca se inventa nada
+  }
+
   // Se conserva SOLO para migrarCuentasDeOperaciones()/migrarContextosTecnicos()
   // (app.js), que mutan varias operaciones en memoria y esperan poder
   // "guardar todo lo que cambió" al final. trades.js YA NO la usa para su
