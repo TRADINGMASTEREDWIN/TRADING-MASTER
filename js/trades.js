@@ -1486,6 +1486,18 @@
       </div>
     `;
 
+    // Sprint TV-2B — Historial de Movimientos. Placeholder síncrono aquí;
+    // la carga real es asíncrona (cargarMovimientosDelTrade) y la dispara
+    // ÚNICAMENTE abrirFichaTecnica() después de insertar este HTML — nunca
+    // renderResumenPrevio() (operación aún no guardada, sin id/trade_id real
+    // todavía, así que aquí ni siquiera se muestra el contenedor).
+    const bloqueMovimientos = op.id ? `
+      <div class="ficha-block ficha-full" id="fichaMovimientosContainer" data-trade-id="${op.id}">
+        <div class="ficha-block-title">Historial de Movimientos</div>
+        <span style="color:var(--color-text-muted); font-size: var(--fs-sm);">Cargando movimientos…</span>
+      </div>
+    ` : '';
+
     return encabezado + `
       <div class="ficha-grid">
         ${bloqueDatos}
@@ -1501,6 +1513,7 @@
         ${bloqueComparacionAnalisis}
         ${bloquePsicologia}
         ${bloqueEvidencia}
+        ${bloqueMovimientos}
       </div>
     `;
   }
@@ -1580,12 +1593,85 @@
     return mensajes;
   }
 
+  // Sprint TV-2B — etiquetas legibles de la taxonomía aprobada. Objeto
+  // simple, sin lógica — agregar un tipo futuro es una línea aquí.
+  const ETIQUETAS_MOVIMIENTO = {
+    ENTRY: 'Entrada', EXIT: 'Salida',
+    OWN_CAPITAL_DEPOSIT: 'Aporte de capital propio', OWN_CAPITAL_WITHDRAWAL: 'Retiro de capital propio',
+    FINANCING_RECEIVED: 'Financiación recibida', FINANCING_REPAYMENT: 'Pago de financiación',
+    FINANCING_COST: 'Costo de financiación', OTHER_COST: 'Otro costo'
+  };
+
+  function formatearFechaMovimiento(occurredAt){
+    if(!occurredAt) return '—';
+    const fecha = new Date(occurredAt);
+    if(isNaN(fecha.getTime())) return escapeHtml(String(occurredAt));
+    return fecha.toLocaleString('es', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+  }
+
+  function renderFilaMovimiento(mov){
+    const etiqueta = ETIQUETAS_MOVIMIENTO[mov.movement_type] || mov.movement_type;
+    const fecha = formatearFechaMovimiento(mov.occurred_at);
+
+    if(mov.movement_category === 'POSITION'){
+      const direccionTexto = mov.direction ? escapeHtml(mov.direction) : '—';
+      const comisionHtml = (mov.commission !== null && mov.commission !== undefined)
+        ? ` · Comisión: ${formatMoney(mov.commission)}` : '';
+      return `<div class="ficha-field-row">
+        <span class="label">${escapeHtml(etiqueta)} — ${fecha}</span>
+        <span class="value">${direccionTexto} · Precio: ${mov.price !== null && mov.price !== undefined ? escapeHtml(String(mov.price)) : '—'} · Cantidad: ${mov.quantity !== null && mov.quantity !== undefined ? escapeHtml(String(mov.quantity)) : '—'}${comisionHtml}</span>
+      </div>`;
+    }
+
+    // CAPITAL y COST comparten la misma forma de presentación: tipo, fecha, monto, notas opcionales.
+    const notasHtml = mov.notes ? ` · ${escapeHtml(mov.notes)}` : '';
+    return `<div class="ficha-field-row">
+      <span class="label">${escapeHtml(etiqueta)} — ${fecha}</span>
+      <span class="value">${formatMoney(mov.amount)}${notasHtml}</span>
+    </div>`;
+  }
+
+  // Sprint TV-2B — carga asíncrona real, disparada SOLO desde
+  // abrirFichaTecnica() (nunca desde renderResumenPrevio(), que no tiene
+  // trade_id real). No toca calcularOperacion() ni ningún dato de trade_data;
+  // solo lee trade_movements y escribe en su propio contenedor del DOM.
+  async function cargarYMostrarMovimientosEnFicha(tradeId){
+    const contenedor = document.getElementById('fichaMovimientosContainer');
+    if(!contenedor) return; // el modal pudo haberse cerrado antes de que esto resuelva
+
+    try{
+      const movimientos = await cargarMovimientosDelTrade(tradeId);
+
+      if(!movimientos || movimientos.length === 0){
+        contenedor.innerHTML = `
+          <div class="ficha-block-title">Historial de Movimientos</div>
+          <span style="color:var(--color-text-muted); font-size: var(--fs-sm);">Este Trade todavía no tiene movimientos registrados.</span>
+        `;
+        return;
+      }
+
+      contenedor.innerHTML = `
+        <div class="ficha-block-title">Historial de Movimientos</div>
+        <div class="ficha-field-list">
+          ${movimientos.map(renderFilaMovimiento).join('')}
+        </div>
+      `;
+    }catch(error){
+      console.error('No se pudieron cargar los movimientos del Trade:', error);
+      contenedor.innerHTML = `
+        <div class="ficha-block-title">Historial de Movimientos</div>
+        <span style="color:var(--color-text-muted); font-size: var(--fs-sm);">No se pudo cargar el historial de movimientos en este momento.</span>
+      `;
+    }
+  }
+
   function abrirFichaTecnica(id){
     const op = operaciones.find(o => o.id === id);
     if(!op) return;
     document.getElementById('fichaTitulo').textContent = `Ficha Técnica · ${op.activo || 'Operación'}`;
     document.getElementById('fichaBody').innerHTML = construirHtmlFicha(op);
     document.getElementById('fichaOverlay').classList.add('is-open');
+    if(op.id) cargarYMostrarMovimientosEnFicha(op.id); // Sprint TV-2B — no bloquea la apertura del modal
   }
 
   function cerrarFichaTecnica(){
