@@ -1722,6 +1722,71 @@
       }, 0);
   }
 
+  /* ============================================================
+     Sprint TV-4A — Motor básico de Estado Vivo del Trade.
+     Función PURA: recibe un array ya cargado, no consulta Supabase, no
+     modifica nada externo, no depende del DOM. Respeta el orden recibido
+     tal cual (cargarMovimientosDelTrade() ya entrega occurred_at ASC,
+     created_at ASC — este motor no vuelve a ordenar).
+
+     Ausente/null/undefined en quantity/amount/commission se trata como 0
+     SIN usar `||` (que confundiría un 0 real con "falta el dato") —
+     se distingue explícitamente con === null || === undefined.
+     ============================================================ */
+  function numeroOCero(valor){
+    return (valor === null || valor === undefined) ? 0 : (parseFloat(valor) || 0);
+  }
+
+  function calcularEstadoVivoTrade(movimientos){
+    const estado = {
+      posicion: { entradas: 0, salidas: 0, neta: 0 },
+      capital: { aportado: 0, retirado: 0, neto: 0 },
+      financiacion: { recibida: 0, pagada: 0, pendiente: 0 },
+      costos: { comisiones: 0, financiacion: 0, otros: 0, total: 0 }
+    };
+
+    (movimientos || []).forEach(mov => {
+      switch(mov.movement_type){
+        case 'ENTRY':
+          estado.posicion.entradas += numeroOCero(mov.quantity);
+          estado.costos.comisiones += numeroOCero(mov.commission);
+          break;
+        case 'EXIT':
+          estado.posicion.salidas += numeroOCero(mov.quantity);
+          estado.costos.comisiones += numeroOCero(mov.commission);
+          break;
+        case 'OWN_CAPITAL_DEPOSIT':
+          estado.capital.aportado += numeroOCero(mov.amount);
+          break;
+        case 'OWN_CAPITAL_WITHDRAWAL':
+          estado.capital.retirado += numeroOCero(mov.amount);
+          break;
+        case 'FINANCING_RECEIVED':
+          estado.financiacion.recibida += numeroOCero(mov.amount);
+          break;
+        case 'FINANCING_REPAYMENT':
+          estado.financiacion.pagada += numeroOCero(mov.amount);
+          break;
+        case 'FINANCING_COST':
+          estado.costos.financiacion += numeroOCero(mov.amount);
+          break;
+        case 'OTHER_COST':
+          estado.costos.otros += numeroOCero(mov.amount);
+          break;
+        // Tipo desconocido: se ignora silenciosamente para esta primera
+        // versión del motor — no es responsabilidad de este Sprint validar
+        // la taxonomía, eso ya ocurre antes de guardar (TV-3A).
+      }
+    });
+
+    estado.posicion.neta = estado.posicion.entradas - estado.posicion.salidas;
+    estado.capital.neto = estado.capital.aportado - estado.capital.retirado;
+    estado.financiacion.pendiente = estado.financiacion.recibida - estado.financiacion.pagada;
+    estado.costos.total = estado.costos.comisiones + estado.costos.financiacion + estado.costos.otros;
+
+    return estado;
+  }
+
   function categoriaActualMovimiento(){
     const activo = document.querySelector('#movimientoCategoriaSegmented button.active');
     return activo ? activo.dataset.valor : 'POSITION';
