@@ -16,6 +16,11 @@
   let operaciones = [];        // array en memoria, sincronizado con localStorage
   let editingId = null;        // null = creando nueva operación, id = editando existente
   let imagenTemporal = null;   // base64 de la imagen seleccionada (temporal)
+  // Sprint TV-3A — estado del modal de registro de movimientos. Mismo
+  // patrón que editingId/imagenTemporal: variables simples de módulo,
+  // sin arquitectura nueva.
+  let movimientoTradeIdActual = null;
+  let movimientoDireccionTradeActual = null;
   let pendingDeleteId = null;  // id pendiente de confirmación de borrado
 
   const PLAN_TRADING_KEY = 'tradingJournalPlan';

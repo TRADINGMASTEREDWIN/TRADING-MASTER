@@ -1639,6 +1639,11 @@
     const contenedor = document.getElementById('fichaMovimientosContainer');
     if(!contenedor) return; // el modal pudo haberse cerrado antes de que esto resuelva
 
+    // Sprint TV-3A — mismo botón en los 3 estados posibles, para que siempre
+    // esté disponible sin importar si ya hay movimientos, no hay ninguno, o
+    // falló la carga.
+    const botonRegistrar = `<button class="btn-secondary btn-registrar-movimiento" data-trade-id="${tradeId}" type="button" style="margin-top: var(--space-3);">➕ Registrar movimiento</button>`;
+
     try{
       const movimientos = await cargarMovimientosDelTrade(tradeId);
 
@@ -1646,6 +1651,7 @@
         contenedor.innerHTML = `
           <div class="ficha-block-title">Historial de Movimientos</div>
           <span style="color:var(--color-text-muted); font-size: var(--fs-sm);">Este Trade todavía no tiene movimientos registrados.</span>
+          ${botonRegistrar}
         `;
         return;
       }
@@ -1655,13 +1661,261 @@
         <div class="ficha-field-list">
           ${movimientos.map(renderFilaMovimiento).join('')}
         </div>
+        ${botonRegistrar}
       `;
     }catch(error){
       console.error('No se pudieron cargar los movimientos del Trade:', error);
       contenedor.innerHTML = `
         <div class="ficha-block-title">Historial de Movimientos</div>
         <span style="color:var(--color-text-muted); font-size: var(--fs-sm);">No se pudo cargar el historial de movimientos en este momento.</span>
+        ${botonRegistrar}
       `;
+    }
+  }
+
+  /* ============================================================
+     Sprint TV-3A — Registro manual de movimientos.
+     Reutiliza: crearMovimientoEnSupabase() (TV-1C/TV-1D, sin tocarla),
+     cargarYMostrarMovimientosEnFicha() (TV-2B, para recargar tras guardar),
+     openModal() (UX-3.1, para la advertencia no bloqueante de EXIT),
+     poblarSegmented()/.form-field/.form-grid (patrón visual ya existente
+     en toda la app). NO se escribe ninguna consulta nueva a Supabase aquí
+     — todo pasa por crearMovimientoEnSupabase().
+     ============================================================ */
+
+  const TIPOS_POR_CATEGORIA_MOVIMIENTO = {
+    POSITION: [
+      { valor: 'ENTRY', etiqueta: 'Entrada' },
+      { valor: 'EXIT', etiqueta: 'Salida' }
+    ],
+    CAPITAL: [
+      { valor: 'OWN_CAPITAL_DEPOSIT', etiqueta: 'Aporte de capital propio' },
+      { valor: 'OWN_CAPITAL_WITHDRAWAL', etiqueta: 'Retiro de efectivo' },
+      { valor: 'FINANCING_RECEIVED', etiqueta: 'Financiación recibida' },
+      { valor: 'FINANCING_REPAYMENT', etiqueta: 'Pago de financiación' }
+    ],
+    COST: [
+      { valor: 'FINANCING_COST', etiqueta: 'Costo de financiación' },
+      { valor: 'OTHER_COST', etiqueta: 'Otro costo' }
+    ]
+  };
+
+  // Fuente de verdad conceptual: Trade.direccion + movement_type. El
+  // usuario nunca elige Compra/Venta directamente — ver auditorías TV-1/TV-1A.
+  function derivarDireccionMovimiento(direccionTrade, movementType){
+    const mapa = {
+      'Compra': { ENTRY: 'Compra', EXIT: 'Venta' },
+      'Venta': { ENTRY: 'Venta', EXIT: 'Compra' }
+    };
+    return (mapa[direccionTrade] && mapa[direccionTrade][movementType]) || null;
+  }
+
+  // Posición neta reconstruida SOLO a partir de movimientos POSITION ya
+  // guardados — usada únicamente para la advertencia informativa de EXIT,
+  // nunca para bloquear ni para alterar el Trade.
+  function calcularPosicionNetaDesdeMovimientos(movimientos){
+    return movimientos
+      .filter(m => m.movement_category === 'POSITION')
+      .reduce((neta, m) => {
+        const cantidad = parseFloat(m.quantity) || 0;
+        return m.movement_type === 'ENTRY' ? neta + cantidad : neta - cantidad;
+      }, 0);
+  }
+
+  function categoriaActualMovimiento(){
+    const activo = document.querySelector('#movimientoCategoriaSegmented button.active');
+    return activo ? activo.dataset.valor : 'POSITION';
+  }
+
+  function tipoActualMovimiento(){
+    const activo = document.querySelector('#movimientoTipoSegmented button.active');
+    return activo ? activo.dataset.valor : null;
+  }
+
+  function poblarTipoSegmentedMovimiento(categoria){
+    const container = document.getElementById('movimientoTipoSegmented');
+    if(!container) return;
+    const tipos = TIPOS_POR_CATEGORIA_MOVIMIENTO[categoria] || [];
+    container.innerHTML = tipos.map((t, i) =>
+      `<button type="button" class="${i === 0 ? 'active' : ''}" data-valor="${t.valor}">${t.etiqueta}</button>`
+    ).join('');
+  }
+
+  function actualizarCamposSegunCategoriaMovimiento(){
+    const categoria = categoriaActualMovimiento();
+    const camposPosition = document.getElementById('movimientoCamposPosition');
+    const camposMonto = document.getElementById('movimientoCamposMonto');
+    if(camposPosition) camposPosition.style.display = (categoria === 'POSITION') ? '' : 'none';
+    if(camposMonto) camposMonto.style.display = (categoria === 'POSITION') ? 'none' : '';
+  }
+
+  function limpiarErroresMovimiento(){
+    document.querySelectorAll('#movimientoOverlay [data-movimiento-error-for]').forEach(el => el.classList.remove('visible'));
+    document.querySelectorAll('#movimientoOverlay .input-numerico, #movimientoOverlay input[type="date"], #movimientoOverlay input[type="time"]').forEach(el => el.classList.remove('is-invalid'));
+  }
+
+  function marcarErrorMovimiento(campo){
+    const span = document.querySelector(`[data-movimiento-error-for="${campo}"]`);
+    if(span) span.classList.add('visible');
+  }
+
+  function resetFormularioMovimiento(){
+    document.getElementById('movimientoFecha').value = '';
+    document.getElementById('movimientoHora').value = '';
+    document.getElementById('movimientoPrecio').value = '';
+    document.getElementById('movimientoCantidad').value = '';
+    document.getElementById('movimientoComision').value = '';
+    document.getElementById('movimientoMonto').value = '';
+    document.getElementById('movimientoNotas').value = '';
+    document.querySelectorAll('#movimientoCategoriaSegmented button').forEach((btn, i) => btn.classList.toggle('active', i === 0));
+    poblarTipoSegmentedMovimiento('POSITION');
+    actualizarCamposSegunCategoriaMovimiento();
+    limpiarErroresMovimiento();
+  }
+
+  function abrirModalMovimiento(tradeId){
+    const trade = operaciones.find(o => o.id === tradeId);
+    movimientoTradeIdActual = tradeId;
+    movimientoDireccionTradeActual = trade ? trade.direccion : null;
+    resetFormularioMovimiento();
+    document.getElementById('movimientoOverlay').classList.add('is-open');
+  }
+
+  function cerrarModalMovimiento(){
+    document.getElementById('movimientoOverlay').classList.remove('is-open');
+  }
+
+  // Construye el objeto a validar/enviar leyendo el DOM directamente —
+  // mismo criterio que collectFormData() del formulario de Trades, pero
+  // aislado a este modal.
+  function recolectarFormularioMovimiento(){
+    const categoria = categoriaActualMovimiento();
+    const tipo = tipoActualMovimiento();
+    const fecha = document.getElementById('movimientoFecha').value;
+    const hora = document.getElementById('movimientoHora').value;
+    const occurredAt = (fecha && hora) ? `${fecha}T${hora}:00` : null;
+
+    return {
+      movement_category: categoria,
+      movement_type: tipo,
+      occurred_at: occurredAt,
+      price: document.getElementById('movimientoPrecio').value.trim(),
+      quantity: document.getElementById('movimientoCantidad').value.trim(),
+      commission: document.getElementById('movimientoComision').value.trim(),
+      amount: document.getElementById('movimientoMonto').value.trim(),
+      notes: document.getElementById('movimientoNotas').value.trim()
+    };
+  }
+
+  // NO convierte 0 en null: solo cadena vacía ('') o valor no numérico
+  // cuenta como "falta el dato". Mismo criterio que CAMPOS_OBLIGATORIOS_NUMERICOS
+  // del formulario de Trades.
+  function validarFormularioMovimiento(datos){
+    limpiarErroresMovimiento();
+    const errores = [];
+
+    if(!datos.movement_type) errores.push('Tipo');
+    if(!datos.occurred_at){ errores.push('Fecha/Hora'); marcarErrorMovimiento('fecha'); marcarErrorMovimiento('hora'); }
+
+    if(datos.movement_category === 'POSITION'){
+      if(datos.price === '' || isNaN(parseFloat(datos.price))){ errores.push('Precio'); marcarErrorMovimiento('price'); }
+      if(datos.quantity === '' || isNaN(parseFloat(datos.quantity))){ errores.push('Cantidad'); marcarErrorMovimiento('quantity'); }
+    }else{
+      if(datos.amount === '' || isNaN(parseFloat(datos.amount))){ errores.push('Monto'); marcarErrorMovimiento('amount'); }
+    }
+
+    return { valido: errores.length === 0, errores };
+  }
+
+  async function guardarMovimientoDesdeFormulario(){
+    const datos = recolectarFormularioMovimiento();
+    const { valido, errores } = validarFormularioMovimiento(datos);
+
+    if(!valido){
+      showToast('danger', 'No es posible guardar', `Faltan: ${errores.join(', ')}.`);
+      return;
+    }
+
+    const movimientoPreparado = {
+      trade_id: movimientoTradeIdActual,
+      movement_type: datos.movement_type,
+      movement_category: datos.movement_category,
+      occurred_at: datos.occurred_at,
+      price: datos.movement_category === 'POSITION' ? parseFloat(datos.price) : undefined,
+      quantity: datos.movement_category === 'POSITION' ? parseFloat(datos.quantity) : undefined,
+      direction: datos.movement_category === 'POSITION' ? derivarDireccionMovimiento(movimientoDireccionTradeActual, datos.movement_type) : undefined,
+      commission: (datos.movement_category === 'POSITION' && datos.commission !== '') ? parseFloat(datos.commission) : undefined,
+      amount: datos.movement_category !== 'POSITION' ? parseFloat(datos.amount) : undefined,
+      notes: datos.notes !== '' ? datos.notes : undefined
+    };
+
+    // Advertencia informativa y NO bloqueante — Trading Master registra
+    // hechos históricos, nunca impide guardar un EXIT real solo porque
+    // "no cuadre" matemáticamente con lo ya registrado. Nunca modifica el
+    // Trade ni su dirección.
+    if(datos.movement_category === 'POSITION' && datos.movement_type === 'EXIT'){
+      try{
+        const movimientosExistentes = await cargarMovimientosDelTrade(movimientoTradeIdActual);
+        const posicionNeta = calcularPosicionNetaDesdeMovimientos(movimientosExistentes);
+        if(parseFloat(datos.quantity) > posicionNeta){
+          openModal({
+            titulo: '⚠️ Esta salida supera la posición registrada',
+            cuerpo: `Según los movimientos ya registrados, la posición actual es de ${posicionNeta}. Esta salida es de ${datos.quantity}. Si esto refleja lo que realmente ocurrió en tu broker, puedes continuar — Trading Master no modifica tu Trade ni bloquea el registro de hechos históricos.`,
+            textoCancelar: 'Revisar de nuevo',
+            textoConfirmar: 'Registrar de todas formas',
+            claseConfirmar: 'btn-primary',
+            onConfirm: () => ejecutarGuardadoMovimiento(movimientoPreparado)
+          });
+          return;
+        }
+      }catch(error){
+        // Si falla la verificación de posición, no se bloquea el registro
+        // histórico por eso — se continúa igual, solo se registra el error.
+        console.error('No se pudo verificar la posición neta antes de guardar el EXIT:', error);
+      }
+    }
+
+    await ejecutarGuardadoMovimiento(movimientoPreparado);
+  }
+
+  async function ejecutarGuardadoMovimiento(movimiento){
+    try{
+      await crearMovimientoEnSupabase(movimiento);
+    }catch(error){
+      showToast('danger', 'No se pudo guardar el movimiento', error.message || 'Error al guardar en Supabase.');
+      return;
+    }
+    cerrarModalMovimiento();
+    showToast('success', 'Movimiento registrado', 'El movimiento se agregó al historial de este Trade.');
+    cargarYMostrarMovimientosEnFicha(movimientoTradeIdActual); // recarga SOLO el historial, nada más
+  }
+
+  function attachMovimientoListeners(){
+    document.getElementById('movimientoCloseBtn').addEventListener('click', cerrarModalMovimiento);
+    document.getElementById('movimientoCancelBtn').addEventListener('click', cerrarModalMovimiento);
+    document.getElementById('movimientoOverlay').addEventListener('click', (e) => {
+      if(e.target.id === 'movimientoOverlay') cerrarModalMovimiento();
+    });
+    document.getElementById('movimientoSaveBtn').addEventListener('click', guardarMovimientoDesdeFormulario);
+
+    document.getElementById('movimientoCategoriaSegmented').querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#movimientoCategoriaSegmented button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        poblarTipoSegmentedMovimiento(btn.dataset.valor);
+        actualizarCamposSegunCategoriaMovimiento();
+      });
+    });
+
+    // Delegado: el botón "+ Registrar movimiento" se recrea cada vez que
+    // se recarga el Historial — un solo listener en el contenedor cubre
+    // todas sus versiones futuras, sin re-adjuntar nada.
+    const fichaBody = document.getElementById('fichaBody');
+    if(fichaBody){
+      fichaBody.addEventListener('click', (e) => {
+        const btn = e.target.closest('.btn-registrar-movimiento');
+        if(btn) abrirModalMovimiento(btn.dataset.tradeId);
+      });
     }
   }
 
@@ -1683,6 +1937,7 @@
     document.getElementById('fichaOverlay').addEventListener('click', (e) => {
       if(e.target.id === 'fichaOverlay') cerrarFichaTecnica();
     });
+    attachMovimientoListeners(); // Sprint TV-3A
   }
 
   function obtenerMomentoEntrada(op){
