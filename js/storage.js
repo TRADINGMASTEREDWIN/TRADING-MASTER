@@ -233,7 +233,11 @@
       commission: movimiento.commission !== undefined ? movimiento.commission : null,
       amount: movimiento.amount !== undefined ? movimiento.amount : null,
       notes: movimiento.notes !== undefined ? movimiento.notes : null,
-      metadata: movimiento.metadata !== undefined ? movimiento.metadata : {}
+      // TV-1D — null y undefined (ausente o explícito) se tratan igual:
+      // ausencia de metadata -> {} (compatible con NOT NULL DEFAULT
+      // '{}'::jsonb). Cualquier otro valor recibido (incluido {} y objetos
+      // con contenido) se conserva exactamente tal cual.
+      metadata: (movimiento.metadata === undefined || movimiento.metadata === null) ? {} : movimiento.metadata
     };
 
     const { data, error } = await supabaseClient
