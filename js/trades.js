@@ -1635,6 +1635,31 @@
   // abrirFichaTecnica() (nunca desde renderResumenPrevio(), que no tiene
   // trade_id real). No toca calcularOperacion() ni ningún dato de trade_data;
   // solo lee trade_movements y escribe en su propio contenedor del DOM.
+  // Sprint TV-4B — construye el bloque "Estado Vivo del Trade" a partir de
+  // un estado YA calculado (calcularEstadoVivoTrade). No consulta nada —
+  // es puramente de presentación, reutilizando formatMoney/filaCampoFicha
+  // ya existentes para mantener el mismo lenguaje visual de la Ficha Técnica.
+  function renderBloqueEstadoVivo(estado){
+    return `
+      <div class="ficha-block-title">Estado Vivo del Trade</div>
+      <div class="ficha-field-list">
+        ${filaCampoFicha('Total Entradas', escapeHtml(String(estado.posicion.entradas)))}
+        ${filaCampoFicha('Total Salidas', escapeHtml(String(estado.posicion.salidas)))}
+        ${filaCampoFicha('Posición Neta', escapeHtml(String(estado.posicion.neta)))}
+        ${filaCampoFicha('Capital Aportado', formatMoney(estado.capital.aportado))}
+        ${filaCampoFicha('Capital Retirado', formatMoney(estado.capital.retirado))}
+        ${filaCampoFicha('Capital Neto', formatMoney(estado.capital.neto))}
+        ${filaCampoFicha('Financiación Recibida', formatMoney(estado.financiacion.recibida))}
+        ${filaCampoFicha('Financiación Pagada', formatMoney(estado.financiacion.pagada))}
+        ${filaCampoFicha('Financiación Pendiente', formatMoney(estado.financiacion.pendiente))}
+        ${filaCampoFicha('Comisiones', formatMoney(estado.costos.comisiones))}
+        ${filaCampoFicha('Costos de Financiación', formatMoney(estado.costos.financiacion))}
+        ${filaCampoFicha('Otros Costos', formatMoney(estado.costos.otros))}
+        ${filaCampoFicha('Costos Totales', formatMoney(estado.costos.total))}
+      </div>
+    `;
+  }
+
   async function cargarYMostrarMovimientosEnFicha(tradeId){
     const contenedor = document.getElementById('fichaMovimientosContainer');
     if(!contenedor) return; // el modal pudo haberse cerrado antes de que esto resuelva
@@ -1645,10 +1670,16 @@
     const botonRegistrar = `<button class="btn-secondary btn-registrar-movimiento" data-trade-id="${tradeId}" type="button" style="margin-top: var(--space-3);">➕ Registrar movimiento</button>`;
 
     try{
+      // Sprint TV-4B — UNA sola consulta; el mismo array `movimientos` se
+      // reutiliza tanto para calcularEstadoVivoTrade() como para el
+      // Historial — nunca se vuelve a llamar a cargarMovimientosDelTrade().
       const movimientos = await cargarMovimientosDelTrade(tradeId);
+      const estado = calcularEstadoVivoTrade(movimientos || []); // TV-4A ya soporta [] -> todo en 0
+      const bloqueEstadoVivo = renderBloqueEstadoVivo(estado);
 
       if(!movimientos || movimientos.length === 0){
         contenedor.innerHTML = `
+          ${bloqueEstadoVivo}
           <div class="ficha-block-title">Historial de Movimientos</div>
           <span style="color:var(--color-text-muted); font-size: var(--fs-sm);">Este Trade todavía no tiene movimientos registrados.</span>
           ${botonRegistrar}
@@ -1657,6 +1688,7 @@
       }
 
       contenedor.innerHTML = `
+        ${bloqueEstadoVivo}
         <div class="ficha-block-title">Historial de Movimientos</div>
         <div class="ficha-field-list">
           ${movimientos.map(renderFilaMovimiento).join('')}
@@ -1666,7 +1698,9 @@
     }catch(error){
       console.error('No se pudieron cargar los movimientos del Trade:', error);
       contenedor.innerHTML = `
-        <div class="ficha-block-title">Historial de Movimientos</div>
+        <div class="ficha-block-title">Estado Vivo del Trade</div>
+        <span style="color:var(--color-text-muted); font-size: var(--fs-sm);">No se pudo calcular en este momento.</span>
+        <div class="ficha-block-title" style="margin-top: var(--space-4);">Historial de Movimientos</div>
         <span style="color:var(--color-text-muted); font-size: var(--fs-sm);">No se pudo cargar el historial de movimientos en este momento.</span>
         ${botonRegistrar}
       `;
