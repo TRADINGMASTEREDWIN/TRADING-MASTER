@@ -1990,6 +1990,128 @@
     return resultado;
   }
 
+  /* ============================================================
+     Sprint MARGIN-3 — Motor financiero puro para operaciones Margin.
+     Función PURA: sin Supabase, sin DOM, sin variables globales, no
+     modifica el array recibido. NO duplica nada de calcularResultadoTrade()
+     (posición/precio promedio/comisiones de ENTRY-EXIT) ni de
+     calcularEstadoVivoTrade() — trabaja exclusivamente con capital, deuda,
+     intereses y otros costos.
+
+     ADAPTACIÓN A LA ESTRUCTURA REAL (auditoría previa a este Sprint):
+     La taxonomía real de trade_movements NO tiene los tipos que el brief
+     original asumía (CAPITAL_IN/OUT, BORROW/REPAY, INTEREST_ACCRUED/
+     PAYMENT), ni existe una columna `asset`. Con aprobación explícita del
+     usuario (Opción B), este motor usa la taxonomía real ya aprobada:
+
+       OWN_CAPITAL_DEPOSIT / OWN_CAPITAL_WITHDRAWAL  -> capital
+       FINANCING_RECEIVED / FINANCING_REPAYMENT      -> deuda
+       FINANCING_COST (+ metadata.interestKind)      -> intereses
+       OTHER_COST                                     -> otros costos
+
+     El activo para separar deuda/intereses se lee de `metadata.asset`
+     (convención nueva sobre el JSONB ya existente, sin tocar SQL). Como
+     hoy NINGÚN flujo real todavía escribe metadata.asset, este motor
+     agrupa bajo la clave 'SIN_ACTIVO' cuando falta — nunca inventa un
+     activo. metadata.interestKind ('accrued'/'payment') distingue un
+     FINANCING_COST acumulado de uno que paga intereses ya acumulados;
+     si falta, se asume 'accrued' (el criterio más seguro: nunca reduce
+     pendiente sin que se declare explícitamente que es un pago).
+     ============================================================ */
+  function calcularEstadoFinancieroMargin(movimientos){
+    const resultado = {
+      capital: { aportado: 0, retirado: 0, neto: 0 },
+      deuda: { porActivo: {} },
+      intereses: { porActivo: {} },
+      costos: { otros: 0 },
+      advertencias: []
+    };
+
+    const lista = (movimientos || [])
+      .slice() // copia — nunca se ordena ni se modifica el array original
+      .sort(compararPorFechaMovimiento);
+
+    function obtenerActivo(mov){
+      return (mov.metadata && mov.metadata.asset) ? mov.metadata.asset : 'SIN_ACTIVO';
+    }
+    function asegurarActivoDeuda(activo){
+      if(!resultado.deuda.porActivo[activo]){
+        resultado.deuda.porActivo[activo] = { prestado: 0, pagado: 0, pendiente: 0 };
+      }
+      return resultado.deuda.porActivo[activo];
+    }
+    function asegurarActivoInteres(activo){
+      if(!resultado.intereses.porActivo[activo]){
+        resultado.intereses.porActivo[activo] = { acumulados: 0, pagados: 0, pendientes: 0 };
+      }
+      return resultado.intereses.porActivo[activo];
+    }
+
+    lista.forEach(mov => {
+      const amount = numeroOCero(mov.amount);
+
+      switch(mov.movement_type){
+        case 'OWN_CAPITAL_DEPOSIT':
+          resultado.capital.aportado += amount;
+          break;
+        case 'OWN_CAPITAL_WITHDRAWAL':
+          resultado.capital.retirado += amount;
+          break;
+
+        case 'FINANCING_RECEIVED': {
+          const d = asegurarActivoDeuda(obtenerActivo(mov));
+          d.prestado += amount;
+          d.pendiente = d.prestado - d.pagado;
+          break;
+        }
+        case 'FINANCING_REPAYMENT': {
+          const activo = obtenerActivo(mov);
+          const d = asegurarActivoDeuda(activo);
+          const pendienteActual = d.prestado - d.pagado;
+          let montoAPagar = amount;
+          if(montoAPagar > pendienteActual){
+            resultado.advertencias.push(`REPAY de ${activo} mayor que la deuda pendiente.`);
+            montoAPagar = pendienteActual > 0 ? pendienteActual : 0;
+          }
+          d.pagado += montoAPagar;
+          d.pendiente = d.prestado - d.pagado; // nunca negativa por construcción
+          break;
+        }
+
+        case 'FINANCING_COST': {
+          const activo = obtenerActivo(mov);
+          const i = asegurarActivoInteres(activo);
+          const esPago = mov.metadata && mov.metadata.interestKind === 'payment';
+          if(!esPago){
+            i.acumulados += amount;
+            i.pendientes = i.acumulados - i.pagados;
+          }else{
+            const pendienteActual = i.acumulados - i.pagados;
+            let montoAPagar = amount;
+            if(montoAPagar > pendienteActual){
+              resultado.advertencias.push(`Pago de intereses de ${activo} mayor que los intereses acumulados.`);
+              montoAPagar = pendienteActual > 0 ? pendienteActual : 0;
+            }
+            i.pagados += montoAPagar;
+            i.pendientes = i.acumulados - i.pagados; // nunca negativa por construcción
+          }
+          break;
+        }
+
+        case 'OTHER_COST':
+          resultado.costos.otros += amount;
+          break;
+
+        // ENTRY/EXIT y cualquier otro tipo quedan fuera del alcance de este
+        // motor a propósito — ya los maneja calcularResultadoTrade().
+      }
+    });
+
+    resultado.capital.neto = resultado.capital.aportado - resultado.capital.retirado;
+
+    return resultado;
+  }
+
   function categoriaActualMovimiento(){
     const activo = document.querySelector('#movimientoCategoriaSegmented button.active');
     return activo ? activo.dataset.valor : 'POSITION';
