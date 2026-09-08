@@ -148,6 +148,141 @@
 
   function attachActivosListeners(){
     catalogoAttachListeners(configActivos);
+    attachCryptoBuscadorListeners(); // Sprint MARKET-2B.1
+  }
+
+  /* ============================================================
+     Sprint MARKET-2B.1 — Buscador inteligente de activos Crypto.
+     NO modifica marketData.js/storage.js/Supabase. #selectActivo NUNCA
+     se elimina ni se reemplaza — sigue siendo la única fuente de verdad
+     para collectFormData()/populateForm()/actualizarVisibilidadActivoOtro();
+     este módulo solo lo mantiene sincronizado cuando el usuario elige un
+     resultado del buscador. Mercados NO Crypto: cero cambios de
+     comportamiento (el buscador simplemente permanece oculto).
+     ============================================================ */
+  const MERCADO_CRYPTO = 'Cripto'; // valor real confirmado en MERCADOS (index.html) — no "Crypto"/"CRYPTO"
+
+  let catalogoCryptoCargando = false;
+  let catalogoCryptoConError = false;
+
+  function alternarModoCryptoActivo(){
+    const selectMercadoEl = document.getElementById('selectMercado');
+    const wrapperSelectNormal = document.getElementById('activoSelectWrapper');
+    const wrapperCrypto = document.getElementById('cryptoBuscadorWrapper');
+    if(!selectMercadoEl || !wrapperSelectNormal || !wrapperCrypto) return;
+
+    const esCrypto = selectMercadoEl.value === MERCADO_CRYPTO;
+    wrapperSelectNormal.style.display = esCrypto ? 'none' : '';
+    wrapperCrypto.style.display = esCrypto ? '' : 'none';
+
+    if(esCrypto) asegurarCatalogoCryptoCargado();
+  }
+
+  async function asegurarCatalogoCryptoCargado(){
+    if(typeof BinanceMarketData === 'undefined') return; // marketData.js no cargado -> no romper nada
+    if(BinanceMarketData.getCatalog().length > 0){
+      renderEstadoBuscadorCrypto('');
+      return;
+    }
+    if(catalogoCryptoCargando) return;
+
+    catalogoCryptoCargando = true;
+    catalogoCryptoConError = false;
+    renderEstadoBuscadorCrypto('Cargando catálogo de Binance…');
+
+    try{
+      await BinanceMarketData.loadCatalog();
+      catalogoCryptoConError = false;
+      renderEstadoBuscadorCrypto('');
+    }catch(error){
+      console.error('MARKET-2B.1: no se pudo cargar el catálogo de Binance para el buscador:', error);
+      catalogoCryptoConError = true;
+      renderEstadoBuscadorCrypto('No se pudo cargar el catálogo de Binance. <button type="button" id="cryptoReintentarBtn" class="btn-secondary" style="margin-left:8px;">Reintentar</button>');
+    }finally{
+      catalogoCryptoCargando = false;
+    }
+  }
+
+  function renderEstadoBuscadorCrypto(mensajeHtml){
+    const estadoEl = document.getElementById('cryptoBuscadorEstado');
+    if(estadoEl) estadoEl.innerHTML = mensajeHtml;
+  }
+
+  function manejarBusquedaCrypto(){
+    const inputEl = document.getElementById('cryptoBuscadorInput');
+    const resultadosEl = document.getElementById('cryptoBuscadorResultados');
+    if(!inputEl || !resultadosEl) return;
+
+    const query = inputEl.value.trim();
+    if(!query || catalogoCryptoConError || typeof BinanceMarketData === 'undefined' || BinanceMarketData.getCatalog().length === 0){
+      resultadosEl.style.display = 'none';
+      resultadosEl.innerHTML = '';
+      return;
+    }
+
+    const resultados = BinanceMarketData.search(query).slice(0, 20); // limita para eficiencia visual
+    if(resultados.length === 0){
+      resultadosEl.style.display = '';
+      resultadosEl.innerHTML = `<div style="padding: var(--space-2); color: var(--color-text-muted); font-size: var(--fs-sm);">Sin resultados para "${escapeHtml(query)}".</div>`;
+      return;
+    }
+
+    resultadosEl.style.display = '';
+    resultadosEl.innerHTML = resultados.map(r =>
+      `<div class="crypto-buscador-item" data-symbol="${escapeHtml(r.symbol)}" style="padding: var(--space-2); cursor:pointer; border-bottom:1px solid var(--color-border); display:flex; justify-content:space-between;">
+        <strong>${escapeHtml(r.symbol)}</strong>
+        <span style="color: var(--color-text-muted); font-size: var(--fs-sm);">${escapeHtml(r.baseAsset)} / ${escapeHtml(r.quoteAsset)}</span>
+      </div>`
+    ).join('');
+  }
+
+  // Sincroniza #selectActivo (nunca lo reemplaza) e imita exactamente lo
+  // que ya hace poblarSelectActivoOperacion(): agrega la opción si falta,
+  // fija su valor, y dispara 'change' para reutilizar
+  // actualizarVisibilidadActivoOtro() ya existente sin duplicar esa lógica.
+  function seleccionarActivoCrypto(symbol){
+    const selectActivoEl = document.getElementById('selectActivo');
+    if(!selectActivoEl) return;
+
+    let opcion = Array.from(selectActivoEl.options).find(o => o.value === symbol);
+    if(!opcion){
+      opcion = document.createElement('option');
+      opcion.value = symbol;
+      opcion.textContent = symbol;
+      selectActivoEl.appendChild(opcion);
+    }
+    selectActivoEl.value = symbol;
+    selectActivoEl.dispatchEvent(new Event('change'));
+
+    const inputEl = document.getElementById('cryptoBuscadorInput');
+    const resultadosEl = document.getElementById('cryptoBuscadorResultados');
+    if(inputEl) inputEl.value = symbol;
+    if(resultadosEl){ resultadosEl.innerHTML = ''; resultadosEl.style.display = 'none'; }
+  }
+
+  function attachCryptoBuscadorListeners(){
+    const selectMercadoEl = document.getElementById('selectMercado');
+    if(selectMercadoEl) selectMercadoEl.addEventListener('change', alternarModoCryptoActivo);
+
+    const inputEl = document.getElementById('cryptoBuscadorInput');
+    if(inputEl) inputEl.addEventListener('input', manejarBusquedaCrypto);
+
+    const resultadosEl = document.getElementById('cryptoBuscadorResultados');
+    if(resultadosEl){
+      resultadosEl.addEventListener('click', (e) => {
+        const item = e.target.closest('.crypto-buscador-item');
+        if(item) seleccionarActivoCrypto(item.dataset.symbol);
+      });
+    }
+
+    const estadoEl = document.getElementById('cryptoBuscadorEstado');
+    if(estadoEl){
+      estadoEl.addEventListener('click', (e) => {
+        if(e.target.id === 'cryptoReintentarBtn') asegurarCatalogoCryptoCargado();
+      });
+    }
+
+    alternarModoCryptoActivo(); // estado inicial correcto (por si el formulario ya trae un mercado seleccionado)
   }
 
   // Puebla el <select> de Mercado del formulario de Activos con los
