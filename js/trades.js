@@ -1877,7 +1877,7 @@
 
   function calcularResultadoTrade(movimientos, direccionTrade){
     const resultado = {
-      posicion: { cantidadActual: 0, precioPromedioActual: 0 },
+      posicion: { cantidadActual: 0, precioPromedioActual: 0, comisionEntradaPendiente: 0 },
       realizado: { bruto: 0, comisiones: 0, neto: 0 },
       resultadosExit: [],
       advertencias: []
@@ -1912,7 +1912,10 @@
         cantidadActual += quantity;
         precioPromedioActual = (cantidadActual !== 0) ? (costoAcumulado / cantidadActual) : 0;
         comisionEntradaPendiente += commission; // TV-5A.1
-        resultado.realizado.comisiones += commission;
+        // SPOT-2 — la comisión de ENTRY YA NO se suma aquí a realizado.comisiones:
+        // mientras la cantidad siga abierta, esa comisión está PENDIENTE, no
+        // realizada. Solo se "realiza" proporcionalmente cuando ocurre un EXIT
+        // (ver más abajo, commissionsTotal).
 
       }else if(mov.movement_type === 'EXIT'){
         let cantidadAEjecutar = quantity;
@@ -1935,7 +1938,11 @@
         const resultadoNetoExit = resultadoBruto - commissionsTotal;
 
         resultado.realizado.bruto += resultadoBruto;
-        resultado.realizado.comisiones += commissionExit;
+        // SPOT-2 — se suma commissionsTotal (ENTRY asignada + EXIT propia),
+        // no solo la comisión del EXIT: la porción de ENTRY correspondiente
+        // a la cantidad cerrada AHORA se considera realizada, tal como
+        // establece la regla oficial aprobada.
+        resultado.realizado.comisiones += commissionsTotal;
 
         resultado.resultadosExit.push({
           movimientoId: mov.id !== undefined ? mov.id : null,
@@ -1971,9 +1978,13 @@
 
     resultado.posicion.cantidadActual = cantidadActual;
     resultado.posicion.precioPromedioActual = precioPromedioActual;
-    // Neto global = bruto realizado menos TODAS las comisiones de POSICIÓN
-    // acumuladas (ENTRY + EXIT) — no confundir con resultadoNeto de cada
-    // fila de resultadosExit, que solo resta la comisión de ESE EXIT.
+    // SPOT-2 — CAMBIO 1: se expone la comisión de ENTRY que sigue pendiente
+    // (correspondiente a la cantidad que aún no se ha cerrado). Ya se
+    // calculaba internamente desde TV-5A.1 — solo se agrega al objeto de salida.
+    resultado.posicion.comisionEntradaPendiente = comisionEntradaPendiente;
+    // Neto global = bruto realizado menos las comisiones YA REALIZADAS
+    // (ENTRY asignada proporcionalmente a cada EXIT + comisión de cada EXIT)
+    // — nunca incluye comisión de ENTRY todavía pendiente de una posición abierta.
     resultado.realizado.neto = resultado.realizado.bruto - resultado.realizado.comisiones;
 
     return resultado;
