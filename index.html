@@ -315,10 +315,20 @@
                 <select data-field="tipoOperacion" id="selectTipoOperacion"></select>
                 <span class="field-error" data-error-for="tipoOperacion">Selecciona el tipo de operación.</span>
               </div>
-              <div class="form-field">
+              <div class="form-field" id="activoSelectWrapper">
                 <label>Activo *</label>
                 <select data-field="activo" id="selectActivo"></select>
                 <span class="field-error" data-error-for="activo">El activo es obligatorio.</span>
+              </div>
+              <!-- Sprint MARKET-2B.1 — buscador inteligente, SOLO para el mercado
+                   Cripto. #selectActivo (arriba) nunca se elimina ni se reemplaza:
+                   sigue siendo la única fuente de verdad para collectFormData()/
+                   populateForm() — este bloque solo lo mantiene sincronizado. -->
+              <div class="form-field" id="cryptoBuscadorWrapper" style="display:none;">
+                <label>Buscar activo Crypto</label>
+                <input type="text" id="cryptoBuscadorInput" placeholder="🔍 Buscar activo o símbolo...">
+                <div id="cryptoBuscadorEstado" style="font-size: var(--fs-xs); color: var(--color-text-muted); margin-top: var(--space-1);"></div>
+                <div id="cryptoBuscadorResultados" style="margin-top: var(--space-1); max-height: 240px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); display: none;"></div>
               </div>
               <div class="form-field" id="activoOtroWrapper" style="display:none;">
                 <label>Escribe el activo</label>
