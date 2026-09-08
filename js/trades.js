@@ -1080,6 +1080,7 @@
     document.querySelectorAll('[data-field]').forEach(el => { el.value = ''; });
     document.querySelector('#direccionSegmented button[data-direction="Compra"]').click();
     establecerModoCierre(false);
+    if(typeof limpiarPrecioEnVivoFormulario === 'function') limpiarPrecioEnVivoFormulario(); // Sprint MARKET-3 — evita suscripción huérfana (resetForm no dispara 'change')
     // Sprint 4.2 — se retiró resetearPsicologia() de aquí, mismo motivo.
     // Sprint 4/5 — se retiraron las 5 líneas aplicarDecisionX({}) que iban
     // aquí (Liquidez, Estructura, Price Action, Desequilibrios, Volumen),

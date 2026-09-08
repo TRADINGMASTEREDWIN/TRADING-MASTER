@@ -260,9 +260,87 @@
     if(resultadosEl){ resultadosEl.innerHTML = ''; resultadosEl.style.display = 'none'; }
   }
 
+  /* ============================================================
+     Sprint MARKET-3 — Precio en vivo dentro del formulario de Trade.
+     Reutiliza BinanceMarketData (sin WebSockets nuevos). NUNCA escribe en
+     "Precio de entrada" ([data-field="precioEntrada"]) — son campos
+     completamente independientes y esta función jamás los toca.
+     ============================================================ */
+  let symbolSuscritoFormulario = null;
+  let callbackPrecioFormulario = null;
+
+  function formatearPrecioVivo(valor){
+    return '$' + valor.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
+  }
+
+  function desuscribirPrecioFormularioActual(){
+    if(symbolSuscritoFormulario && callbackPrecioFormulario && typeof BinanceMarketData !== 'undefined'){
+      BinanceMarketData.unsubscribePrice(symbolSuscritoFormulario, callbackPrecioFormulario);
+    }
+    symbolSuscritoFormulario = null;
+    callbackPrecioFormulario = null;
+  }
+
+  // Expuesta para que trades.js pueda llamarla desde resetForm() — evita
+  // dejar una suscripción "huérfana" cuando se guarda/cancela/limpia el
+  // formulario sin que el navegador dispare 'change' (resetForm() asigna
+  // .value directamente, sin dispatchEvent).
+  function limpiarPrecioEnVivoFormulario(){
+    desuscribirPrecioFormularioActual();
+    const bloquePrecio = document.getElementById('precioVivoWrapper');
+    if(bloquePrecio) bloquePrecio.style.display = 'none';
+  }
+
+  function actualizarPrecioEnVivoFormulario(){
+    const selectActivoEl = document.getElementById('selectActivo');
+    const selectMercadoEl = document.getElementById('selectMercado');
+    const bloquePrecio = document.getElementById('precioVivoWrapper');
+    if(!selectActivoEl || !selectMercadoEl || !bloquePrecio) return;
+
+    const esCrypto = selectMercadoEl.value === MERCADO_CRYPTO;
+    const symbolActual = esCrypto ? selectActivoEl.value : null;
+    const symbolValido = symbolActual && symbolActual !== 'Otro...' && symbolActual !== '';
+
+    if(symbolSuscritoFormulario && symbolSuscritoFormulario !== symbolActual){
+      desuscribirPrecioFormularioActual(); // PASO — cambio de activo o de mercado: fuera el listener anterior
+    }
+
+    if(!esCrypto || !symbolValido){
+      bloquePrecio.style.display = 'none';
+      return;
+    }
+
+    bloquePrecio.style.display = '';
+
+    if(symbolSuscritoFormulario === symbolActual) return; // ya suscrito a este mismo símbolo, nada que hacer
+
+    const precioValorEl = document.getElementById('precioVivoValor');
+    const precioEstadoEl = document.getElementById('precioVivoEstado');
+    if(precioValorEl) precioValorEl.textContent = '—';
+    if(precioEstadoEl) precioEstadoEl.textContent = 'Cargando...';
+
+    if(typeof BinanceMarketData === 'undefined') return;
+
+    callbackPrecioFormulario = (data) => {
+      if(precioValorEl) precioValorEl.textContent = formatearPrecioVivo(data.price);
+      if(precioEstadoEl) precioEstadoEl.textContent = '● EN VIVO · Binance';
+    };
+    symbolSuscritoFormulario = symbolActual;
+    BinanceMarketData.subscribePrice(symbolActual, callbackPrecioFormulario);
+
+    const cacheado = BinanceMarketData.getPrice(symbolActual);
+    if(cacheado !== null && precioValorEl){
+      precioValorEl.textContent = formatearPrecioVivo(cacheado);
+      if(precioEstadoEl) precioEstadoEl.textContent = '● EN VIVO · Binance';
+    }
+  }
+
   function attachCryptoBuscadorListeners(){
     const selectMercadoEl = document.getElementById('selectMercado');
-    if(selectMercadoEl) selectMercadoEl.addEventListener('change', alternarModoCryptoActivo);
+    if(selectMercadoEl){
+      selectMercadoEl.addEventListener('change', alternarModoCryptoActivo);
+      selectMercadoEl.addEventListener('change', actualizarPrecioEnVivoFormulario); // Sprint MARKET-3
+    }
 
     const inputEl = document.getElementById('cryptoBuscadorInput');
     if(inputEl) inputEl.addEventListener('input', manejarBusquedaCrypto);
@@ -281,6 +359,13 @@
         if(e.target.id === 'cryptoReintentarBtn') asegurarCatalogoCryptoCargado();
       });
     }
+
+    // Sprint MARKET-3 — mismo evento 'change' de #selectActivo que ya
+    // dispara seleccionarActivoCrypto() vía dispatchEvent; no interfiere
+    // con actualizarVisibilidadActivoOtro() (trades.js), ambos listeners
+    // conviven sin conflicto.
+    const selectActivoEl = document.getElementById('selectActivo');
+    if(selectActivoEl) selectActivoEl.addEventListener('change', actualizarPrecioEnVivoFormulario);
 
     alternarModoCryptoActivo(); // estado inicial correcto (por si el formulario ya trae un mercado seleccionado)
   }

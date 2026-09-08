@@ -129,6 +129,7 @@
     attachPlanTradingListeners(); // Mi Plan de Trading (Fase 4.3)
     attachCuentasListeners();     // Gestión de Cuentas (AC-01)
     attachActivosListeners();     // Gestión de Activos
+    iniciarMarketPulse();          // Sprint MARKET-3 — widget BTC del Inicio
     attachModuloVariablesListeners(); // Gestión de Variables
     attachCatalogosGeneralesListeners(); // Fase 3
     try{
@@ -226,3 +227,45 @@
       `);
     }
   });
+
+  /* ============================================================
+     Sprint MARKET-3 — Market Pulse: widget BTC del Inicio.
+     Suscripción ÚNICA vía BinanceMarketData (sin WebSockets nuevos, sin
+     duplicar conexiones), viva mientras Trading Master esté abierto — no
+     se cierra al cambiar de vista. No escribe nada en Supabase.
+     ============================================================ */
+  function iniciarMarketPulse(){
+    const precioEl = document.getElementById('marketPulsePrecio');
+    const estadoEl = document.getElementById('marketPulseEstado');
+    if(!precioEl || !estadoEl || typeof BinanceMarketData === 'undefined') return;
+
+    const ETIQUETAS_ESTADO = {
+      connected: '● EN VIVO',
+      connecting: 'Cargando mercado...',
+      reconnecting: 'Reconectando...',
+      disconnected: 'Sin conexión'
+    };
+
+    function actualizarEstadoConexion(){
+      estadoEl.textContent = ETIQUETAS_ESTADO[BinanceMarketData.getConnectionStatus()] || 'Sin conexión';
+    }
+
+    function formatearPrecio(valor){
+      return '$' + valor.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
+    }
+
+    estadoEl.textContent = 'Cargando mercado...';
+
+    BinanceMarketData.subscribePrice('BTCUSDT', (data) => {
+      precioEl.textContent = formatearPrecio(data.price);
+      actualizarEstadoConexion();
+    });
+
+    const cacheado = BinanceMarketData.getPrice('BTCUSDT');
+    if(cacheado !== null) precioEl.textContent = formatearPrecio(cacheado);
+
+    // El estado de conexión puede cambiar sin que llegue un precio nuevo
+    // (ej. reconectando) — se revisa cada pocos segundos, sin inundar nada.
+    actualizarEstadoConexion();
+    setInterval(actualizarEstadoConexion, 3000);
+  }
