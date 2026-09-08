@@ -120,18 +120,33 @@
 
   let ws = null;
   let connectionStatus = 'disconnected'; // 'disconnected' | 'connecting' | 'connected' | 'reconnecting'
-  let reconnectTimer = null;             // referencia única -> nunca 2 reconexiones simultáneas
+  let reconnectTimer = null;             // referencia única -> nunca 2 reconexiones simultáneos
   let reconnectAttempts = 0;
-  let subscriptions = {};                // símbolo normalizado -> Set(callbacks)
-  let priceCache = {};                   // símbolo normalizado -> último precio numérico
+  let subscriptions = {};                // símbolo normalizado -> Set(callbacks de precio simple) — SIN CAMBIOS desde MARKET-1B
+  let priceCache = {};                   // símbolo normalizado -> último precio numérico — SIN CAMBIOS
+  // Sprint MARKET-3A — estructuras NUEVAS y paralelas para el ticker
+  // completo. NO reemplazan nada de MARKET-1B; ambas conviven sobre la
+  // MISMA conexión y el MISMO stream @ticker ya existente.
+  let tickerSubscriptions = {};          // símbolo normalizado -> Set(callbacks de ticker completo)
+  let tickerCache = {};                  // símbolo normalizado -> {symbol, price, priceChangePercent, high, low, volume}
   let nextMsgId = 1;
 
   function normalizarSymbolPrecio(symbol){
     return String(symbol || '').trim().toUpperCase(); // PASO 5 — btcUSDT/BTCUSDT/btcusdt -> mismo símbolo
   }
 
+  // Cuenta TOTAL de listeners (precio + ticker) para un símbolo — decide si
+  // hace falta SUBSCRIBE/UNSUBSCRIBE real, ya que ambos tipos comparten la
+  // misma suscripción real del símbolo en el WebSocket.
+  function totalListenersDeSymbol(s){
+    const p = subscriptions[s] ? subscriptions[s].size : 0;
+    const t = tickerSubscriptions[s] ? tickerSubscriptions[s].size : 0;
+    return p + t;
+  }
+
   function hayAlgunaSuscripcionActiva(){
-    return Object.keys(subscriptions).some(s => subscriptions[s] && subscriptions[s].size > 0);
+    const symbols = new Set([...Object.keys(subscriptions), ...Object.keys(tickerSubscriptions)]);
+    return Array.from(symbols).some(s => totalListenersDeSymbol(s) > 0);
   }
 
   function enviarSuscripcion(symbolsNormalizados){
@@ -163,13 +178,39 @@
     const price = parseFloat(data.c);
     if(isNaN(price)) return;
 
-    priceCache[symbol] = price; // PASO 6 — actualiza la caché
+    priceCache[symbol] = price; // PASO 6 — actualiza la caché (SIN CAMBIOS respecto a MARKET-1B)
 
     const listeners = subscriptions[symbol];
     if(listeners){
       listeners.forEach(cb => {
-        try{ cb({ symbol, price }); }
+        try{ cb({ symbol, price }); } // MISMA forma exacta del callback — nunca se reemplaza por el ticker completo
         catch(e){ console.error(`BinanceMarketData: error en un listener de precio de ${symbol}.`, e); }
+      });
+    }
+
+    // Sprint MARKET-3A — el mismo mensaje @ticker YA trae estos campos
+    // (P=variación%, h=máximo 24h, l=mínimo 24h, v=volumen); no se cambia
+    // el stream ni se pide nada adicional a Binance.
+    const priceChangePercent = parseFloat(data.P);
+    const high = parseFloat(data.h);
+    const low = parseFloat(data.l);
+    const volume = parseFloat(data.v);
+
+    const ticker = {
+      symbol,
+      price,
+      priceChangePercent: isNaN(priceChangePercent) ? null : priceChangePercent,
+      high: isNaN(high) ? null : high,
+      low: isNaN(low) ? null : low,
+      volume: isNaN(volume) ? null : volume
+    };
+    tickerCache[symbol] = ticker;
+
+    const tickerListeners = tickerSubscriptions[symbol];
+    if(tickerListeners){
+      tickerListeners.forEach(cb => {
+        try{ cb(ticker); }
+        catch(e){ console.error(`BinanceMarketData: error en un listener de ticker de ${symbol}.`, e); }
       });
     }
   }
@@ -194,8 +235,10 @@
     ws.onopen = () => {
       connectionStatus = 'connected';
       reconnectAttempts = 0;
-      // PASO 8 — restaura TODAS las suscripciones activas tras (re)conectar
-      const simbolosActivos = Object.keys(subscriptions).filter(s => subscriptions[s] && subscriptions[s].size > 0);
+      // PASO 8 — restaura TODAS las suscripciones activas tras (re)conectar,
+      // considerando tanto price como ticker (símbolo compartido entre ambos).
+      const symbols = new Set([...Object.keys(subscriptions), ...Object.keys(tickerSubscriptions)]);
+      const simbolosActivos = Array.from(symbols).filter(s => totalListenersDeSymbol(s) > 0);
       enviarSuscripcion(simbolosActivos);
     };
 
@@ -219,18 +262,18 @@
 
   // PASO 3/7/9 — suscripción centralizada: Set evita callbacks duplicados;
   // solo se envía SUBSCRIBE real la PRIMERA vez que un símbolo pasa a tener
-  // al menos un listener.
+  // al menos un listener (de cualquiera de los 2 tipos, price o ticker).
   function subscribePrice(symbol, callback){
     if(typeof callback !== 'function') return;
     const s = normalizarSymbolPrecio(symbol);
     if(!s) return;
 
-    const esNuevoSimbolo = !subscriptions[s] || subscriptions[s].size === 0;
+    const teniaListenersAntes = totalListenersDeSymbol(s) > 0;
     if(!subscriptions[s]) subscriptions[s] = new Set();
     subscriptions[s].add(callback);
 
     asegurarConexionWebSocket();
-    if(esNuevoSimbolo && ws && ws.readyState === WebSocket.OPEN){
+    if(!teniaListenersAntes && ws && ws.readyState === WebSocket.OPEN){
       enviarSuscripcion([s]);
     }
     // Si el socket aún no está abierto, onopen ya restaura todos los
@@ -238,17 +281,15 @@
   }
 
   // PASO 3/7 — elimina SOLO ese listener; si quedan otros para el mismo
-  // símbolo, la suscripción real del símbolo NO se cierra.
+  // símbolo (price o ticker), la suscripción real del símbolo NO se cierra.
   function unsubscribePrice(symbol, callback){
     const s = normalizarSymbolPrecio(symbol);
     if(!subscriptions[s]) return;
 
     subscriptions[s].delete(callback);
+    if(subscriptions[s].size === 0) delete subscriptions[s];
 
-    if(subscriptions[s].size === 0){
-      delete subscriptions[s];
-      enviarDesuscripcion([s]);
-    }
+    if(totalListenersDeSymbol(s) === 0) enviarDesuscripcion([s]);
   }
 
   function getPrice(symbol){
@@ -260,11 +301,50 @@
     return connectionStatus; // PASO 10
   }
 
+  /* ============================================================
+     Sprint MARKET-3A — Ticker completo (price + priceChangePercent +
+     high + low + volume). Comparte la MISMA conexión WebSocket y el
+     MISMO stream @ticker que subscribePrice() — nunca crea una segunda
+     conexión ni una segunda suscripción real por símbolo.
+     ============================================================ */
+  function subscribeTicker(symbol, callback){
+    if(typeof callback !== 'function') return;
+    const s = normalizarSymbolPrecio(symbol);
+    if(!s) return;
+
+    const teniaListenersAntes = totalListenersDeSymbol(s) > 0;
+    if(!tickerSubscriptions[s]) tickerSubscriptions[s] = new Set();
+    tickerSubscriptions[s].add(callback);
+
+    asegurarConexionWebSocket();
+    if(!teniaListenersAntes && ws && ws.readyState === WebSocket.OPEN){
+      enviarSuscripcion([s]);
+    }
+  }
+
+  function unsubscribeTicker(symbol, callback){
+    const s = normalizarSymbolPrecio(symbol);
+    if(!tickerSubscriptions[s]) return;
+
+    tickerSubscriptions[s].delete(callback);
+    if(tickerSubscriptions[s].size === 0) delete tickerSubscriptions[s];
+
+    if(totalListenersDeSymbol(s) === 0) enviarDesuscripcion([s]);
+  }
+
+  function getTicker(symbol){
+    const s = normalizarSymbolPrecio(symbol);
+    return (s in tickerCache) ? tickerCache[s] : null;
+  }
+
   Object.assign(global.BinanceMarketData, {
     subscribePrice,
     unsubscribePrice,
     getPrice,
-    getConnectionStatus
+    getConnectionStatus,
+    subscribeTicker,
+    unsubscribeTicker,
+    getTicker
   });
 
 })(window);
