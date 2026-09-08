@@ -127,6 +127,16 @@
            visible por defecto al abrir Trading Master. -->
       <div id="vistaInicio">
 
+      <!-- Sprint MARKET-3 — Market Pulse: widget BTC del Inicio. Suscripción
+           única al iniciar la app, vía BinanceMarketData (sin WebSockets
+           nuevos). No escribe nada en Supabase. -->
+      <div class="section" id="marketPulseWidget" style="display:flex; align-items:center; gap: var(--space-4); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3);">
+        <span style="font-weight:700;">BTCUSDT</span>
+        <span id="marketPulsePrecio" style="font-size: var(--fs-lg); font-weight:700;">—</span>
+        <span id="marketPulseEstado" style="color: var(--color-text-muted); font-size: var(--fs-sm);">Cargando mercado...</span>
+        <span style="color: var(--color-text-muted); font-size: var(--fs-xs); margin-left:auto;">Binance</span>
+      </div>
+
       <!-- ===================== RESUMEN (KPIs principales — Fase 0.4) ===================== -->
       <section class="section" id="resumen">
         <span class="section-title section-title-accent" style="--accent-color: var(--color-info);">📊 Dashboard</span>
@@ -329,6 +339,14 @@
                 <input type="text" id="cryptoBuscadorInput" placeholder="🔍 Buscar activo o símbolo...">
                 <div id="cryptoBuscadorEstado" style="font-size: var(--fs-xs); color: var(--color-text-muted); margin-top: var(--space-1);"></div>
                 <div id="cryptoBuscadorResultados" style="margin-top: var(--space-1); max-height: 240px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); display: none;"></div>
+              </div>
+              <!-- Sprint MARKET-3 — Precio actual de mercado (solo lectura,
+                   automático, vía Binance). NUNCA escribe en "Precio de
+                   entrada" — son campos completamente independientes. -->
+              <div class="form-field" id="precioVivoWrapper" style="display:none;">
+                <label>Precio actual de mercado</label>
+                <div id="precioVivoValor" style="font-size: var(--fs-lg); font-weight:700;">—</div>
+                <span id="precioVivoEstado" style="color: var(--color-text-muted); font-size: var(--fs-xs);"></span>
               </div>
               <div class="form-field" id="activoOtroWrapper" style="display:none;">
                 <label>Escribe el activo</label>
