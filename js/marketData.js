@@ -383,4 +383,70 @@
     getTicker
   });
 
+  /* ============================================================
+     Sprint MARKET-5 — Historial real de precios (mini-gráficas). Usa
+     REST pública de Binance — Spot: /api/v3/klines, Futures: /fapi/v1/klines
+     — nunca WebSockets nuevos ni credenciales. Caché simple en memoria por
+     symbol+timeframe, para no repetir consultas al reabrir la misma
+     temporalidad.
+     ============================================================ */
+  const BINANCE_SPOT_KLINES_URL = 'https://api.binance.com/api/v3/klines';
+  const BINANCE_FUTURES_KLINES_URL = 'https://fapi.binance.com/fapi/v1/klines';
+
+  // timeframe visible -> { interval de Binance, cuántas velas pedir }
+  const CONFIG_TIMEFRAME = {
+    '1H':  { interval: '1m',  limit: 60 },
+    '4H':  { interval: '5m',  limit: 48 },
+    '24H': { interval: '15m', limit: 96 },
+    '7D':  { interval: '1h',  limit: 168 }
+  };
+
+  const historicoCache = {}; // "SYMBOL|TIMEFRAME|MARKETTYPE" -> { datos, timestamp }
+  const HISTORICO_CACHE_TTL_MS = 60 * 1000; // 1 minuto — evita reconsultar en ráfaga, nunca sirve datos "viejos" como si fueran de ahora
+
+  function claveCacheHistorico(symbol, timeframe, marketType){
+    return `${symbol}|${timeframe}|${marketType}`;
+  }
+
+  async function getHistoricalPrices(symbol, timeframe, opciones){
+    const s = normalizarSymbolPrecio(symbol);
+    const config = CONFIG_TIMEFRAME[timeframe];
+    if(!config) throw new Error(`Timeframe no soportado: ${timeframe}`);
+
+    const marketType = (opciones && opciones.marketType === 'FUTURES') ? 'FUTURES' : 'SPOT';
+    const clave = claveCacheHistorico(s, timeframe, marketType);
+
+    const cacheado = historicoCache[clave];
+    if(cacheado && (Date.now() - cacheado.timestamp) < HISTORICO_CACHE_TTL_MS){
+      return cacheado.datos; // reutiliza — evita consultas innecesarias en ráfaga
+    }
+
+    const baseUrl = (marketType === 'FUTURES') ? BINANCE_FUTURES_KLINES_URL : BINANCE_SPOT_KLINES_URL;
+    const url = `${baseUrl}?symbol=${encodeURIComponent(s)}&interval=${config.interval}&limit=${config.limit}`;
+
+    const response = await fetch(url);
+    if(!response.ok){
+      throw new Error(`Binance klines respondió con estado ${response.status} para ${s} (${marketType})`);
+    }
+
+    const raw = await response.json();
+    if(!Array.isArray(raw)){
+      throw new Error(`Respuesta inesperada de klines para ${s}: se esperaba un array.`);
+    }
+
+    // Kline de Binance: [openTime, open, high, low, close, volume, closeTime, ...]
+    // Se usa el precio de CIERRE de cada vela, tal como pide el Sprint.
+    const datos = raw.map(vela => ({
+      time: vela[0],
+      price: parseFloat(vela[4])
+    })).filter(p => !isNaN(p.price));
+
+    historicoCache[clave] = { datos, timestamp: Date.now() };
+    return datos;
+  }
+
+  Object.assign(global.BinanceMarketData, {
+    getHistoricalPrices
+  });
+
 })(window);

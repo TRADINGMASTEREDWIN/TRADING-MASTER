@@ -39,12 +39,18 @@
     HYPEUSDT:'#4C6FFF', PAXGUSDT:'#D4AF37'
   };
 
-  const MAX_PUNTOS_SPARKLINE = 30; // tope de memoria — nunca crece sin límite
+  // Sprint MARKET-5 — temporalidad -> { intervalo de Binance, cantidad de velas }.
+  // Debe coincidir exactamente con CONFIG_TIMEFRAME de marketData.js.
+  const CONFIG_TIMEFRAME = { '1H': 60, '4H': 48, '24H': 96, '7D': 168 };
+  const TIMEFRAME_POR_DEFECTO = '1H';
 
   let inicializado = false;
   let callbacksPorSymbol = {};
   let tickersRecibidos = {};
-  let historialPrecios = {};  // symbol -> array de precios REALES recibidos esta sesión (nunca inventados)
+  let historialPrecios = {};     // symbol -> array de precios (histórico real inicial + último punto actualizado en vivo)
+  let cargandoHistorico = {};    // symbol -> boolean, evita solicitudes duplicadas simultáneas
+  let historicoConError = {};    // symbol -> boolean
+  let timeframeActual = TIMEFRAME_POR_DEFECTO;
   let intervaloEstadoConexion = null;
 
   function formatearPrecioInteligente(precio){
@@ -61,18 +67,34 @@
     return '$' + vol.toFixed(2);
   }
 
-  function agregarPuntoSparkline(symbol, precio){
+  // El precio en vivo actualiza ÚNICAMENTE el extremo derecho (último
+  // punto) — no agrega puntos nuevos indefinidamente, para que la ventana
+  // siga representando exactamente la temporalidad seleccionada hasta el
+  // próximo refresco de historial (cambio de temporalidad).
+  function actualizarUltimoPuntoSparkline(symbol, precio){
     if(precio === null || precio === undefined || isNaN(precio)) return;
-    if(!historialPrecios[symbol]) historialPrecios[symbol] = [];
-    historialPrecios[symbol].push(precio);
-    if(historialPrecios[symbol].length > MAX_PUNTOS_SPARKLINE){
-      historialPrecios[symbol].shift();
+    if(!historialPrecios[symbol] || historialPrecios[symbol].length === 0){
+      historialPrecios[symbol] = [precio]; // sin histórico todavía -> al menos un punto real
+      return;
     }
+    historialPrecios[symbol][historialPrecios[symbol].length - 1] = precio;
   }
 
-  // Sparkline construida ÚNICAMENTE con puntos reales ya acumulados. Con
-  // menos de 2 puntos no hay línea que trazar -> SVG vacío, nunca una
-  // línea plana inventada.
+  // Color del rendimiento DENTRO de la temporalidad seleccionada
+  // (inicio vs. fin de historialPrecios) — nunca la variación 24h del
+  // ticker, que es un dato distinto y se sigue mostrando aparte.
+  function calcularColorPeriodo(symbol){
+    const puntos = historialPrecios[symbol];
+    if(!puntos || puntos.length < 2) return 'var(--color-text-muted)';
+    const inicio = puntos[0];
+    const fin = puntos[puntos.length - 1];
+    if(fin > inicio) return 'var(--color-success)';
+    if(fin < inicio) return 'var(--color-danger)';
+    return 'var(--color-text-muted)';
+  }
+
+  // Sparkline construida ÚNICAMENTE con puntos reales (histórico real de
+  // Binance + último punto en vivo). Con menos de 2 puntos, SVG vacío.
   function renderSparklineSVG(symbol, colorLinea){
     const puntos = historialPrecios[symbol];
     if(!puntos || puntos.length < 2){
@@ -88,6 +110,36 @@
       return `${x.toFixed(1)},${y.toFixed(1)}`;
     }).join(' ');
     return `<svg viewBox="0 0 100 28" style="width:100%; height:28px; display:block;" preserveAspectRatio="none"><polyline points="${coords}" fill="none" stroke="${colorLinea}" stroke-width="2"/></svg>`;
+  }
+
+  function opcionesMercadoDe(activo){
+    return activo.marketType === 'FUTURES' ? { marketType: 'FUTURES' } : undefined;
+  }
+
+  // Sprint MARKET-5 — carga el historial real (REST, vía BinanceMarketData.
+  // getHistoricalPrices, sin WebSockets nuevos) para UN activo, en la
+  // temporalidad actual. Nunca solicitudes duplicadas simultáneas para el
+  // mismo símbolo. Un fallo aquí NUNCA rompe otras tarjetas ni los precios
+  // en vivo — solo esa mini-gráfica muestra "Historial no disponible".
+  async function cargarHistoricoActivo(activo, posicion){
+    if(typeof BinanceMarketData === 'undefined' || typeof BinanceMarketData.getHistoricalPrices !== 'function') return;
+    if(cargandoHistorico[activo.symbol]) return;
+
+    cargandoHistorico[activo.symbol] = true;
+    historicoConError[activo.symbol] = false;
+    renderTarjeta(activo, posicion);
+
+    try{
+      const datos = await BinanceMarketData.getHistoricalPrices(activo.symbol, timeframeActual, opcionesMercadoDe(activo));
+      historialPrecios[activo.symbol] = datos.map(d => d.price);
+      historicoConError[activo.symbol] = false;
+    }catch(error){
+      console.error(`MarketStatus: no se pudo cargar el histórico de ${activo.symbol} (${timeframeActual}):`, error);
+      historicoConError[activo.symbol] = true;
+    }finally{
+      cargandoHistorico[activo.symbol] = false;
+      renderTarjeta(activo, posicion);
+    }
   }
 
   function crearTarjetasIniciales(){
@@ -118,15 +170,25 @@
     }
 
     const precioTxt = formatearPrecioInteligente(ticker.price) || '—';
-    const variacion = ticker.priceChangePercent;
-    let variacionHtml = '—', colorVar = 'var(--color-text-muted)', colorLinea = 'var(--color-text-muted)';
+    const variacion = ticker.priceChangePercent; // variación 24h del ticker — se sigue mostrando tal cual, independiente del color de la sparkline
+    let variacionHtml = '—', colorVar = 'var(--color-text-muted)';
     if(variacion !== null && variacion !== undefined && !isNaN(variacion)){
-      if(variacion > 0){ variacionHtml = `▲ +${variacion.toFixed(2)}%`; colorVar = 'var(--color-success)'; colorLinea = 'var(--color-success)'; }
-      else if(variacion < 0){ variacionHtml = `▼ ${variacion.toFixed(2)}%`; colorVar = 'var(--color-danger)'; colorLinea = 'var(--color-danger)'; }
+      if(variacion > 0){ variacionHtml = `▲ +${variacion.toFixed(2)}%`; colorVar = 'var(--color-success)'; }
+      else if(variacion < 0){ variacionHtml = `▼ ${variacion.toFixed(2)}%`; colorVar = 'var(--color-danger)'; }
       else{ variacionHtml = `● 0.00%`; }
     }
 
-    const sparkline = renderSparklineSVG(activo.symbol, colorLinea);
+    // Sprint MARKET-5 — la sparkline usa el color del RENDIMIENTO DENTRO DE
+    // LA TEMPORALIDAD SELECCIONADA (inicio vs. fin del historial), nunca la
+    // variación 24h de arriba — son 2 cosas distintas a propósito.
+    let sparklineHtml;
+    if(cargandoHistorico[activo.symbol]){
+      sparklineHtml = `<div style="height:28px; display:flex; align-items:center; font-size:var(--fs-xs); color:var(--color-text-muted);">Cargando...</div>`;
+    }else if(historicoConError[activo.symbol] && (!historialPrecios[activo.symbol] || historialPrecios[activo.symbol].length < 2)){
+      sparklineHtml = `<div style="height:28px; display:flex; align-items:center; font-size:var(--fs-xs); color:var(--color-text-muted);">Historial no disponible</div>`;
+    }else{
+      sparklineHtml = renderSparklineSVG(activo.symbol, calcularColorPeriodo(activo.symbol));
+    }
 
     cardEl.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:flex-start;">${badgePosicion}${iconoCirculo}</div>
@@ -134,7 +196,7 @@
       <div style="font-size:var(--fs-xs); color:var(--color-text-muted); margin-bottom:var(--space-1);">${activo.nombre}</div>
       <div style="font-size:var(--fs-lg); font-weight:700;">${precioTxt}</div>
       <div style="color:${colorVar}; font-size:var(--fs-sm); font-weight:600;">${variacionHtml}</div>
-      <div style="margin: var(--space-1) 0;">${sparkline}</div>
+      <div style="margin: var(--space-1) 0;">${sparklineHtml}</div>
       <div style="color:var(--color-text-muted); font-size:var(--fs-xs); display:flex; justify-content:space-between; gap:var(--space-1);">
         <span>H: ${formatearPrecioInteligente(ticker.high) || '—'}</span>
         <span>L: ${formatearPrecioInteligente(ticker.low) || '—'}</span>
@@ -234,14 +296,51 @@
     el.textContent = ahora.toLocaleString('es', { day:'numeric', month:'short', year:'numeric', hour:'numeric', minute:'2-digit' });
   }
 
+  function posicionDeSymbol(symbol){
+    const idx = ACTIVOS.findIndex(a => a.symbol === symbol);
+    return idx === -1 ? null : idx + 1;
+  }
+
+  // Sprint MARKET-5 — cambia la temporalidad global: recarga historial
+  // real para los 10 activos (REST) sin tocar ninguna suscripción de
+  // WebSocket — los precios en vivo siguen exactamente igual.
+  function cambiarTimeframe(nuevoTf){
+    if(!CONFIG_TIMEFRAME[nuevoTf] || nuevoTf === timeframeActual) return;
+    timeframeActual = nuevoTf;
+    actualizarBotonesTimeframe();
+    ACTIVOS.forEach(activo => {
+      cargarHistoricoActivo(activo, posicionDeSymbol(activo.symbol));
+    });
+  }
+
+  function actualizarBotonesTimeframe(){
+    Object.keys(CONFIG_TIMEFRAME).forEach(tf => {
+      const btn = document.getElementById('marketStatusTf-' + tf);
+      if(!btn) return;
+      const activo = tf === timeframeActual;
+      btn.style.background = activo ? 'var(--color-primary)' : 'transparent';
+      btn.style.color = activo ? '#fff' : 'var(--color-text-muted)';
+    });
+  }
+
+  function attachSelectorTimeframe(){
+    Object.keys(CONFIG_TIMEFRAME).forEach(tf => {
+      const btn = document.getElementById('marketStatusTf-' + tf);
+      if(btn) btn.addEventListener('click', () => cambiarTimeframe(tf));
+    });
+    actualizarBotonesTimeframe();
+  }
+
   function init(){
     if(inicializado) return;
     if(typeof BinanceMarketData === 'undefined') return;
     inicializado = true;
+    timeframeActual = TIMEFRAME_POR_DEFECTO; // PASO — la temporalidad inicial siempre es 1H
 
     crearTarjetasIniciales();
     actualizarEstadoConexion();
     actualizarFechaHora();
+    attachSelectorTimeframe();
 
     ACTIVOS.forEach((activo, indice) => {
       const posicion = indice + 1;
@@ -250,11 +349,11 @@
       // MARKET-HYPE-1 — opciones.marketType: 'FUTURES' solo para HYPE
       // (los demás activos, sin esta propiedad, siguen usando SPOT por
       // defecto — comportamiento 100% igual al de antes de este Sprint).
-      const opcionesMercado = activo.marketType === 'FUTURES' ? { marketType: 'FUTURES' } : undefined;
+      const opcionesMercado = opcionesMercadoDe(activo);
 
       const callback = (ticker) => {
         tickersRecibidos[activo.symbol] = ticker;
-        agregarPuntoSparkline(activo.symbol, ticker.price); // solo ticks reales
+        actualizarUltimoPuntoSparkline(activo.symbol, ticker.price); // solo actualiza el extremo derecho, con datos reales
         renderTarjeta(activo, posicion);
         calcularPulso();
         actualizarEstadoConexion();
@@ -266,9 +365,10 @@
       const cacheado = BinanceMarketData.getTicker(activo.symbol, opcionesMercado);
       if(cacheado){
         tickersRecibidos[activo.symbol] = cacheado;
-        agregarPuntoSparkline(activo.symbol, cacheado.price);
         renderTarjeta(activo, posicion);
       }
+
+      cargarHistoricoActivo(activo, posicion); // Sprint MARKET-5 — historial real inmediato, en paralelo al ticker en vivo
     });
 
     calcularPulso();
@@ -289,6 +389,9 @@
     callbacksPorSymbol = {};
     tickersRecibidos = {};
     historialPrecios = {}; // reinicia la mini-gráfica — nunca conserva "historial" entre sesiones
+    cargandoHistorico = {};
+    historicoConError = {};
+    timeframeActual = TIMEFRAME_POR_DEFECTO;
     inicializado = false;
   }
 
