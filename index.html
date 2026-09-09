@@ -147,6 +147,13 @@
           <div style="text-align:right;">
             <div id="marketStatusFechaHora" style="font-size:var(--fs-sm); color:var(--color-text-muted);">—</div>
             <div style="font-size:var(--fs-xs); color:var(--color-success); margin-top:2px;">● Datos en vivo · Binance</div>
+            <!-- Sprint MARKET-5 — selector compacto de temporalidad para las mini-gráficas -->
+            <div style="display:inline-flex; gap:2px; background:var(--color-bg); border:1px solid var(--color-border); border-radius:var(--radius-md); padding:2px; margin-top:var(--space-2);">
+              <button type="button" id="marketStatusTf-1H" style="border:none; background:transparent; padding:3px 10px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">1H</button>
+              <button type="button" id="marketStatusTf-4H" style="border:none; background:transparent; padding:3px 10px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">4H</button>
+              <button type="button" id="marketStatusTf-24H" style="border:none; background:transparent; padding:3px 10px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">24H</button>
+              <button type="button" id="marketStatusTf-7D" style="border:none; background:transparent; padding:3px 10px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">7D</button>
+            </div>
           </div>
         </div>
 
