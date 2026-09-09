@@ -39,6 +39,21 @@
     HYPEUSDT:'#4C6FFF', PAXGUSDT:'#D4AF37'
   };
 
+  // Sprint NAV-MARKET — logos reales, no inventados: repositorio público
+  // spothq/cryptocurrency-icons (ampliamente usado, licencia permisiva),
+  // servido vía CDN jsDelivr. HYPE (Hyperliquid, listado reciente) puede
+  // no existir todavía en ese repositorio — su <img> simplemente fallará
+  // y caerá al fallback de iniciales, sin romper nada.
+  const LOGO_POR_SYMBOL = {
+    BTCUSDT:'btc', ETHUSDT:'eth', BNBUSDT:'bnb', SOLUSDT:'sol',
+    XRPUSDT:'xrp', DOGEUSDT:'doge', ADAUSDT:'ada', TRXUSDT:'trx',
+    HYPEUSDT:'hype', PAXGUSDT:'paxg'
+  };
+  function urlLogo(symbol){
+    const codigo = LOGO_POR_SYMBOL[symbol];
+    return codigo ? `https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color/${codigo}.png` : null;
+  }
+
   // Sprint MARKET-5 — temporalidad -> { intervalo de Binance, cantidad de velas }.
   // Debe coincidir exactamente con CONFIG_TIMEFRAME de marketData.js.
   const CONFIG_TIMEFRAME = { '1H': 60, '4H': 48, '24H': 96, '7D': 168 };
@@ -167,7 +182,15 @@
     const ticker = tickersRecibidos[activo.symbol];
     const color = COLOR_POR_SYMBOL[activo.symbol] || 'var(--color-text-muted)';
     const badgePosicion = `<span style="background:var(--color-bg); border:1px solid var(--color-border); border-radius:50%; width:20px; height:20px; display:flex; align-items:center; justify-content:center; font-size:10px; color:var(--color-text-muted); flex-shrink:0;">${posicion}</span>`;
-    const iconoCirculo = `<div style="width:32px; height:32px; border-radius:50%; background:${color}26; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><span style="font-size:10px; font-weight:700; color:${color};">${activo.abrev.slice(0,2)}</span></div>`;
+    // Sprint NAV-MARKET — logo real con fallback seguro: las iniciales
+    // quedan SIEMPRE en el DOM debajo; el <img> se superpone solo si carga
+    // con éxito. Si falla (onerror), se oculta y las iniciales quedan
+    // visibles — nunca un ícono de imagen rota, nunca se rompe el layout.
+    const logoUrl = urlLogo(activo.symbol);
+    const imgLogo = logoUrl
+      ? `<img src="${logoUrl}" alt="${activo.abrev}" style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; border-radius:50%;" onerror="this.style.display='none';">`
+      : '';
+    const iconoCirculo = `<div style="width:32px; height:32px; border-radius:50%; background:${color}26; display:flex; align-items:center; justify-content:center; flex-shrink:0; position:relative; overflow:hidden;"><span style="font-size:10px; font-weight:700; color:${color};">${activo.abrev.slice(0,2)}</span>${imgLogo}</div>`;
 
     if(!ticker){
       cardEl.innerHTML = `
