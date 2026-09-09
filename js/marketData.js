@@ -440,11 +440,18 @@
     // quoteAssetVolume, ...]. Sprint MARKET-6 — se agrega quoteVolume (índice
     // 7) para que el Pulso/Resumen puedan calcular volumen REAL del período
     // reutilizando este MISMO historial, sin ninguna consulta adicional.
+    // Sprint MARKET-7 — se agregan open/high/low (índices 1/2/3) para el
+    // gráfico de velas japonesas del Analizador de Activos. Aditivo: los
+    // consumidores existentes (sparklines de MARKET-5/6) solo usan .price/
+    // .quoteVolume y no se ven afectados por los campos nuevos.
     const datos = raw.map(vela => {
       const qv = parseFloat(vela[7]);
       return {
         time: vela[0],
-        price: parseFloat(vela[4]),
+        open: parseFloat(vela[1]),
+        high: parseFloat(vela[2]),
+        low: parseFloat(vela[3]),
+        price: parseFloat(vela[4]), // cierre — mismo nombre de siempre, por compatibilidad
         quoteVolume: isNaN(qv) ? null : qv
       };
     }).filter(p => !isNaN(p.price));
