@@ -127,58 +127,83 @@
            visible por defecto al abrir Trading Master. -->
       <div id="vistaInicio">
 
-      <!-- Sprint MARKET-3 — Market Pulse: widget BTC del Inicio. Suscripción
-           única al iniciar la app, vía BinanceMarketData (sin WebSockets
-           nuevos). No escribe nada en Supabase. -->
-      <div class="section" id="marketPulseWidget" style="display:flex; align-items:center; gap: var(--space-4); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3);">
-        <span style="font-weight:700;">BTCUSDT</span>
-        <span id="marketPulsePrecio" style="font-size: var(--fs-lg); font-weight:700;">—</span>
-        <span id="marketPulseEstado" style="color: var(--color-text-muted); font-size: var(--fs-sm);">Cargando mercado...</span>
-        <span style="color: var(--color-text-muted); font-size: var(--fs-xs); margin-left:auto;">Binance</span>
-      </div>
-
       <!-- ============================================================
-           Sprint MARKET-3B — Market Status: Top 10 + Pulso del Mercado.
-           Complementa (no duplica) #marketPulseWidget de arriba — ese
-           widget es solo BTC; este bloque es el panel completo de 10
-           activos. Toda la lógica vive en js/marketStatus.js, aislada.
+           Sprint MARKET-UI — Rediseño visual de Market Status. Reemplaza
+           por completo el HTML de #marketPulseWidget (MARKET-3),
+           #marketStatusWidget (MARKET-3B) y #marketSentimentWidget
+           (MARKET-4) — la LÓGICA de esos 3 módulos (BinanceMarketData,
+           MarketStatus, MarketSentiment) no cambió, solo su presentación.
+           #resumen (KPIs) permanece exactamente igual, sin tocar.
            ============================================================ -->
       <div class="section" id="marketStatusWidget" style="padding: var(--space-4); margin-bottom: var(--space-3);">
-        <div style="display:flex; align-items:center; gap: var(--space-3); flex-wrap:wrap; margin-bottom: var(--space-2);">
-          <span class="section-title" style="margin:0;">🌐 Market Status</span>
-          <span id="marketStatusEstadoConexion" style="color: var(--color-text-muted); font-size: var(--fs-sm);">Conectando con el mercado...</span>
-        </div>
-        <div style="color: var(--color-text-muted); font-size: var(--fs-sm); margin-bottom: var(--space-3);">Top 10 Criptoactivos · Binance Market Data</div>
-
-        <div id="marketStatusCards" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--space-2);"></div>
-
-        <div id="marketStatusPulso" style="margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--color-border);">
-          <div style="font-weight:700; margin-bottom: var(--space-2);">📊 Pulso del Mercado</div>
-          <div id="marketStatusClasificacion" style="font-size: var(--fs-lg); font-weight:700; margin-bottom: var(--space-3);">Esperando datos...</div>
-          <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--space-3); font-size: var(--fs-sm);">
-            <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Positivos</span><span id="marketStatusPositivos">—</span></div>
-            <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Negativos</span><span id="marketStatusNegativos">—</span></div>
-            <div id="marketStatusNeutrales" style="display:none;"><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Neutrales</span></div>
-            <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Promedio 24h</span><span id="marketStatusPromedio">—</span></div>
-            <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">🏆 Mayor ganador</span><span id="marketStatusGanador">—</span></div>
-            <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">📉 Mayor perdedor</span><span id="marketStatusPerdedor">—</span></div>
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:var(--space-2); margin-bottom: var(--space-1);">
+          <div>
+            <div style="display:flex; align-items:center; gap:var(--space-3); flex-wrap:wrap;">
+              <span class="section-title" style="margin:0; font-size:var(--fs-xl);">🌐 Market Status</span>
+              <span id="marketStatusEstadoConexion" style="background:var(--color-success-soft); color:var(--color-success); font-size:var(--fs-xs); font-weight:700; padding:2px 10px; border-radius:999px;">Conectando con el mercado...</span>
+            </div>
+            <div style="color: var(--color-text-muted); font-size: var(--fs-sm); margin-top:var(--space-1);">Top 10 Criptomonedas por Capitalización de Mercado (sin stablecoins) · Datos en tiempo real de Binance</div>
+          </div>
+          <div style="text-align:right;">
+            <div id="marketStatusFechaHora" style="font-size:var(--fs-sm); color:var(--color-text-muted);">—</div>
+            <div style="font-size:var(--fs-xs); color:var(--color-success); margin-top:2px;">● Datos en vivo · Binance</div>
           </div>
         </div>
-      </div>
 
-      <!-- ============================================================
-           Sprint MARKET-4 — Sentimiento del Mercado (Fear & Greed Index).
-           Compacto a propósito: no debe desplazar #resumen. Toda la
-           lógica vive en js/marketSentiment.js, completamente aislada.
-           ============================================================ -->
-      <div class="section" id="marketSentimentWidget" style="padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); display:flex; align-items:center; gap: var(--space-4); flex-wrap:wrap;">
-        <span style="font-weight:700; white-space:nowrap;">🧠 Sentimiento del Mercado</span>
-        <span id="marketSentimentValor" style="font-size: var(--fs-lg); font-weight:700;">—</span>
-        <span id="marketSentimentClasificacion" style="font-size: var(--fs-sm); white-space:nowrap;">Cargando...</span>
-        <div style="position:relative; flex:1; min-width:120px; height:6px; border-radius:3px; background: linear-gradient(to right, #EF4444, #F97316, #EAB308, #22C55E, #16A34A);">
-          <div id="marketSentimentIndicador" style="position:absolute; top:-3px; left:50%; width:12px; height:12px; border-radius:50%; background:#fff; border:2px solid var(--color-bg); transform:translateX(-50%);"></div>
+        <!-- MARKET-UI: sin "Cap. Mercado" (no es un dato real de Binance) —
+             se muestra Máximo/Mínimo 24h en su lugar (dato real ya recibido). -->
+        <div id="marketStatusCards" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-2); margin-top:var(--space-3);"></div>
+
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-3); margin-top: var(--space-4);">
+
+          <!-- A. Índice de Miedo y Codicia — lógica en js/marketSentiment.js -->
+          <div class="section" id="marketSentimentWidget" style="padding: var(--space-3); text-align:center;">
+            <div style="font-weight:700; text-align:left; margin-bottom:var(--space-2);">Índice de Miedo y Codicia</div>
+            <div id="marketSentimentGauge"></div>
+            <div id="marketSentimentValor" style="font-size:2rem; font-weight:700; margin-top:-var(--space-2);">—</div>
+            <div id="marketSentimentClasificacion" style="display:inline-block; font-weight:700; font-size:var(--fs-sm); padding:2px 14px; border-radius:999px; margin-top:var(--space-1);">Cargando...</div>
+            <div style="text-align:left; font-size:var(--fs-xs); color:var(--color-text-muted); margin-top:var(--space-3); display:flex; flex-direction:column; gap:2px;">
+              <span>🔴 0-24 · Miedo extremo</span>
+              <span>🟠 25-44 · Miedo</span>
+              <span>🟡 45-55 · Neutral</span>
+              <span>🟢 56-100 · Codicia / Codicia extrema</span>
+            </div>
+            <div id="marketSentimentFuente" style="font-size: var(--fs-xs); color: var(--color-text-muted); margin-top:var(--space-2); text-align:left;"></div>
+            <div id="marketSentimentActualizacion" style="font-size: var(--fs-xs); color: var(--color-text-muted); text-align:left;"></div>
+          </div>
+
+          <!-- B. Pulso del Mercado — lógica en js/marketStatus.js -->
+          <div class="section" id="marketStatusPulso" style="padding: var(--space-3);">
+            <div style="font-weight:700; margin-bottom:var(--space-2);">📊 Pulso del Mercado</div>
+            <div id="marketStatusPulsoTitulo" style="font-size: var(--fs-lg); font-weight:700; color:var(--color-success);">Esperando datos...</div>
+            <div id="marketStatusPulsoSubtitulo" style="color:var(--color-text-muted); font-size:var(--fs-sm); margin-bottom:var(--space-3);"></div>
+            <div style="height:8px; border-radius:4px; background:var(--color-danger); overflow:hidden; display:flex;">
+              <div id="marketStatusBarraPositiva" style="background:var(--color-success); width:0%;"></div>
+              <div id="marketStatusBarraNegativa" style="background:var(--color-danger); width:0%;"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:var(--space-2); font-size:var(--fs-sm);">
+              <span><strong id="marketStatusPctPositivo">—</strong> <span style="color:var(--color-text-muted);">Activos al alza</span></span>
+              <span><strong id="marketStatusPctNegativo">—</strong> <span style="color:var(--color-text-muted);">Activos a la baja</span></span>
+            </div>
+            <div id="marketStatusExplicacion" style="background:var(--color-success-soft); color:var(--color-success); font-size:var(--fs-sm); padding:var(--space-2); border-radius:var(--radius-md); margin-top:var(--space-3);"></div>
+            <div style="display:flex; justify-content:space-between; margin-top:var(--space-3); font-size:var(--fs-xs); color:var(--color-text-muted);">
+              <span>🏆 Mayor ganador: <strong id="marketStatusGanador" style="color:var(--color-text-primary);">—</strong></span>
+              <span>📉 Mayor perdedor: <strong id="marketStatusPerdedor" style="color:var(--color-text-primary);">—</strong></span>
+            </div>
+          </div>
+
+          <!-- C. Resumen 24h (Top 10) — lógica en js/marketStatus.js -->
+          <div class="section" style="padding: var(--space-3);">
+            <div style="font-weight:700; margin-bottom:var(--space-3);">📈 Resumen 24h (Top 10)</div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+              <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Variación promedio 24h</span><span id="marketStatusResumenPromedio" style="font-size:var(--fs-lg); font-weight:700;">—</span></div>
+              <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Volumen total 24h</span><span id="marketStatusResumenVolumen" style="font-size:var(--fs-lg); font-weight:700;">—</span></div>
+              <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Activos en positivo</span><span id="marketStatusResumenPositivos" style="font-size:var(--fs-lg); font-weight:700; color:var(--color-success);">—</span></div>
+              <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Activos en negativo</span><span id="marketStatusResumenNegativos" style="font-size:var(--fs-lg); font-weight:700; color:var(--color-danger);">—</span></div>
+            </div>
+          </div>
+
         </div>
-        <span id="marketSentimentFuente" style="font-size: var(--fs-xs); color: var(--color-text-muted); white-space:nowrap;"></span>
       </div>
 
       <!-- ===================== RESUMEN (KPIs principales — Fase 0.4) ===================== -->
