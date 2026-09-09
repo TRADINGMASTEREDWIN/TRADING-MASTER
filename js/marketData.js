@@ -196,13 +196,21 @@
     const low = parseFloat(data.l);
     const volume = parseFloat(data.v);
 
+    // Sprint MARKET-UI — quoteVolume (campo "q" del mismo mensaje @ticker ya
+    // recibido): volumen en la moneda de cotización (USDT), necesario para
+    // mostrar un total en dólares real — "volume"/"v" es en unidades del
+    // activo base (BTC, ETH...), no en dólares. Mismo mensaje, ningún dato
+    // nuevo solicitado a Binance.
+    const quoteVolume = parseFloat(data.q);
+
     const ticker = {
       symbol,
       price,
       priceChangePercent: isNaN(priceChangePercent) ? null : priceChangePercent,
       high: isNaN(high) ? null : high,
       low: isNaN(low) ? null : low,
-      volume: isNaN(volume) ? null : volume
+      volume: isNaN(volume) ? null : volume,
+      quoteVolume: isNaN(quoteVolume) ? null : quoteVolume
     };
     tickerCache[symbol] = ticker;
 
