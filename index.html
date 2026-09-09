@@ -137,6 +137,35 @@
         <span style="color: var(--color-text-muted); font-size: var(--fs-xs); margin-left:auto;">Binance</span>
       </div>
 
+      <!-- ============================================================
+           Sprint MARKET-3B — Market Status: Top 10 + Pulso del Mercado.
+           Complementa (no duplica) #marketPulseWidget de arriba — ese
+           widget es solo BTC; este bloque es el panel completo de 10
+           activos. Toda la lógica vive en js/marketStatus.js, aislada.
+           ============================================================ -->
+      <div class="section" id="marketStatusWidget" style="padding: var(--space-4); margin-bottom: var(--space-3);">
+        <div style="display:flex; align-items:center; gap: var(--space-3); flex-wrap:wrap; margin-bottom: var(--space-2);">
+          <span class="section-title" style="margin:0;">🌐 Market Status</span>
+          <span id="marketStatusEstadoConexion" style="color: var(--color-text-muted); font-size: var(--fs-sm);">Conectando con el mercado...</span>
+        </div>
+        <div style="color: var(--color-text-muted); font-size: var(--fs-sm); margin-bottom: var(--space-3);">Top 10 Criptoactivos · Binance Market Data</div>
+
+        <div id="marketStatusCards" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--space-2);"></div>
+
+        <div id="marketStatusPulso" style="margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--color-border);">
+          <div style="font-weight:700; margin-bottom: var(--space-2);">📊 Pulso del Mercado</div>
+          <div id="marketStatusClasificacion" style="font-size: var(--fs-lg); font-weight:700; margin-bottom: var(--space-3);">Esperando datos...</div>
+          <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--space-3); font-size: var(--fs-sm);">
+            <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Positivos</span><span id="marketStatusPositivos">—</span></div>
+            <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Negativos</span><span id="marketStatusNegativos">—</span></div>
+            <div id="marketStatusNeutrales" style="display:none;"><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Neutrales</span></div>
+            <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Promedio 24h</span><span id="marketStatusPromedio">—</span></div>
+            <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">🏆 Mayor ganador</span><span id="marketStatusGanador">—</span></div>
+            <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">📉 Mayor perdedor</span><span id="marketStatusPerdedor">—</span></div>
+          </div>
+        </div>
+      </div>
+
       <!-- ===================== RESUMEN (KPIs principales — Fase 0.4) ===================== -->
       <section class="section" id="resumen">
         <span class="section-title section-title-accent" style="--accent-color: var(--color-info);">📊 Dashboard</span>
@@ -1945,6 +1974,7 @@
 <script src="js/assets.js"></script>
 <!-- Sprint MARKET-1A — servicio aislado, sin conectar a ningún selector/formulario todavía -->
 <script src="js/marketData.js"></script>
+<script src="js/marketStatus.js"></script>
   <script src="js/variables.js"></script>
   <script src="js/catalogosGenerales.js"></script>
   <script src="js/variablesObservadas.js"></script>
