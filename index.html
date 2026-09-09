@@ -49,9 +49,13 @@
 
     <nav class="nav-group">
       <div class="nav-group-title">Menú</div>
-      <a class="nav-item active" data-nav="inicio">
+      <a class="nav-item active" data-nav="mercado">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 010 20 15.3 15.3 0 010-20z"/></svg>
+        <span class="nav-label">🌐 Estado del Mercado</span>
+      </a>
+      <a class="nav-item" data-nav="inicio">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V10"/></svg>
-        <span class="nav-label">🏠 Inicio</span>
+        <span class="nav-label">📊 Dashboard</span>
       </a>
       <a class="nav-item" data-nav="trades">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="14" y2="18"/></svg>
@@ -125,7 +129,14 @@
     <main class="content">
       <!-- NAV-01: "vistaInicio" (antes "vistaGeneral") — Dashboard Ejecutivo,
            visible por defecto al abrir Trading Master. -->
-      <div id="vistaInicio">
+      <!-- ============================================================
+           Sprint NAV-MARKET — Estado del Mercado, vista independiente.
+           Contiene exactamente el mismo HTML/lógica que antes vivía
+           dentro de #vistaInicio — MarketStatus/MarketSentiment no
+           cambiaron, solo su contenedor. #vistaInicio (ahora Dashboard)
+           conserva únicamente los KPIs personales.
+           ============================================================ -->
+      <div id="vistaMercado">
 
       <!-- ============================================================
            Sprint MARKET-UI — Rediseño visual de Market Status. Reemplaza
@@ -216,6 +227,10 @@
 
         </div>
       </div>
+
+      </div>
+
+      <div id="vistaInicio">
 
       <!-- ===================== RESUMEN (KPIs principales — Fase 0.4) ===================== -->
       <section class="section" id="resumen">
@@ -2713,7 +2728,8 @@
     //   3) sumar una línea aquí.
     // Nunca más un if/else por módulo.
     const MODULOS_NAV = {
-      'inicio': 'vistaInicio',
+      'mercado': 'vistaMercado', // Sprint NAV-MARKET — 🌐 Estado del Mercado, primera opción del menú
+      'inicio': 'vistaInicio',   // ahora exclusivamente Dashboard (KPIs personales)
       'trades': 'vistaTrades',
       'estrategias': 'vistaEstrategias',
       'analytics': 'vistaAnalytics',
@@ -2817,8 +2833,8 @@
       });
     }
 
-    // Vista inicial al cargar Trading Master: 🏠 Inicio (Dashboard Ejecutivo).
-    cambiarVista('inicio');
+    // Vista inicial al cargar Trading Master: 🌐 Estado del Mercado (Sprint NAV-MARKET).
+    cambiarVista('mercado'); // Sprint NAV-MARKET — primera experiencia al abrir Trading Master
 
     document.querySelectorAll('.form-tab').forEach(tab => {
       tab.addEventListener('click', () => {
