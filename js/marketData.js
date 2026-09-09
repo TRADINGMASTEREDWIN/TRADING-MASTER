@@ -108,68 +108,94 @@
   };
 
   /* ============================================================
-     Sprint MARKET-1B — Precios en tiempo real vía WebSocket público.
-     Extiende el MISMO objeto BinanceMarketData (no crea un servicio
-     nuevo). Fuente exclusivamente pública — sin API Key/Secret/balances/
-     órdenes privadas. Una única conexión centralizada, multiplexada por
-     símbolo mediante SUBSCRIBE/UNSUBSCRIBE (protocolo nativo de Binance),
-     nunca un socket por símbolo ni por listener.
+     Sprint MARKET-1B/3A/UI (base) + MARKET-HYPE-1 (arquitectura Spot +
+     Futures). Extiende el MISMO objeto BinanceMarketData. Fuente
+     exclusivamente pública — sin API Key/Secret/balances/órdenes
+     privadas.
+
+     MARKET-HYPE-1 — HALLAZGO: HYPEUSDT (Hyperliquid) no está disponible
+     como par Spot en Binance global — solo existe como contrato
+     USDⓈ-M Futures. Por eso, en vez de UNA conexión, ahora existen DOS
+     conexiones centralizadas independientes y paralelas — nunca una por
+     activo, nunca una por listener:
+
+       MERCADOS.SPOT    -> wss://stream.binance.com:9443/ws     (9 activos)
+       MERCADOS.FUTURES -> wss://fstream.binance.com/market/ws  (HYPEUSDT)
+
+     Cada una tiene su propio WebSocket, caché, suscripciones y
+     reconexión — completamente aisladas entre sí. subscribePrice()/
+     unsubscribePrice()/getPrice()/getConnectionStatus() NUNCA cambiaron
+     de firma y siguen operando exclusivamente sobre SPOT (comportamiento
+     por defecto, 100% compatible con MARKET-1B). subscribeTicker()/
+     unsubscribeTicker()/getTicker() ganaron un 3er parámetro opcional
+     { marketType: 'FUTURES' } — sin ese parámetro, se comportan
+     exactamente igual que antes (SPOT).
      ============================================================ */
-  const BINANCE_WS_URL = 'wss://stream.binance.com:9443/ws';
   const RECONEXION_DELAY_MAXIMO_MS = 30000;
 
-  let ws = null;
-  let connectionStatus = 'disconnected'; // 'disconnected' | 'connecting' | 'connected' | 'reconnecting'
-  let reconnectTimer = null;             // referencia única -> nunca 2 reconexiones simultáneos
-  let reconnectAttempts = 0;
-  let subscriptions = {};                // símbolo normalizado -> Set(callbacks de precio simple) — SIN CAMBIOS desde MARKET-1B
-  let priceCache = {};                   // símbolo normalizado -> último precio numérico — SIN CAMBIOS
-  // Sprint MARKET-3A — estructuras NUEVAS y paralelas para el ticker
-  // completo. NO reemplazan nada de MARKET-1B; ambas conviven sobre la
-  // MISMA conexión y el MISMO stream @ticker ya existente.
-  let tickerSubscriptions = {};          // símbolo normalizado -> Set(callbacks de ticker completo)
-  let tickerCache = {};                  // símbolo normalizado -> {symbol, price, priceChangePercent, high, low, volume}
-  let nextMsgId = 1;
-
-  function normalizarSymbolPrecio(symbol){
-    return String(symbol || '').trim().toUpperCase(); // PASO 5 — btcUSDT/BTCUSDT/btcusdt -> mismo símbolo
+  function crearEstadoMercado(wsUrl){
+    return {
+      wsUrl,
+      ws: null,
+      connectionStatus: 'disconnected', // 'disconnected' | 'connecting' | 'connected' | 'reconnecting'
+      reconnectTimer: null,             // referencia única -> nunca 2 reconexiones simultáneas de ESTE mercado
+      reconnectAttempts: 0,
+      subscriptions: {},                // símbolo normalizado -> Set(callbacks de precio simple)
+      priceCache: {},                   // símbolo normalizado -> último precio numérico
+      tickerSubscriptions: {},          // símbolo normalizado -> Set(callbacks de ticker completo)
+      tickerCache: {},                  // símbolo normalizado -> {symbol, price, priceChangePercent, high, low, volume, quoteVolume}
+      nextMsgId: 1
+    };
   }
 
-  // Cuenta TOTAL de listeners (precio + ticker) para un símbolo — decide si
-  // hace falta SUBSCRIBE/UNSUBSCRIBE real, ya que ambos tipos comparten la
-  // misma suscripción real del símbolo en el WebSocket.
-  function totalListenersDeSymbol(s){
-    const p = subscriptions[s] ? subscriptions[s].size : 0;
-    const t = tickerSubscriptions[s] ? tickerSubscriptions[s].size : 0;
+  const MERCADOS = {
+    SPOT: crearEstadoMercado('wss://stream.binance.com:9443/ws'),
+    FUTURES: crearEstadoMercado('wss://fstream.binance.com/market/ws')
+  };
+
+  function normalizarSymbolPrecio(symbol){
+    return String(symbol || '').trim().toUpperCase(); // btcUSDT/BTCUSDT/btcusdt -> mismo símbolo
+  }
+
+  function resolverMercado(opciones){
+    return (opciones && opciones.marketType === 'FUTURES') ? MERCADOS.FUTURES : MERCADOS.SPOT; // SPOT = comportamiento por defecto, sin cambios
+  }
+
+  // Cuenta TOTAL de listeners (precio + ticker) para un símbolo DENTRO de
+  // un mercado específico — decide si hace falta SUBSCRIBE/UNSUBSCRIBE real.
+  function totalListenersDeSymbol(mercado, s){
+    const p = mercado.subscriptions[s] ? mercado.subscriptions[s].size : 0;
+    const t = mercado.tickerSubscriptions[s] ? mercado.tickerSubscriptions[s].size : 0;
     return p + t;
   }
 
-  function hayAlgunaSuscripcionActiva(){
-    const symbols = new Set([...Object.keys(subscriptions), ...Object.keys(tickerSubscriptions)]);
-    return Array.from(symbols).some(s => totalListenersDeSymbol(s) > 0);
+  function hayAlgunaSuscripcionActiva(mercado){
+    const symbols = new Set([...Object.keys(mercado.subscriptions), ...Object.keys(mercado.tickerSubscriptions)]);
+    return Array.from(symbols).some(s => totalListenersDeSymbol(mercado, s) > 0);
   }
 
-  function enviarSuscripcion(symbolsNormalizados){
-    if(!ws || ws.readyState !== WebSocket.OPEN || symbolsNormalizados.length === 0) return;
-    ws.send(JSON.stringify({
+  function enviarSuscripcion(mercado, symbolsNormalizados){
+    if(!mercado.ws || mercado.ws.readyState !== WebSocket.OPEN || symbolsNormalizados.length === 0) return;
+    mercado.ws.send(JSON.stringify({
       method: 'SUBSCRIBE',
       params: symbolsNormalizados.map(s => s.toLowerCase() + '@ticker'),
-      id: nextMsgId++
+      id: mercado.nextMsgId++
     }));
   }
 
-  function enviarDesuscripcion(symbolsNormalizados){
-    if(!ws || ws.readyState !== WebSocket.OPEN || symbolsNormalizados.length === 0) return;
-    ws.send(JSON.stringify({
+  function enviarDesuscripcion(mercado, symbolsNormalizados){
+    if(!mercado.ws || mercado.ws.readyState !== WebSocket.OPEN || symbolsNormalizados.length === 0) return;
+    mercado.ws.send(JSON.stringify({
       method: 'UNSUBSCRIBE',
       params: symbolsNormalizados.map(s => s.toLowerCase() + '@ticker'),
-      id: nextMsgId++
+      id: mercado.nextMsgId++
     }));
   }
 
-  // PASO 11 — logging controlado: solo se registran errores/eventos de
-  // conexión importantes, nunca cada actualización de precio individual.
-  function procesarMensajePrecio(data){
+  // Logging controlado: solo errores/eventos de conexión importantes,
+  // nunca cada actualización de precio individual. El formato del mensaje
+  // @ticker de Futures usa los MISMOS nombres de campo que Spot (c/P/h/l/v/q).
+  function procesarMensajePrecio(mercado, data){
     if(!data || typeof data !== 'object') return;
     if(data.result !== undefined && data.id !== undefined) return; // ACK de SUBSCRIBE/UNSUBSCRIBE, no es un precio
     if(!data.s || data.c === undefined) return; // no es un ticker reconocible, se ignora sin ruido
@@ -178,9 +204,9 @@
     const price = parseFloat(data.c);
     if(isNaN(price)) return;
 
-    priceCache[symbol] = price; // PASO 6 — actualiza la caché (SIN CAMBIOS respecto a MARKET-1B)
+    mercado.priceCache[symbol] = price;
 
-    const listeners = subscriptions[symbol];
+    const listeners = mercado.subscriptions[symbol];
     if(listeners){
       listeners.forEach(cb => {
         try{ cb({ symbol, price }); } // MISMA forma exacta del callback — nunca se reemplaza por el ticker completo
@@ -188,19 +214,10 @@
       });
     }
 
-    // Sprint MARKET-3A — el mismo mensaje @ticker YA trae estos campos
-    // (P=variación%, h=máximo 24h, l=mínimo 24h, v=volumen); no se cambia
-    // el stream ni se pide nada adicional a Binance.
     const priceChangePercent = parseFloat(data.P);
     const high = parseFloat(data.h);
     const low = parseFloat(data.l);
     const volume = parseFloat(data.v);
-
-    // Sprint MARKET-UI — quoteVolume (campo "q" del mismo mensaje @ticker ya
-    // recibido): volumen en la moneda de cotización (USDT), necesario para
-    // mostrar un total en dólares real — "volume"/"v" es en unidades del
-    // activo base (BTC, ETH...), no en dólares. Mismo mensaje, ningún dato
-    // nuevo solicitado a Binance.
     const quoteVolume = parseFloat(data.q);
 
     const ticker = {
@@ -212,9 +229,9 @@
       volume: isNaN(volume) ? null : volume,
       quoteVolume: isNaN(quoteVolume) ? null : quoteVolume
     };
-    tickerCache[symbol] = ticker;
+    mercado.tickerCache[symbol] = ticker;
 
-    const tickerListeners = tickerSubscriptions[symbol];
+    const tickerListeners = mercado.tickerSubscriptions[symbol];
     if(tickerListeners){
       tickerListeners.forEach(cb => {
         try{ cb(ticker); }
@@ -223,126 +240,137 @@
     }
   }
 
-  function programarReconexion(){
-    if(reconnectTimer) return; // PASO 8 — nunca 2 procesos de reconexión simultáneos
-    connectionStatus = 'reconnecting';
-    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), RECONEXION_DELAY_MAXIMO_MS);
-    reconnectTimer = setTimeout(() => {
-      reconnectTimer = null;
-      reconnectAttempts++;
-      asegurarConexionWebSocket();
+  function programarReconexion(mercado){
+    if(mercado.reconnectTimer) return; // nunca 2 procesos de reconexión simultáneos de ESTE mercado
+    mercado.connectionStatus = 'reconnecting';
+    const delay = Math.min(1000 * Math.pow(2, mercado.reconnectAttempts), RECONEXION_DELAY_MAXIMO_MS);
+    mercado.reconnectTimer = setTimeout(() => {
+      mercado.reconnectTimer = null;
+      mercado.reconnectAttempts++;
+      asegurarConexionWebSocket(mercado);
     }, delay);
   }
 
-  function asegurarConexionWebSocket(){
-    if(ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+  function asegurarConexionWebSocket(mercado){
+    if(mercado.ws && (mercado.ws.readyState === WebSocket.OPEN || mercado.ws.readyState === WebSocket.CONNECTING)) return;
 
-    connectionStatus = (reconnectAttempts > 0) ? 'reconnecting' : 'connecting';
-    ws = new WebSocket(BINANCE_WS_URL);
+    mercado.connectionStatus = (mercado.reconnectAttempts > 0) ? 'reconnecting' : 'connecting';
+    mercado.ws = new WebSocket(mercado.wsUrl);
 
-    ws.onopen = () => {
-      connectionStatus = 'connected';
-      reconnectAttempts = 0;
-      // PASO 8 — restaura TODAS las suscripciones activas tras (re)conectar,
-      // considerando tanto price como ticker (símbolo compartido entre ambos).
-      const symbols = new Set([...Object.keys(subscriptions), ...Object.keys(tickerSubscriptions)]);
-      const simbolosActivos = Array.from(symbols).filter(s => totalListenersDeSymbol(s) > 0);
-      enviarSuscripcion(simbolosActivos);
+    mercado.ws.onopen = () => {
+      mercado.connectionStatus = 'connected';
+      mercado.reconnectAttempts = 0;
+      // Restaura TODAS las suscripciones activas de ESTE mercado tras (re)conectar.
+      const symbols = new Set([...Object.keys(mercado.subscriptions), ...Object.keys(mercado.tickerSubscriptions)]);
+      const simbolosActivos = Array.from(symbols).filter(s => totalListenersDeSymbol(mercado, s) > 0);
+      enviarSuscripcion(mercado, simbolosActivos);
     };
 
-    ws.onmessage = (event) => {
+    mercado.ws.onmessage = (event) => {
       let data;
       try{ data = JSON.parse(event.data); }
       catch(e){ return; } // mensaje no parseable -> se ignora silenciosamente, sin romper nada
-      procesarMensajePrecio(data);
+      procesarMensajePrecio(mercado, data);
     };
 
-    ws.onerror = (event) => {
-      console.error('BinanceMarketData: error en la conexión WebSocket de precios.', event);
+    mercado.ws.onerror = (event) => {
+      console.error(`BinanceMarketData: error en la conexión WebSocket (${mercado.wsUrl}).`, event);
     };
 
-    ws.onclose = () => {
-      connectionStatus = 'disconnected';
-      ws = null;
-      if(hayAlgunaSuscripcionActiva()) programarReconexion(); // PASO 8 — solo reconecta si hace falta
+    mercado.ws.onclose = () => {
+      mercado.connectionStatus = 'disconnected';
+      mercado.ws = null;
+      if(hayAlgunaSuscripcionActiva(mercado)) programarReconexion(mercado); // solo reconecta ESTE mercado si hace falta
     };
   }
 
-  // PASO 3/7/9 — suscripción centralizada: Set evita callbacks duplicados;
-  // solo se envía SUBSCRIBE real la PRIMERA vez que un símbolo pasa a tener
-  // al menos un listener (de cualquiera de los 2 tipos, price o ticker).
+  function subscribePriceInterno(mercado, symbol, callback){
+    if(typeof callback !== 'function') return;
+    const s = normalizarSymbolPrecio(symbol);
+    if(!s) return;
+
+    const teniaListenersAntes = totalListenersDeSymbol(mercado, s) > 0;
+    if(!mercado.subscriptions[s]) mercado.subscriptions[s] = new Set();
+    mercado.subscriptions[s].add(callback);
+
+    asegurarConexionWebSocket(mercado);
+    if(!teniaListenersAntes && mercado.ws && mercado.ws.readyState === WebSocket.OPEN){
+      enviarSuscripcion(mercado, [s]);
+    }
+  }
+
+  function unsubscribePriceInterno(mercado, symbol, callback){
+    const s = normalizarSymbolPrecio(symbol);
+    if(!mercado.subscriptions[s]) return;
+    mercado.subscriptions[s].delete(callback);
+    if(mercado.subscriptions[s].size === 0) delete mercado.subscriptions[s];
+    if(totalListenersDeSymbol(mercado, s) === 0) enviarDesuscripcion(mercado, [s]);
+  }
+
+  function getPriceInterno(mercado, symbol){
+    const s = normalizarSymbolPrecio(symbol);
+    return (s in mercado.priceCache) ? mercado.priceCache[s] : null;
+  }
+
+  function subscribeTickerInterno(mercado, symbol, callback){
+    if(typeof callback !== 'function') return;
+    const s = normalizarSymbolPrecio(symbol);
+    if(!s) return;
+
+    const teniaListenersAntes = totalListenersDeSymbol(mercado, s) > 0;
+    if(!mercado.tickerSubscriptions[s]) mercado.tickerSubscriptions[s] = new Set();
+    mercado.tickerSubscriptions[s].add(callback);
+
+    asegurarConexionWebSocket(mercado);
+    if(!teniaListenersAntes && mercado.ws && mercado.ws.readyState === WebSocket.OPEN){
+      enviarSuscripcion(mercado, [s]);
+    }
+  }
+
+  function unsubscribeTickerInterno(mercado, symbol, callback){
+    const s = normalizarSymbolPrecio(symbol);
+    if(!mercado.tickerSubscriptions[s]) return;
+    mercado.tickerSubscriptions[s].delete(callback);
+    if(mercado.tickerSubscriptions[s].size === 0) delete mercado.tickerSubscriptions[s];
+    if(totalListenersDeSymbol(mercado, s) === 0) enviarDesuscripcion(mercado, [s]);
+  }
+
+  function getTickerInterno(mercado, symbol){
+    const s = normalizarSymbolPrecio(symbol);
+    return (s in mercado.tickerCache) ? mercado.tickerCache[s] : null;
+  }
+
+  // ============================================================
+  // API PÚBLICA — subscribePrice/unsubscribePrice/getPrice/
+  // getConnectionStatus: firma y comportamiento IDÉNTICOS a MARKET-1B,
+  // siempre sobre SPOT. Ningún consumidor existente necesita cambiar.
+  // ============================================================
   function subscribePrice(symbol, callback){
-    if(typeof callback !== 'function') return;
-    const s = normalizarSymbolPrecio(symbol);
-    if(!s) return;
-
-    const teniaListenersAntes = totalListenersDeSymbol(s) > 0;
-    if(!subscriptions[s]) subscriptions[s] = new Set();
-    subscriptions[s].add(callback);
-
-    asegurarConexionWebSocket();
-    if(!teniaListenersAntes && ws && ws.readyState === WebSocket.OPEN){
-      enviarSuscripcion([s]);
-    }
-    // Si el socket aún no está abierto, onopen ya restaura todos los
-    // símbolos con listeners activos — no hace falta duplicar el envío aquí.
+    subscribePriceInterno(MERCADOS.SPOT, symbol, callback);
   }
-
-  // PASO 3/7 — elimina SOLO ese listener; si quedan otros para el mismo
-  // símbolo (price o ticker), la suscripción real del símbolo NO se cierra.
   function unsubscribePrice(symbol, callback){
-    const s = normalizarSymbolPrecio(symbol);
-    if(!subscriptions[s]) return;
-
-    subscriptions[s].delete(callback);
-    if(subscriptions[s].size === 0) delete subscriptions[s];
-
-    if(totalListenersDeSymbol(s) === 0) enviarDesuscripcion([s]);
+    unsubscribePriceInterno(MERCADOS.SPOT, symbol, callback);
   }
-
   function getPrice(symbol){
-    const s = normalizarSymbolPrecio(symbol);
-    return (s in priceCache) ? priceCache[s] : null; // PASO 6 — null si todavía no hay precio
+    return getPriceInterno(MERCADOS.SPOT, symbol);
   }
-
   function getConnectionStatus(){
-    return connectionStatus; // PASO 10
+    return MERCADOS.SPOT.connectionStatus; // sin cambios — sigue reportando el estado de Spot
   }
 
-  /* ============================================================
-     Sprint MARKET-3A — Ticker completo (price + priceChangePercent +
-     high + low + volume). Comparte la MISMA conexión WebSocket y el
-     MISMO stream @ticker que subscribePrice() — nunca crea una segunda
-     conexión ni una segunda suscripción real por símbolo.
-     ============================================================ */
-  function subscribeTicker(symbol, callback){
-    if(typeof callback !== 'function') return;
-    const s = normalizarSymbolPrecio(symbol);
-    if(!s) return;
-
-    const teniaListenersAntes = totalListenersDeSymbol(s) > 0;
-    if(!tickerSubscriptions[s]) tickerSubscriptions[s] = new Set();
-    tickerSubscriptions[s].add(callback);
-
-    asegurarConexionWebSocket();
-    if(!teniaListenersAntes && ws && ws.readyState === WebSocket.OPEN){
-      enviarSuscripcion([s]);
-    }
+  // subscribeTicker/unsubscribeTicker/getTicker: mismo comportamiento que
+  // MARKET-3A cuando se llaman SIN el 3er parámetro (SPOT por defecto).
+  // Con { marketType: 'FUTURES' }, operan sobre la conexión Futures
+  // independiente — mismo protocolo SUBSCRIBE/UNSUBSCRIBE, misma forma
+  // de ticker devuelta.
+  function subscribeTicker(symbol, callback, opciones){
+    subscribeTickerInterno(resolverMercado(opciones), symbol, callback);
   }
-
-  function unsubscribeTicker(symbol, callback){
-    const s = normalizarSymbolPrecio(symbol);
-    if(!tickerSubscriptions[s]) return;
-
-    tickerSubscriptions[s].delete(callback);
-    if(tickerSubscriptions[s].size === 0) delete tickerSubscriptions[s];
-
-    if(totalListenersDeSymbol(s) === 0) enviarDesuscripcion([s]);
+  function unsubscribeTicker(symbol, callback, opciones){
+    unsubscribeTickerInterno(resolverMercado(opciones), symbol, callback);
   }
-
-  function getTicker(symbol){
-    const s = normalizarSymbolPrecio(symbol);
-    return (s in tickerCache) ? tickerCache[s] : null;
+  function getTicker(symbol, opciones){
+    return getTickerInterno(resolverMercado(opciones), symbol);
   }
 
   Object.assign(global.BinanceMarketData, {

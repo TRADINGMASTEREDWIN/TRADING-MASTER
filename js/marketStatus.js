@@ -27,7 +27,7 @@
     { symbol:'DOGEUSDT', abrev:'DOGE', nombre:'Dogecoin' },
     { symbol:'ADAUSDT',  abrev:'ADA',  nombre:'Cardano' },
     { symbol:'TRXUSDT',  abrev:'TRX',  nombre:'TRON' },
-    { symbol:'HYPEUSDT', abrev:'HYPE', nombre:'Hyperliquid' },
+    { symbol:'HYPEUSDT', abrev:'HYPE', nombre:'Hyperliquid', marketType:'FUTURES' }, // MARKET-HYPE-1 — no existe como Spot en Binance global
     { symbol:'PAXGUSDT', abrev:'PAXG', nombre:'PAX Gold' } // posición 10, fija
   ];
 
@@ -247,6 +247,11 @@
       const posicion = indice + 1;
       renderTarjeta(activo, posicion);
 
+      // MARKET-HYPE-1 — opciones.marketType: 'FUTURES' solo para HYPE
+      // (los demás activos, sin esta propiedad, siguen usando SPOT por
+      // defecto — comportamiento 100% igual al de antes de este Sprint).
+      const opcionesMercado = activo.marketType === 'FUTURES' ? { marketType: 'FUTURES' } : undefined;
+
       const callback = (ticker) => {
         tickersRecibidos[activo.symbol] = ticker;
         agregarPuntoSparkline(activo.symbol, ticker.price); // solo ticks reales
@@ -256,9 +261,9 @@
         actualizarFechaHora();
       };
       callbacksPorSymbol[activo.symbol] = callback;
-      BinanceMarketData.subscribeTicker(activo.symbol, callback);
+      BinanceMarketData.subscribeTicker(activo.symbol, callback, opcionesMercado);
 
-      const cacheado = BinanceMarketData.getTicker(activo.symbol);
+      const cacheado = BinanceMarketData.getTicker(activo.symbol, opcionesMercado);
       if(cacheado){
         tickersRecibidos[activo.symbol] = cacheado;
         agregarPuntoSparkline(activo.symbol, cacheado.price);
@@ -275,7 +280,8 @@
     ACTIVOS.forEach(activo => {
       const cb = callbacksPorSymbol[activo.symbol];
       if(cb && typeof BinanceMarketData !== 'undefined'){
-        BinanceMarketData.unsubscribeTicker(activo.symbol, cb);
+        const opcionesMercado = activo.marketType === 'FUTURES' ? { marketType: 'FUTURES' } : undefined;
+        BinanceMarketData.unsubscribeTicker(activo.symbol, cb, opcionesMercado);
       }
     });
     if(intervaloEstadoConexion) clearInterval(intervaloEstadoConexion);
