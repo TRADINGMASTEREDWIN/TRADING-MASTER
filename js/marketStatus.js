@@ -48,6 +48,7 @@
   let callbacksPorSymbol = {};
   let tickersRecibidos = {};
   let historialPrecios = {};     // symbol -> array de precios (histórico real inicial + último punto actualizado en vivo)
+  let historicoCompleto = {};    // symbol -> [{time, price, quoteVolume}] — Sprint MARKET-6: se reutiliza para Pulso/Resumen, cero consultas nuevas
   let cargandoHistorico = {};    // symbol -> boolean, evita solicitudes duplicadas simultáneas
   let historicoConError = {};    // symbol -> boolean
   let timeframeActual = TIMEFRAME_POR_DEFECTO;
@@ -121,24 +122,33 @@
   // temporalidad actual. Nunca solicitudes duplicadas simultáneas para el
   // mismo símbolo. Un fallo aquí NUNCA rompe otras tarjetas ni los precios
   // en vivo — solo esa mini-gráfica muestra "Historial no disponible".
+  // Sprint MARKET-5/6 — carga el historial real (REST, sin WebSockets
+  // nuevos) para UN activo. MARKET-6: ya NO borra ni oculta la sparkline
+  // anterior mientras carga (PARTE 10 — "mantener información anterior
+  // mientras carga") — solo se reemplaza cuando el nuevo historial llega
+  // con éxito. historicoCompleto guarda {time, price, quoteVolume} para
+  // que Pulso/Resumen lo reutilicen SIN ninguna consulta adicional.
   async function cargarHistoricoActivo(activo, posicion){
     if(typeof BinanceMarketData === 'undefined' || typeof BinanceMarketData.getHistoricalPrices !== 'function') return;
     if(cargandoHistorico[activo.symbol]) return;
 
     cargandoHistorico[activo.symbol] = true;
-    historicoConError[activo.symbol] = false;
-    renderTarjeta(activo, posicion);
+    actualizarIndicadorActualizando();
 
     try{
       const datos = await BinanceMarketData.getHistoricalPrices(activo.symbol, timeframeActual, opcionesMercadoDe(activo));
+      historicoCompleto[activo.symbol] = datos;
       historialPrecios[activo.symbol] = datos.map(d => d.price);
       historicoConError[activo.symbol] = false;
     }catch(error){
       console.error(`MarketStatus: no se pudo cargar el histórico de ${activo.symbol} (${timeframeActual}):`, error);
       historicoConError[activo.symbol] = true;
+      // PARTE 11 — no se borra historialPrecios/historicoCompleto existente: los datos válidos previos permanecen visibles
     }finally{
       cargandoHistorico[activo.symbol] = false;
       renderTarjeta(activo, posicion);
+      calcularPulso(); // recálculo progresivo — cada activo actualiza Pulso/Resumen apenas llega, sin esperar a los 10
+      actualizarIndicadorActualizando();
     }
   }
 
@@ -178,14 +188,16 @@
       else{ variacionHtml = `● 0.00%`; }
     }
 
-    // Sprint MARKET-5 — la sparkline usa el color del RENDIMIENTO DENTRO DE
-    // LA TEMPORALIDAD SELECCIONADA (inicio vs. fin del historial), nunca la
-    // variación 24h de arriba — son 2 cosas distintas a propósito.
+    // Sprint MARKET-5/6 — la sparkline usa el color del RENDIMIENTO DENTRO
+    // DE LA TEMPORALIDAD SELECCIONADA (inicio vs. fin del historial), nunca
+    // la variación 24h de arriba. MARKET-6: ya no se oculta con "Cargando..."
+    // durante una recarga — el historial anterior permanece visible hasta
+    // que el nuevo llegue (indicador global discreto cerca del selector).
     let sparklineHtml;
-    if(cargandoHistorico[activo.symbol]){
-      sparklineHtml = `<div style="height:28px; display:flex; align-items:center; font-size:var(--fs-xs); color:var(--color-text-muted);">Cargando...</div>`;
-    }else if(historicoConError[activo.symbol] && (!historialPrecios[activo.symbol] || historialPrecios[activo.symbol].length < 2)){
+    if(historicoConError[activo.symbol] && (!historialPrecios[activo.symbol] || historialPrecios[activo.symbol].length < 2)){
       sparklineHtml = `<div style="height:28px; display:flex; align-items:center; font-size:var(--fs-xs); color:var(--color-text-muted);">Historial no disponible</div>`;
+    }else if(!historialPrecios[activo.symbol] || historialPrecios[activo.symbol].length < 2){
+      sparklineHtml = `<div style="height:28px; display:flex; align-items:center; font-size:var(--fs-xs); color:var(--color-text-muted);">Cargando...</div>`;
     }else{
       sparklineHtml = renderSparklineSVG(activo.symbol, calcularColorPeriodo(activo.symbol));
     }
@@ -213,8 +225,24 @@
     return { titulo:'Fuerte presión bajista', explicacion:'El mercado muestra una presión bajista generalizada entre los principales activos monitoreados.' };
   }
 
-  // Analiza EXCLUSIVAMENTE los 10 activos definidos, solo con datos válidos
-  // ya recibidos. priceChangePercent === 0 cuenta como neutral.
+  // Sprint MARKET-6 — variación DENTRO del período seleccionado: primer
+  // precio del historial vs. el último disponible (que ya se actualiza en
+  // vivo mediante actualizarUltimoPuntoSparkline). Reutiliza exactamente
+  // el mismo array que ya usa la sparkline — cero cálculos redundantes.
+  function calcularVariacionPeriodo(symbol){
+    const puntos = historialPrecios[symbol];
+    if(!puntos || puntos.length < 2) return null;
+    const inicio = puntos[0];
+    const fin = puntos[puntos.length - 1];
+    if(!inicio) return null; // evita división por cero
+    return ((fin - inicio) / inicio) * 100;
+  }
+
+  // Analiza EXCLUSIVAMENTE los 10 activos definidos. Sprint MARKET-6: TODO
+  // el cálculo (positivos/negativos/promedio/ganador/perdedor/volumen) usa
+  // ahora la temporalidad seleccionada, reutilizando historicoCompleto ya
+  // descargado para las sparklines — nunca priceChangePercent (24h) del
+  // ticker, y nunca una consulta nueva.
   function calcularPulso(){
     const tituloEl = document.getElementById('marketStatusPulsoTitulo');
     if(!tituloEl) return;
@@ -223,18 +251,21 @@
     let ganador = null, perdedor = null;
 
     ACTIVOS.forEach(a => {
-      const t = tickersRecibidos[a.symbol];
-      if(!t) return;
-      if(t.quoteVolume !== null && t.quoteVolume !== undefined && !isNaN(t.quoteVolume)){ sumaVolumen += t.quoteVolume; conVolumen++; }
-      if(t.priceChangePercent === null || t.priceChangePercent === undefined || isNaN(t.priceChangePercent)) return;
-      const v = t.priceChangePercent;
+      const completo = historicoCompleto[a.symbol];
+      if(completo && completo.length > 0){
+        const volPeriodo = completo.reduce((acc, punto) => acc + (punto.quoteVolume || 0), 0);
+        if(volPeriodo > 0){ sumaVolumen += volPeriodo; conVolumen++; }
+      }
+
+      const variacion = calcularVariacionPeriodo(a.symbol);
+      if(variacion === null || isNaN(variacion)) return;
       conDatos++;
-      sumaVariacion += v;
-      if(v > 0) positivos++;
-      else if(v < 0) negativos++;
+      sumaVariacion += variacion;
+      if(variacion > 0) positivos++;
+      else if(variacion < 0) negativos++;
       else neutrales++;
-      if(!ganador || v > ganador.variacion) ganador = { abrev: a.abrev, variacion: v };
-      if(!perdedor || v < perdedor.variacion) perdedor = { abrev: a.abrev, variacion: v };
+      if(!ganador || variacion > ganador.variacion) ganador = { abrev: a.abrev, variacion };
+      if(!perdedor || variacion < perdedor.variacion) perdedor = { abrev: a.abrev, variacion };
     });
 
     const volumenEl = document.getElementById('marketStatusResumenVolumen');
@@ -252,7 +283,7 @@
 
     tituloEl.textContent = titulo;
     const subtituloEl = document.getElementById('marketStatusPulsoSubtitulo');
-    if(subtituloEl) subtituloEl.textContent = `${positivos} de ${conDatos} activos en positivo`;
+    if(subtituloEl) subtituloEl.textContent = `${positivos} de ${conDatos} activos en positivo · ${timeframeActual}`;
 
     const barraPosEl = document.getElementById('marketStatusBarraPositiva');
     const barraNegEl = document.getElementById('marketStatusBarraNegativa');
@@ -308,6 +339,8 @@
     if(!CONFIG_TIMEFRAME[nuevoTf] || nuevoTf === timeframeActual) return;
     timeframeActual = nuevoTf;
     actualizarBotonesTimeframe();
+    actualizarLineaVelas();
+    actualizarTituloResumen();
     ACTIVOS.forEach(activo => {
       cargarHistoricoActivo(activo, posicionDeSymbol(activo.symbol));
     });
@@ -321,6 +354,41 @@
       btn.style.background = activo ? 'var(--color-primary)' : 'transparent';
       btn.style.color = activo ? '#fff' : 'var(--color-text-muted)';
     });
+  }
+
+  // Sprint MARKET-6 — PARTE 4/9: línea discreta que aclara qué velas usa
+  // la temporalidad activa. Opción visual preferida del brief.
+  const DESCRIPCION_TIMEFRAME = {
+    '1H':  'Mostrando última 1 hora · velas de 1 minuto',
+    '4H':  'Mostrando últimas 4 horas · velas de 5 minutos',
+    '24H': 'Mostrando últimas 24 horas · velas de 15 minutos',
+    '7D':  'Mostrando últimos 7 días · velas de 1 hora'
+  };
+
+  function actualizarLineaVelas(){
+    const el = document.getElementById('marketStatusVelasInfo');
+    if(el) el.textContent = '🕯 ' + (DESCRIPCION_TIMEFRAME[timeframeActual] || '');
+  }
+
+  // Sprint MARKET-6 — PARTE 2C: el panel "Resumen" refleja explícitamente
+  // la temporalidad activa en su título y en las etiquetas de variación/
+  // volumen, para nunca mostrar una etiqueta "24h" incorrecta.
+  function actualizarTituloResumen(){
+    const tituloEl = document.getElementById('marketStatusResumenTitulo');
+    if(tituloEl) tituloEl.textContent = `📈 Resumen ${timeframeActual} (Top 10)`;
+    const varLabelEl = document.getElementById('marketStatusVarPromLabel');
+    if(varLabelEl) varLabelEl.textContent = `Variación promedio ${timeframeActual}`;
+    const volLabelEl = document.getElementById('marketStatusVolLabel');
+    if(volLabelEl) volLabelEl.textContent = `Volumen ${timeframeActual}`;
+  }
+
+  // Sprint MARKET-6 — PARTE 10: indicador discreto global (no oculta datos
+  // válidos existentes) mientras se recarga historial de al menos 1 activo.
+  function actualizarIndicadorActualizando(){
+    const el = document.getElementById('marketStatusActualizando');
+    if(!el) return;
+    const hayCargaEnCurso = Object.values(cargandoHistorico).some(v => v === true);
+    el.textContent = hayCargaEnCurso ? `Actualizando ${timeframeActual}...` : '';
   }
 
   function attachSelectorTimeframe(){
@@ -341,6 +409,8 @@
     actualizarEstadoConexion();
     actualizarFechaHora();
     attachSelectorTimeframe();
+    actualizarLineaVelas();
+    actualizarTituloResumen();
 
     ACTIVOS.forEach((activo, indice) => {
       const posicion = indice + 1;
@@ -389,6 +459,7 @@
     callbacksPorSymbol = {};
     tickersRecibidos = {};
     historialPrecios = {}; // reinicia la mini-gráfica — nunca conserva "historial" entre sesiones
+    historicoCompleto = {};
     cargandoHistorico = {};
     historicoConError = {};
     timeframeActual = TIMEFRAME_POR_DEFECTO;

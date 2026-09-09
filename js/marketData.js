@@ -436,10 +436,18 @@
 
     // Kline de Binance: [openTime, open, high, low, close, volume, closeTime, ...]
     // Se usa el precio de CIERRE de cada vela, tal como pide el Sprint.
-    const datos = raw.map(vela => ({
-      time: vela[0],
-      price: parseFloat(vela[4])
-    })).filter(p => !isNaN(p.price));
+    // Kline de Binance: [openTime, open, high, low, close, volume, closeTime,
+    // quoteAssetVolume, ...]. Sprint MARKET-6 — se agrega quoteVolume (índice
+    // 7) para que el Pulso/Resumen puedan calcular volumen REAL del período
+    // reutilizando este MISMO historial, sin ninguna consulta adicional.
+    const datos = raw.map(vela => {
+      const qv = parseFloat(vela[7]);
+      return {
+        time: vela[0],
+        price: parseFloat(vela[4]),
+        quoteVolume: isNaN(qv) ? null : qv
+      };
+    }).filter(p => !isNaN(p.price));
 
     historicoCache[clave] = { datos, timestamp: Date.now() };
     return datos;
