@@ -154,12 +154,16 @@
               <button type="button" id="marketStatusTf-24H" style="border:none; background:transparent; padding:3px 10px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">24H</button>
               <button type="button" id="marketStatusTf-7D" style="border:none; background:transparent; padding:3px 10px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">7D</button>
             </div>
+            <!-- Sprint MARKET-6 — PARTE 4: aclaración discreta de qué velas usa la temporalidad activa -->
+            <div id="marketStatusVelasInfo" style="font-size:var(--fs-xs); color:var(--color-text-muted); margin-top:var(--space-1);"></div>
+            <!-- Sprint MARKET-6 — PARTE 10: indicador discreto, nunca oculta datos válidos existentes -->
+            <div id="marketStatusActualizando" style="font-size:var(--fs-xs); color:var(--color-primary); margin-top:2px; min-height:1em;"></div>
           </div>
         </div>
 
         <!-- MARKET-UI: sin "Cap. Mercado" (no es un dato real de Binance) —
              se muestra Máximo/Mínimo 24h en su lugar (dato real ya recibido). -->
-        <div id="marketStatusCards" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-2); margin-top:var(--space-3);"></div>
+        <div id="marketStatusCards" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-3); margin-top:var(--space-3);"></div>
 
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-3); margin-top: var(--space-4);">
 
@@ -199,12 +203,12 @@
             </div>
           </div>
 
-          <!-- C. Resumen 24h (Top 10) — lógica en js/marketStatus.js -->
+          <!-- C. Resumen del período — lógica en js/marketStatus.js -->
           <div class="section" style="padding: var(--space-3);">
-            <div style="font-weight:700; margin-bottom:var(--space-3);">📈 Resumen 24h (Top 10)</div>
+            <div id="marketStatusResumenTitulo" style="font-weight:700; margin-bottom:var(--space-3);">📈 Resumen 1H (Top 10)</div>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
-              <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Variación promedio 24h</span><span id="marketStatusResumenPromedio" style="font-size:var(--fs-lg); font-weight:700;">—</span></div>
-              <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Volumen total 24h</span><span id="marketStatusResumenVolumen" style="font-size:var(--fs-lg); font-weight:700;">—</span></div>
+              <div><span id="marketStatusVarPromLabel" style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Variación promedio 1H</span><span id="marketStatusResumenPromedio" style="font-size:var(--fs-lg); font-weight:700;">—</span></div>
+              <div><span id="marketStatusVolLabel" style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Volumen 1H</span><span id="marketStatusResumenVolumen" style="font-size:var(--fs-lg); font-weight:700;">—</span></div>
               <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Activos en positivo</span><span id="marketStatusResumenPositivos" style="font-size:var(--fs-lg); font-weight:700; color:var(--color-success);">—</span></div>
               <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Activos en negativo</span><span id="marketStatusResumenNegativos" style="font-size:var(--fs-lg); font-weight:700; color:var(--color-danger);">—</span></div>
             </div>
