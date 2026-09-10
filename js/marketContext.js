@@ -161,33 +161,35 @@
   /* ============================================================
      GLOBAL CONTEXT
 
-     Fear & Greed: reutilizado directamente vía MarketSentiment.getCurrent()
-     — cero duplicación, ya expuesto públicamente por ese módulo.
-
-     Pulso y Sesiones: NO IMPLEMENTADOS EN ESTE PASO. marketStatus.js
-     no expone ningún getter público para ninguno de los dos (solo
-     init/destroy/getWatchlist/setWatchlist) — ver detalle completo en
-     el reporte de entrega. Se deja el campo presente con status
-     explícito en vez de omitirlo u ocultarlo.
+     Se reutilizan exclusivamente los getters públicos de los módulos
+     existentes. MarketContext no duplica lógica de Pulso ni Sesiones.
      ============================================================ */
   async function construirGlobalContext(){
     let fearGreed = { status: 'NOT_AVAILABLE', reason: 'MarketSentiment no está disponible en este entorno' };
-    if(typeof MarketSentiment !== 'undefined'){
+    if(typeof MarketSentiment !== 'undefined' && typeof MarketSentiment.getCurrent === 'function'){
       const actual = MarketSentiment.getCurrent();
       fearGreed = actual || { status: 'NOT_AVAILABLE', reason: 'MarketSentiment todavía no tiene un dato cacheado' };
     }
 
-    return {
-      fearGreed,
-      marketPulse: {
-        status: 'NOT_IMPLEMENTED',
-        reason: 'marketStatus.js no expone un getter público del Pulso y depende de suscripciones WebSocket activas de la Watchlist — ver reporte de entrega del Paso 4, no se duplicó esa lógica.'
-      },
-      sessions: {
-        status: 'NOT_IMPLEMENTED',
-        reason: 'marketStatus.js no expone un getter público de sesiones y su cálculo real incluye un calendario de feriados (NYSE/Londres/Tokio) extenso — ver reporte de entrega del Paso 4, no se duplicó esa lógica.'
+    let marketPulse = { status: 'NOT_AVAILABLE', reason: 'MarketStatus no está disponible en este entorno' };
+    if(typeof MarketStatus !== 'undefined' && typeof MarketStatus.getPulsoActual === 'function'){
+      try{
+        marketPulse = MarketStatus.getPulsoActual() || { status: 'SIN_DATOS' };
+      }catch(error){
+        marketPulse = { status: 'ERROR', reason: String(error && error.message || error) };
       }
-    };
+    }
+
+    let sessions = { status: 'NOT_AVAILABLE', reason: 'MarketStatus no está disponible en este entorno' };
+    if(typeof MarketStatus !== 'undefined' && typeof MarketStatus.getEstadoSesiones === 'function'){
+      try{
+        sessions = MarketStatus.getEstadoSesiones() || { status: 'SIN_DATOS' };
+      }catch(error){
+        sessions = { status: 'ERROR', reason: String(error && error.message || error) };
+      }
+    }
+
+    return { fearGreed, marketPulse, sessions };
   }
 
   /* ============================================================
