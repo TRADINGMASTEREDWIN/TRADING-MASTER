@@ -475,6 +475,7 @@
      mientras el gráfico usa, por ejemplo, velas de 5m.
      ============================================================ */
   const CONFIG_TIMEFRAME_GRAFICO = {
+    '15M': { interval: '15m', limit: 200 }, // MARKET CONTEXT FOUNDATION — Paso 2: temporalidad del Context Engine, no del Analyzer (ver '15m' minúscula más abajo)
     '1m':  { interval: '1m',  limit: 200 },
     '5m':  { interval: '5m',  limit: 200 },
     '15m': { interval: '15m', limit: 200 },
