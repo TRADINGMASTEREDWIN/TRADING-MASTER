@@ -150,25 +150,42 @@
         <div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:var(--space-2); margin-bottom: var(--space-1);">
           <div>
             <div style="display:flex; align-items:center; gap:var(--space-3); flex-wrap:wrap;">
-              <span class="section-title" style="margin:0; font-size:var(--fs-xl);">🌐 Market Status</span>
+              <span class="section-title" style="margin:0; font-size:var(--fs-xl);">👁 Mi Watchlist</span>
               <span id="marketStatusEstadoConexion" style="background:var(--color-success-soft); color:var(--color-success); font-size:var(--fs-xs); font-weight:700; padding:2px 10px; border-radius:999px;">Conectando con el mercado...</span>
+              <button type="button" id="watchlistEditarBtn" class="btn-secondary" style="padding:2px 10px; font-size:var(--fs-xs);">✏️ Editar Watchlist</button>
             </div>
-            <div style="color: var(--color-text-muted); font-size: var(--fs-sm); margin-top:var(--space-1);">Top 10 Criptomonedas por Capitalización de Mercado (sin stablecoins) · Datos en tiempo real de Binance</div>
+            <div style="color: var(--color-text-muted); font-size: var(--fs-sm); margin-top:var(--space-1);">Hasta 10 criptomonedas (sin stablecoins) · Datos en tiempo real de Binance</div>
           </div>
           <div style="text-align:right;">
             <div id="marketStatusFechaHora" style="font-size:var(--fs-sm); color:var(--color-text-muted);">—</div>
             <div style="font-size:var(--fs-xs); color:var(--color-success); margin-top:2px;">● Datos en vivo · Binance</div>
-            <!-- Sprint MARKET-5 — selector compacto de temporalidad para las mini-gráficas -->
-            <div style="display:inline-flex; gap:2px; background:var(--color-bg); border:1px solid var(--color-border); border-radius:var(--radius-md); padding:2px; margin-top:var(--space-2);">
-              <button type="button" id="marketStatusTf-1H" style="border:none; background:transparent; padding:3px 10px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">1H</button>
-              <button type="button" id="marketStatusTf-4H" style="border:none; background:transparent; padding:3px 10px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">4H</button>
-              <button type="button" id="marketStatusTf-24H" style="border:none; background:transparent; padding:3px 10px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">24H</button>
-              <button type="button" id="marketStatusTf-7D" style="border:none; background:transparent; padding:3px 10px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">7D</button>
+            <!-- Sprint MARKET-8 — período de análisis: 1M/5M/15M/1H/4H/24H/7D -->
+            <div style="display:inline-flex; gap:2px; background:var(--color-bg); border:1px solid var(--color-border); border-radius:var(--radius-md); padding:2px; margin-top:var(--space-2); flex-wrap:wrap;">
+              <button type="button" id="marketStatusTf-1M" style="border:none; background:transparent; padding:3px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">1 min</button>
+              <button type="button" id="marketStatusTf-5M" style="border:none; background:transparent; padding:3px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">5 min</button>
+              <button type="button" id="marketStatusTf-15M" style="border:none; background:transparent; padding:3px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">15 min</button>
+              <button type="button" id="marketStatusTf-1H" style="border:none; background:transparent; padding:3px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">1H</button>
+              <button type="button" id="marketStatusTf-4H" style="border:none; background:transparent; padding:3px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">4H</button>
+              <button type="button" id="marketStatusTf-24H" style="border:none; background:transparent; padding:3px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">24H</button>
+              <button type="button" id="marketStatusTf-7D" style="border:none; background:transparent; padding:3px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">7D</button>
             </div>
-            <!-- Sprint MARKET-6 — PARTE 4: aclaración discreta de qué velas usa la temporalidad activa -->
-            <div id="marketStatusVelasInfo" style="font-size:var(--fs-xs); color:var(--color-text-muted); margin-top:var(--space-1);"></div>
+            <!-- Sprint MARKET-6/8 — PARTE 8: aclaración discreta de "período de análisis" -->
+            <div style="font-size:var(--fs-xs); color:var(--color-text-muted); margin-top:var(--space-1);">Período de análisis:</div>
+            <div id="marketStatusVelasInfo" style="font-size:var(--fs-xs); color:var(--color-text-muted);"></div>
             <!-- Sprint MARKET-6 — PARTE 10: indicador discreto, nunca oculta datos válidos existentes -->
             <div id="marketStatusActualizando" style="font-size:var(--fs-xs); color:var(--color-primary); margin-top:2px; min-height:1em;"></div>
+          </div>
+
+          <!-- Sprint MARKET-8 — Editor de Watchlist (oculto por defecto) -->
+          <div id="watchlistEditorPanel" style="display:none; width:100%; margin-top:var(--space-3); padding:var(--space-3); background:var(--color-bg); border:1px solid var(--color-border); border-radius:var(--radius-md);">
+            <div style="font-weight:700; margin-bottom:var(--space-2);">Editar Watchlist (máximo 10, sin duplicados)</div>
+            <div id="watchlistEditorLista" style="max-height:280px; overflow-y:auto; margin-bottom:var(--space-3);"></div>
+            <div style="position:relative; margin-bottom:var(--space-3);">
+              <input type="text" id="watchlistAgregarBuscador" placeholder="🔍 Agregar activo..." style="width:100%; max-width:300px;">
+              <div id="watchlistAgregarResultados" style="position:absolute; z-index:10; background:var(--color-bg); border:1px solid var(--color-border); border-radius:var(--radius-md); max-height:200px; overflow-y:auto; width:100%; max-width:300px; display:none;"></div>
+            </div>
+            <button type="button" id="watchlistGuardarBtn" class="btn-primary">Guardar</button>
+            <button type="button" id="watchlistCancelarBtn" class="btn-secondary">Cancelar</button>
           </div>
         </div>
 
@@ -192,12 +209,19 @@
             </div>
             <div id="marketSentimentFuente" style="font-size: var(--fs-xs); color: var(--color-text-muted); margin-top:var(--space-2); text-align:left;"></div>
             <div id="marketSentimentActualizacion" style="font-size: var(--fs-xs); color: var(--color-text-muted); text-align:left;"></div>
+            <!-- Sprint MARKET-8 — PARTE 16/17: contexto histórico, independiente del selector de mercado -->
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:var(--space-2); margin-top:var(--space-3); padding-top:var(--space-2); border-top:1px solid var(--color-border); text-align:left;">
+              <div><span style="font-size:var(--fs-xs); color:var(--color-text-muted); display:block;">Ayer</span><span id="marketSentimentAyerValor" style="font-weight:700;">—</span> <span id="marketSentimentAyerClasif" style="font-size:var(--fs-xs);"></span></div>
+              <div><span style="font-size:var(--fs-xs); color:var(--color-text-muted); display:block;">Semana pasada</span><span id="marketSentimentSemanaValor" style="font-weight:700;">—</span> <span id="marketSentimentSemanaClasif" style="font-size:var(--fs-xs);"></span></div>
+              <div><span style="font-size:var(--fs-xs); color:var(--color-text-muted); display:block;">Mes pasado</span><span id="marketSentimentMesValor" style="font-weight:700;">—</span> <span id="marketSentimentMesClasif" style="font-size:var(--fs-xs);"></span></div>
+            </div>
           </div>
 
           <!-- B. Pulso del Mercado — lógica en js/marketStatus.js -->
           <div class="section" id="marketStatusPulso" style="padding: var(--space-3);">
             <div style="font-weight:700; margin-bottom:var(--space-2);">📊 Pulso del Mercado</div>
             <div id="marketStatusPulsoTitulo" style="font-size: var(--fs-lg); font-weight:700; color:var(--color-success);">Esperando datos...</div>
+            <div id="marketStatusPulsoEstado" style="font-weight:700; font-size:var(--fs-sm); margin-bottom:var(--space-1);"></div>
             <div id="marketStatusPulsoSubtitulo" style="color:var(--color-text-muted); font-size:var(--fs-sm); margin-bottom:var(--space-3);"></div>
             <div style="height:8px; border-radius:4px; background:var(--color-danger); overflow:hidden; display:flex;">
               <div id="marketStatusBarraPositiva" style="background:var(--color-success); width:0%;"></div>
@@ -209,8 +233,18 @@
             </div>
             <div id="marketStatusExplicacion" style="background:var(--color-success-soft); color:var(--color-success); font-size:var(--fs-sm); padding:var(--space-2); border-radius:var(--radius-md); margin-top:var(--space-3);"></div>
             <div style="display:flex; justify-content:space-between; margin-top:var(--space-3); font-size:var(--fs-xs); color:var(--color-text-muted);">
-              <span>🏆 Mayor ganador: <strong id="marketStatusGanador" style="color:var(--color-text-primary);">—</strong></span>
-              <span>📉 Mayor perdedor: <strong id="marketStatusPerdedor" style="color:var(--color-text-primary);">—</strong></span>
+              <span><span id="marketStatusGanadorLabel">🏆 Mayor ganador</span>: <strong id="marketStatusGanador" style="color:var(--color-text-primary);">—</strong></span>
+              <span><span id="marketStatusPerdedorLabel">📉 Mayor perdedor</span>: <strong id="marketStatusPerdedor" style="color:var(--color-text-primary);">—</strong></span>
+            </div>
+            <!-- Sprint MARKET-8 — PARTE 22: comportamiento por período, calculado una sola vez -->
+            <div style="margin-top:var(--space-3); padding-top:var(--space-2); border-top:1px solid var(--color-border); display:grid; grid-template-columns: repeat(4, 1fr); gap:var(--space-1); font-size:var(--fs-xs);">
+              <div><span style="color:var(--color-text-muted); display:block;">1M</span><span id="marketStatusPulsoHist-1M">—</span></div>
+              <div><span style="color:var(--color-text-muted); display:block;">5M</span><span id="marketStatusPulsoHist-5M">—</span></div>
+              <div><span style="color:var(--color-text-muted); display:block;">15M</span><span id="marketStatusPulsoHist-15M">—</span></div>
+              <div><span style="color:var(--color-text-muted); display:block;">1H</span><span id="marketStatusPulsoHist-1H">—</span></div>
+              <div><span style="color:var(--color-text-muted); display:block;">4H</span><span id="marketStatusPulsoHist-4H">—</span></div>
+              <div><span style="color:var(--color-text-muted); display:block;">24H</span><span id="marketStatusPulsoHist-24H">—</span></div>
+              <div><span style="color:var(--color-text-muted); display:block;">7D</span><span id="marketStatusPulsoHist-7D">—</span></div>
             </div>
           </div>
 
@@ -222,6 +256,8 @@
               <div><span id="marketStatusVolLabel" style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Volumen 1H</span><span id="marketStatusResumenVolumen" style="font-size:var(--fs-lg); font-weight:700;">—</span></div>
               <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Activos en positivo</span><span id="marketStatusResumenPositivos" style="font-size:var(--fs-lg); font-weight:700; color:var(--color-success);">—</span></div>
               <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Activos en negativo</span><span id="marketStatusResumenNegativos" style="font-size:var(--fs-lg); font-weight:700; color:var(--color-danger);">—</span></div>
+              <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Mejor comportamiento</span><span id="marketStatusResumenMejor" style="font-size:var(--fs-sm); font-weight:700; color:var(--color-success);">—</span></div>
+              <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Mayor caída</span><span id="marketStatusResumenPeor" style="font-size:var(--fs-sm); font-weight:700; color:var(--color-danger);">—</span></div>
             </div>
           </div>
 
@@ -261,7 +297,7 @@
         <div id="analizadorVelasInfo" style="font-size:var(--fs-xs); color:var(--color-text-muted); margin-bottom:var(--space-2);"></div>
 
         <div style="position:relative;">
-          <div id="analizadorGraficoContenedor" style="width:100%; height:280px;"></div>
+          <div id="analizadorGraficoContenedor" style="width:100%; height:400px;"></div>
           <div id="analizadorEstadoCarga" style="position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.3); color:var(--color-text-muted); font-size:var(--fs-sm); border-radius:var(--radius-md);"></div>
         </div>
 
