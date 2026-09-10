@@ -81,7 +81,19 @@
   let historicoCompleto = {};    // symbol -> [{time, price, quoteVolume}] — Sprint MARKET-6: se reutiliza para Pulso/Resumen, cero consultas nuevas
   let cargandoHistorico = {};    // symbol -> boolean, evita solicitudes duplicadas simultáneas
   let historicoConError = {};    // symbol -> boolean
-  let timeframeActual = TIMEFRAME_POR_DEFECTO;
+  let timeframeActual = TIMEFRAME_POR_DEFECTO; // período de mercado: Watchlist/Pulso/Resumen
+  const TIMEFRAME_GRAFICO_POR_DEFECTO = '5m';
+  const CONFIG_TIMEFRAME_GRAFICO = {
+    '1m':  { etiqueta:'1m', descripcion:'velas de 1 minuto' },
+    '5m':  { etiqueta:'5m', descripcion:'velas de 5 minutos' },
+    '15m': { etiqueta:'15m', descripcion:'velas de 15 minutos' },
+    '30m': { etiqueta:'30m', descripcion:'velas de 30 minutos' },
+    '1H':  { etiqueta:'1H', descripcion:'velas de 1 hora' },
+    '4H':  { etiqueta:'4H', descripcion:'velas de 4 horas' },
+    '1D':  { etiqueta:'1D', descripcion:'velas de 1 día' },
+    '1W':  { etiqueta:'1W', descripcion:'velas de 1 semana' }
+  };
+  let analizadorTimeframeActual = TIMEFRAME_GRAFICO_POR_DEFECTO;
   let intervaloEstadoConexion = null;
 
   function formatearPrecioInteligente(precio){
@@ -438,7 +450,10 @@
   // real para los 10 activos (REST) sin tocar ninguna suscripción de
   // WebSocket — los precios en vivo siguen exactamente igual.
   function cambiarTimeframe(nuevoTf){
-    if(!CONFIG_TIMEFRAME[nuevoTf] || nuevoTf === timeframeActual) return;
+    // Selector de PERÍODO DE MERCADO. Deliberadamente NO modifica el
+    // timeframe de velas del Analizador. Ambos controles son independientes.
+    const periodosPermitidos = new Set(['1H','4H','24H','7D']);
+    if(!periodosPermitidos.has(nuevoTf) || nuevoTf === timeframeActual) return;
     timeframeActual = nuevoTf;
     actualizarBotonesTimeframe();
     actualizarLineaVelas();
@@ -446,11 +461,10 @@
     watchlist.forEach(activo => {
       cargarHistoricoActivo(activo, posicionDeSymbol(activo.symbol));
     });
-    cargarGraficoAnalizador(); // Sprint MARKET-7 — PARTE 8: el selector global también actualiza el Analizador
   }
 
   function actualizarBotonesTimeframe(){
-    Object.keys(CONFIG_TIMEFRAME).forEach(tf => {
+    ['1H','4H','24H','7D'].forEach(tf => {
       const btn = document.getElementById('marketStatusTf-' + tf);
       if(!btn) return;
       const activo = tf === timeframeActual;
@@ -462,13 +476,10 @@
   // Sprint MARKET-6 — PARTE 4/9: línea discreta que aclara qué velas usa
   // la temporalidad activa. Opción visual preferida del brief.
   const DESCRIPCION_TIMEFRAME = {
-    '1M':  'Último minuto · velas de 1s',
-    '5M':  'Últimos 5 min · velas de 1s',
-    '15M': 'Últimos 15 min · velas de 1 min',
-    '1H':  'Mostrando última 1 hora · velas de 1 minuto',
-    '4H':  'Mostrando últimas 4 horas · velas de 5 minutos',
-    '24H': 'Mostrando últimas 24 horas · velas de 15 minutos',
-    '7D':  'Mostrando últimos 7 días · velas de 1 hora'
+    '1H':  'Última 1 hora · cálculo del Pulso/Resumen',
+    '4H':  'Últimas 4 horas · cálculo del Pulso/Resumen',
+    '24H': 'Últimas 24 horas · cálculo del Pulso/Resumen',
+    '7D':  'Últimos 7 días · cálculo del Pulso/Resumen'
   };
 
   function actualizarLineaVelas(){
@@ -677,9 +688,29 @@
     }
   }
 
+  function actualizarBotonesTimeframeAnalizador(){
+    Object.keys(CONFIG_TIMEFRAME_GRAFICO).forEach(tf => {
+      const btn = document.getElementById('analizadorTf-' + tf);
+      if(!btn) return;
+      const activo = tf === analizadorTimeframeActual;
+      btn.style.background = activo ? 'var(--color-primary)' : 'transparent';
+      btn.style.color = activo ? '#fff' : 'var(--color-text-muted)';
+      btn.setAttribute('aria-pressed', activo ? 'true' : 'false');
+    });
+  }
+
+  async function cambiarTimeframeAnalizador(nuevoTf){
+    if(!CONFIG_TIMEFRAME_GRAFICO[nuevoTf] || nuevoTf === analizadorTimeframeActual) return;
+    analizadorTimeframeActual = nuevoTf;
+    actualizarBotonesTimeframeAnalizador();
+    actualizarLineaVelasAnalizador();
+    await cargarGraficoAnalizador();
+  }
+
   function actualizarLineaVelasAnalizador(){
     const el = document.getElementById('analizadorVelasInfo');
-    if(el) el.textContent = '🕯 ' + (DESCRIPCION_TIMEFRAME[timeframeActual] || '');
+    const config = CONFIG_TIMEFRAME_GRAFICO[analizadorTimeframeActual];
+    if(el) el.textContent = `🕯 Gráfico: ${analizadorTimeframeActual} · ${config ? config.descripcion : ''} · 200 velas históricas`;
   }
 
   function actualizarEstadoCargaAnalizador(){
@@ -732,8 +763,17 @@
         height: 400, // MARKET-8 PARTE 10 — gráfico más grande, tipo exchange
         layout: { background: { color: 'transparent' }, textColor: '#9CA3AF' },
         grid: { vertLines: { color: 'rgba(255,255,255,0.05)' }, horzLines: { color: 'rgba(255,255,255,0.05)' } },
-        timeScale: { timeVisible: true, secondsVisible: false },
-        crosshair: { mode: 0 } // Normal — crosshair + tooltip nativos de la librería
+        timeScale: {
+          timeVisible: true,
+          secondsVisible: false,
+          rightOffset: 5,
+          barSpacing: 7,
+          minBarSpacing: 2,
+          fixLeftEdge: false,
+          fixRightEdge: false
+        },
+        rightPriceScale: { autoScale: true, borderVisible: false },
+        crosshair: { mode: 0 }
       });
       analizadorSerie = analizadorChart.addCandlestickSeries({
         upColor: '#22C55E', downColor: '#EF4444', borderVisible: false,
@@ -760,6 +800,11 @@
 
     analizadorSerie.setData(velas);
     analizadorUltimaVela = velas.length ? velas[velas.length - 1] : null;
+    // Fundamental para evitar que las velas queden comprimidas a la derecha:
+    // la escala temporal se ajusta al contenido completo recién cargado.
+    if(analizadorChart && velas.length){
+      analizadorChart.timeScale().fitContent();
+    }
 
     if(analizadorSerieVolumen){
       const volumenes = datos
@@ -783,12 +828,13 @@
     actualizarLineaVelasAnalizador();
 
     try{
-      const datos = await BinanceMarketData.getHistoricalPrices(analizadorSymbolActual, timeframeActual, opcionesAnalizador());
+      if(typeof BinanceMarketData.getHistoricalCandles !== 'function') throw new Error('API de velas del Analizador no disponible.');
+      const datos = await BinanceMarketData.getHistoricalCandles(analizadorSymbolActual, analizadorTimeframeActual, opcionesAnalizador());
       renderGraficoAnalizador(datos);
       calcularDatosPeriodoAnalizador(datos);
       analizadorConError = false;
     }catch(error){
-      console.error(`MarketStatus/Analizador: no se pudo cargar el histórico de ${analizadorSymbolActual} (${timeframeActual}):`, error);
+      console.error(`MarketStatus/Analizador: no se pudo cargar el histórico de ${analizadorSymbolActual} (${analizadorTimeframeActual}):`, error);
       analizadorConError = true;
     }finally{
       analizadorCargando = false;
@@ -827,6 +873,12 @@
   function attachAnalizadorListeners(){
     const inputEl = document.getElementById('analizadorBuscador');
     if(inputEl) inputEl.addEventListener('input', manejarBusquedaAnalizador);
+
+    Object.keys(CONFIG_TIMEFRAME_GRAFICO).forEach(tf => {
+      const btn = document.getElementById('analizadorTf-' + tf);
+      if(btn) btn.addEventListener('click', () => cambiarTimeframeAnalizador(tf));
+    });
+    actualizarBotonesTimeframeAnalizador();
 
     const resultadosEl = document.getElementById('analizadorResultados');
     if(resultadosEl){
@@ -879,6 +931,7 @@
     analizadorUltimaVela = null;
     analizadorCargando = false;
     analizadorConError = false;
+    analizadorTimeframeActual = TIMEFRAME_GRAFICO_POR_DEFECTO;
   }
 
   /* ============================================================

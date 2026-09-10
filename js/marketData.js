@@ -466,8 +466,73 @@
     return datos;
   }
 
+  /* ============================================================
+     MARKET-9 — Historial del GRAFICO del Analizador.
+     Separado deliberadamente de getHistoricalPrices():
+       - getHistoricalPrices() = período de mercado para Watchlist/Pulso/Resumen.
+       - getHistoricalCandles() = timeframe real de vela para el gráfico.
+     Así 24H puede significar "comportamiento de las últimas 24 horas"
+     mientras el gráfico usa, por ejemplo, velas de 5m.
+     ============================================================ */
+  const CONFIG_TIMEFRAME_GRAFICO = {
+    '1m':  { interval: '1m',  limit: 200 },
+    '5m':  { interval: '5m',  limit: 200 },
+    '15m': { interval: '15m', limit: 200 },
+    '30m': { interval: '30m', limit: 200 },
+    '1H':  { interval: '1h',  limit: 200 },
+    '4H':  { interval: '4h',  limit: 200 },
+    '1D':  { interval: '1d',  limit: 200 },
+    '1W':  { interval: '1w',  limit: 200 }
+  };
+
+  const historicoVelasCache = {}; // SYMBOL|TIMEFRAME|MARKETTYPE -> {datos,timestamp}
+
+  async function getHistoricalCandles(symbol, timeframe, opciones){
+    const s = normalizarSymbolPrecio(symbol);
+    const config = CONFIG_TIMEFRAME_GRAFICO[timeframe];
+    if(!config) throw new Error(`Timeframe de gráfico no soportado: ${timeframe}`);
+
+    const marketType = (opciones && opciones.marketType === 'FUTURES') ? 'FUTURES' : 'SPOT';
+    const clave = `${s}|${timeframe}|${marketType}`;
+    const cacheado = historicoVelasCache[clave];
+    if(cacheado && (Date.now() - cacheado.timestamp) < HISTORICO_CACHE_TTL_MS){
+      return cacheado.datos;
+    }
+
+    const baseUrl = (marketType === 'FUTURES') ? BINANCE_FUTURES_KLINES_URL : BINANCE_SPOT_KLINES_URL;
+    const url = `${baseUrl}?symbol=${encodeURIComponent(s)}&interval=${config.interval}&limit=${config.limit}`;
+    const response = await fetch(url);
+    if(!response.ok){
+      throw new Error(`Binance klines respondió con estado ${response.status} para ${s} (${marketType}, ${timeframe})`);
+    }
+
+    const raw = await response.json();
+    if(!Array.isArray(raw)){
+      throw new Error(`Respuesta inesperada de klines para ${s}: se esperaba un array.`);
+    }
+
+    const datos = raw.map(vela => {
+      const quoteVolume = parseFloat(vela[7]);
+      return {
+        time: Number(vela[0]),
+        open: parseFloat(vela[1]),
+        high: parseFloat(vela[2]),
+        low: parseFloat(vela[3]),
+        price: parseFloat(vela[4]),
+        quoteVolume: isNaN(quoteVolume) ? null : quoteVolume
+      };
+    }).filter(v =>
+      Number.isFinite(v.time) && Number.isFinite(v.open) && Number.isFinite(v.high) &&
+      Number.isFinite(v.low) && Number.isFinite(v.price)
+    );
+
+    historicoVelasCache[clave] = { datos, timestamp: Date.now() };
+    return datos;
+  }
+
   Object.assign(global.BinanceMarketData, {
-    getHistoricalPrices
+    getHistoricalPrices,
+    getHistoricalCandles
   });
 
 })(window);
