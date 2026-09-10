@@ -199,7 +199,7 @@
     const contenedor = document.getElementById('marketStatusCards');
     if(!contenedor) return;
     contenedor.innerHTML = watchlist.map(a =>
-      `<div class="market-status-card" id="marketStatusCard-${a.symbol}" style="background:var(--color-bg); border:1px solid var(--color-border); border-radius:var(--radius-md); padding:var(--space-3); min-width:0;"></div>`
+      `<div class="market-status-card market11-card" id="marketStatusCard-${a.symbol}" style="--asset-color:${COLOR_POR_SYMBOL[a.symbol] || 'var(--color-primary)'}; padding:var(--space-3); min-width:0;"></div>`
     ).join('');
   }
 
@@ -265,6 +265,11 @@
         <span>L: ${formatearPrecioInteligente(ticker.low) || '—'}</span>
       </div>
       <div style="color:var(--color-text-muted); font-size:var(--fs-xs); margin-top:2px;">Vol 24h: ${formatearVolumen(ticker.quoteVolume)}</div>
+      ${(() => {
+        const h = Number(ticker.high), l = Number(ticker.low), p = Number(ticker.price);
+        const pct = (Number.isFinite(h) && Number.isFinite(l) && h > l && Number.isFinite(p)) ? Math.max(0, Math.min(100, ((p-l)/(h-l))*100)) : null;
+        return pct === null ? '' : `<div style="font-size:9px;color:var(--color-text-muted);margin-top:6px;display:flex;justify-content:space-between;"><span>24h bajo</span><span>Posición actual</span><span>24h alto</span></div><div class="market11-range"><div class="market11-range-fill" style="width:${pct}%;"></div><div class="market11-range-marker" style="left:${pct}%;"></div></div>`;
+      })()}
     `;
   }
 
@@ -587,16 +592,31 @@
       const fecha=sumarDiasCalendario(p.year,p.month,p.day,delta);
       if(esFinDeSemana(fecha.year,fecha.month,fecha.day)) continue;
       if(sesion.id==='nyse' && esFeriadoNYSE(fecha.year,fecha.month,fecha.day)) continue;
-      for(const bloque of sesion.sesiones){
+      for(let indice=0; indice<sesion.sesiones.length; indice++){
+        const bloque=sesion.sesiones[indice];
         const inicio=utcDesdeZona(fecha.year,fecha.month,fecha.day,bloque.apertura[0],bloque.apertura[1],0,sesion.timezone);
         const fin=utcDesdeZona(fecha.year,fecha.month,fecha.day,bloque.cierre[0],bloque.cierre[1],0,sesion.timezone);
-        candidatos.push({inicio,fin,fecha});
+        candidatos.push({inicio,fin,fecha,indice});
       }
     }
     const actual=candidatos.find(x=>ahora>=x.inicio&&ahora<x.fin);
-    if(actual) return {abierto:true,etiqueta:'ABIERTO',color:'var(--color-success)',fondo:'var(--color-success-soft)',objetivo:actual.fin,accion:'Cierra en'};
+    if(actual){
+      const duracion=actual.fin.getTime()-actual.inicio.getTime();
+      const transcurrido=ahora.getTime()-actual.inicio.getTime();
+      const progreso=duracion>0 ? Math.max(0,Math.min(100,(transcurrido/duracion)*100)) : 0;
+      return {abierto:true,modo:'open',etiqueta:'ABIERTO',color:'var(--color-success)',fondo:'var(--color-success-soft)',objetivo:actual.fin,accion:'Cierra en',progreso};
+    }
     const siguiente=candidatos.find(x=>x.inicio>ahora);
-    return {abierto:false,etiqueta:'CERRADO',color:'var(--color-text-muted)',fondo:'var(--color-bg)',objetivo:siguiente?siguiente.inicio:null,accion:'Abre en'};
+    // Si existe un bloque posterior el mismo día, estamos en pausa intradía.
+    const mismoDiaSiguiente=siguiente && siguiente.fecha.year===p.year && siguiente.fecha.month===p.month && siguiente.fecha.day===p.day;
+    if(mismoDiaSiguiente && siguiente.indice>0){
+      return {abierto:false,modo:'pause',etiqueta:'PAUSA',color:'#EAB308',fondo:'rgba(234,179,8,.10)',objetivo:siguiente.inicio,accion:'Reabre en',progreso:0};
+    }
+    const minutosHastaApertura=siguiente ? Math.max(0,(siguiente.inicio.getTime()-ahora.getTime())/60000) : Infinity;
+    if(minutosHastaApertura<=30){
+      return {abierto:false,modo:'preopen',etiqueta:'PRÓXIMA APERTURA',color:'var(--color-info)',fondo:'rgba(59,130,246,.08)',objetivo:siguiente.inicio,accion:'Abre en',progreso:0};
+    }
+    return {abierto:false,modo:'closed',etiqueta:'CERRADO',color:'var(--color-text-muted)',fondo:'var(--color-bg)',objetivo:siguiente?siguiente.inicio:null,accion:'Abre en',progreso:0};
   }
 
   function formatoCuentaRegresiva(ms){
@@ -611,15 +631,29 @@
     const ahora=new Date(), localEl=document.getElementById('marketSessionsLocalTime');
     if(localEl) localEl.textContent=`Hora Panamá · ${new Intl.DateTimeFormat('es-PA',{timeZone:'America/Panama',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(ahora)}`;
     contenedor.innerHTML=SESIONES_MERCADO.map(sesion=>{
-      const estado=obtenerEstadoSesion(sesion,ahora), countdown=estado.objetivo?formatoCuentaRegresiva(estado.objetivo-ahora):'—', hora=estado.objetivo?formatoHoraZona(estado.objetivo,sesion.timezone):'—';
-      return `<div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface, var(--color-bg));">
-        <div style="font-size:1.8rem;line-height:1;">${sesion.icono}</div>
-        <div style="min-width:0;flex:1;">
-          <div style="display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;"><strong>${sesion.nombre}</strong><span style="font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;background:${estado.fondo};color:${estado.color};border:1px solid var(--color-border);">${estado.etiqueta}</span></div>
-          <div style="font-size:var(--fs-xs);color:var(--color-text-muted);margin-top:2px;">${sesion.mercado}</div>
-          <div style="font-size:var(--fs-xs);color:var(--color-text-muted);margin-top:5px;">Horario: ${sesion.horario} · Próximo evento: ${hora}</div>
+      const estado=obtenerEstadoSesion(sesion,ahora);
+      const countdown=estado.objetivo?formatoCuentaRegresiva(estado.objetivo-ahora):'—';
+      const horaEvento=estado.objetivo?formatoHoraZona(estado.objetivo,sesion.timezone):'—';
+      const horaActual=formatoHoraZona(ahora,sesion.timezone);
+      const clase=`market11-session-card is-${estado.modo}`;
+      const eventoLabel=estado.modo==='open'?'Próximo evento':(estado.modo==='pause'?'Reapertura':'Próxima apertura');
+      const detalle=estado.modo==='open'?'Sesión regular activa':(estado.modo==='pause'?'Pausa intradía':'Fuera de horario regular');
+      return `<div class="${clase}" style="--session-color:${estado.color}; --session-soft:${estado.fondo};">
+        <div style="display:flex;align-items:flex-start;gap:var(--space-3);">
+          <div style="font-size:1.8rem;line-height:1;">${sesion.icono}</div>
+          <div style="min-width:0;flex:1;">
+            <div style="display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;"><strong>${sesion.nombre}</strong><span class="market11-session-status"><span class="market11-session-dot"></span>${estado.etiqueta}</span></div>
+            <div style="font-size:var(--fs-xs);color:var(--color-text-muted);margin-top:2px;">${sesion.mercado}</div>
+            <div style="font-size:var(--fs-xs);color:var(--color-text-muted);margin-top:5px;">Horario: ${sesion.horario}</div>
+            <div style="font-size:var(--fs-xs);margin-top:6px;"><strong>${detalle}</strong> · Hora local ${horaActual}</div>
+          </div>
+          <div style="text-align:right;min-width:130px;">
+            <div class="market11-session-event">${eventoLabel}</div>
+            <div class="market11-session-countdown">${countdown}</div>
+            <div style="font-size:var(--fs-xs);color:var(--color-text-muted);margin-top:2px;">${horaEvento} ${sesion.id==='nyse'?'ET':'JST'}</div>
+          </div>
         </div>
-        <div style="text-align:right;min-width:108px;"><div style="font-size:10px;color:var(--color-text-muted);">${estado.accion}</div><div style="font-size:1.25rem;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.02em;">${countdown}</div></div>
+        <div class="market11-session-progress"><span style="width:${estado.progreso || 0}%;"></span></div>
       </div>`;
     }).join('');
   }
