@@ -18,7 +18,11 @@
 
   // Orden FIJO, nunca se reordena por precio/variación/rendimiento.
   // PAXGUSDT permanece siempre en la posición 10. Sin stablecoins.
-  const ACTIVOS = [
+  // Sprint MARKET-8 — WATCHLIST_INICIAL: valores por defecto, inmutables,
+  // usados solo si el usuario nunca guardó una configuración propia (o si
+  // el localStorage está corrupto/vacío). `watchlist` (más abajo) es la
+  // lista REAL en uso, mutable, persistida en localStorage.
+  const WATCHLIST_INICIAL = [
     { symbol:'BTCUSDT',  abrev:'BTC',  nombre:'Bitcoin' },
     { symbol:'ETHUSDT',  abrev:'ETH',  nombre:'Ethereum' },
     { symbol:'BNBUSDT',  abrev:'BNB',  nombre:'BNB' },
@@ -28,8 +32,12 @@
     { symbol:'ADAUSDT',  abrev:'ADA',  nombre:'Cardano' },
     { symbol:'TRXUSDT',  abrev:'TRX',  nombre:'TRON' },
     { symbol:'HYPEUSDT', abrev:'HYPE', nombre:'Hyperliquid', marketType:'FUTURES' }, // MARKET-HYPE-1 — no existe como Spot en Binance global
-    { symbol:'PAXGUSDT', abrev:'PAXG', nombre:'PAX Gold' } // posición 10, fija
+    { symbol:'PAXGUSDT', abrev:'PAXG', nombre:'PAX Gold' } // posición 10, fija (valor inicial — el usuario puede reordenar)
   ];
+  const WATCHLIST_STORAGE_KEY = 'tradingMasterWatchlist';
+  const WATCHLIST_MAX = 10;
+
+  let watchlist = WATCHLIST_INICIAL.slice(); // lista REAL en uso — mutable
 
   // Colores decorativos por símbolo — distinción visual únicamente, no son
   // logos oficiales ni ningún dato obtenido de Binance.
@@ -60,7 +68,10 @@
 
   // Sprint MARKET-5 — temporalidad -> { intervalo de Binance, cantidad de velas }.
   // Debe coincidir exactamente con CONFIG_TIMEFRAME de marketData.js.
-  const CONFIG_TIMEFRAME = { '1H': 60, '4H': 48, '24H': 96, '7D': 168 };
+  // Sprint MARKET-8 — tabla oficial de 7 "períodos de análisis" (valor =
+  // solo para confirmar existencia; el detalle real vive en
+  // marketData.js:CONFIG_TIMEFRAME). Debe coincidir EXACTAMENTE con esa lista.
+  const CONFIG_TIMEFRAME = { '1M': 1, '5M': 1, '15M': 1, '1H': 60, '4H': 48, '24H': 96, '7D': 168 };
   const TIMEFRAME_POR_DEFECTO = '1H';
 
   let inicializado = false;
@@ -174,7 +185,7 @@
   function crearTarjetasIniciales(){
     const contenedor = document.getElementById('marketStatusCards');
     if(!contenedor) return;
-    contenedor.innerHTML = ACTIVOS.map(a =>
+    contenedor.innerHTML = watchlist.map(a =>
       `<div class="market-status-card" id="marketStatusCard-${a.symbol}" style="background:var(--color-bg); border:1px solid var(--color-border); border-radius:var(--radius-md); padding:var(--space-3); min-width:0;"></div>`
     ).join('');
   }
@@ -270,6 +281,18 @@
   // ahora la temporalidad seleccionada, reutilizando historicoCompleto ya
   // descargado para las sparklines — nunca priceChangePercent (24h) del
   // ticker, y nunca una consulta nueva.
+  // Sprint MARKET-8 — estado de 3 niveles basado EXCLUSIVAMENTE en amplitud
+  // (cuántos suben/bajan), nunca en el promedio — así se evita el caso del
+  // brief: 8 bajan y 2 suben nunca puede leerse como "alcista" aunque el
+  // promedio diera positivo por la magnitud de esos 2.
+  function clasificarEstadoPulso(positivos, conDatos){
+    if(conDatos === 0) return { estado: 'Esperando datos...', color: 'var(--color-text-muted)' };
+    const pct = positivos / conDatos;
+    if(pct >= 0.6) return { estado: '🟢 Presión alcista', color: 'var(--color-success)' };
+    if(pct <= 0.4) return { estado: '🔴 Presión bajista', color: 'var(--color-danger)' };
+    return { estado: '🟡 Mercado mixto / neutral', color: '#EAB308' };
+  }
+
   function calcularPulso(){
     const tituloEl = document.getElementById('marketStatusPulsoTitulo');
     if(!tituloEl) return;
@@ -277,7 +300,7 @@
     let positivos = 0, negativos = 0, neutrales = 0, sumaVariacion = 0, sumaVolumen = 0, conDatos = 0, conVolumen = 0;
     let ganador = null, perdedor = null;
 
-    ACTIVOS.forEach(a => {
+    watchlist.forEach(a => {
       const completo = historicoCompleto[a.symbol];
       if(completo && completo.length > 0){
         const volPeriodo = completo.reduce((acc, punto) => acc + (punto.quoteVolume || 0), 0);
@@ -304,11 +327,14 @@
     }
 
     const { titulo, explicacion } = obtenerTituloYExplicacion(positivos);
+    const { estado, color } = clasificarEstadoPulso(positivos, conDatos); // PARTE 19/20 — dos dimensiones: amplitud decide el estado
     const pctPositivo = Math.round((positivos / conDatos) * 100);
     const pctNegativo = Math.round((negativos / conDatos) * 100);
     const promedio = sumaVariacion / conDatos;
 
     tituloEl.textContent = titulo;
+    const estadoEl = document.getElementById('marketStatusPulsoEstado');
+    if(estadoEl){ estadoEl.textContent = estado; estadoEl.style.color = color; }
     const subtituloEl = document.getElementById('marketStatusPulsoSubtitulo');
     if(subtituloEl) subtituloEl.textContent = `${positivos} de ${conDatos} activos en positivo · ${timeframeActual}`;
 
@@ -332,10 +358,59 @@
     if(positivosResEl) positivosResEl.textContent = positivos;
     if(negativosResEl) negativosResEl.textContent = negativos;
 
+    // Sprint MARKET-8 — PARTE 21: etiquetas correctas según el caso.
+    // Nunca "Mayor ganador: TRX -0.06%" cuando en realidad TODOS bajaron.
+    const ganadorLabelEl = document.getElementById('marketStatusGanadorLabel');
+    const perdedorLabelEl = document.getElementById('marketStatusPerdedorLabel');
     const ganadorEl = document.getElementById('marketStatusGanador');
     const perdedorEl = document.getElementById('marketStatusPerdedor');
+
+    if(negativos === 0 && positivos > 0){
+      // Todos positivos (o positivos+neutrales): "Mayor ganador" / "Menor subida"
+      if(ganadorLabelEl) ganadorLabelEl.textContent = '🏆 Mayor ganador';
+      if(perdedorLabelEl) perdedorLabelEl.textContent = '📉 Menor subida';
+    }else if(positivos === 0 && negativos > 0){
+      // Todos negativos (o negativos+neutrales): "Menor caída" / "Mayor caída"
+      if(ganadorLabelEl) ganadorLabelEl.textContent = '📉 Menor caída';
+      if(perdedorLabelEl) perdedorLabelEl.textContent = '📉 Mayor caída';
+    }else{
+      if(ganadorLabelEl) ganadorLabelEl.textContent = '🏆 Mayor ganador';
+      if(perdedorLabelEl) perdedorLabelEl.textContent = '📉 Mayor perdedor';
+    }
     if(ganadorEl && ganador) ganadorEl.textContent = `${ganador.abrev}  ${ganador.variacion >= 0 ? '+' : ''}${ganador.variacion.toFixed(2)}%`;
     if(perdedorEl && perdedor) perdedorEl.textContent = `${perdedor.abrev}  ${perdedor.variacion >= 0 ? '+' : ''}${perdedor.variacion.toFixed(2)}%`;
+
+    // PARTE 23 — Resumen: "Mejor/peor comportamiento" reutiliza exactamente
+    // ganador/perdedor ya calculados — cero cálculos redundantes.
+    const mejorEl = document.getElementById('marketStatusResumenMejor');
+    const peorEl = document.getElementById('marketStatusResumenPeor');
+    if(mejorEl && ganador) mejorEl.textContent = `${ganador.abrev} ${ganador.variacion >= 0 ? '+' : ''}${ganador.variacion.toFixed(2)}%`;
+    if(peorEl && perdedor) peorEl.textContent = `${perdedor.abrev} ${perdedor.variacion >= 0 ? '+' : ''}${perdedor.variacion.toFixed(2)}%`;
+  }
+
+  // Sprint MARKET-8 — PARTE 22: fila histórica 1M/5M/.../7D del Pulso.
+  // Se calcula UNA VEZ (al iniciar o al guardar una watchlist nueva), NUNCA
+  // en cada tick — reutiliza el mismo caché de getHistoricalPrices() (TTL
+  // ~1 min) ya usado por las tarjetas/gráfico, sin peticiones adicionales
+  // más allá de las que ese caché ya necesita.
+  async function calcularPulsoHistoricoMultitemporal(){
+    if(typeof BinanceMarketData === 'undefined' || typeof BinanceMarketData.getHistoricalPrices !== 'function') return;
+    const timeframes = Object.keys(CONFIG_TIMEFRAME);
+    for(const tf of timeframes){
+      let suma = 0, cuenta = 0;
+      for(const activo of watchlist){
+        try{
+          const datos = await BinanceMarketData.getHistoricalPrices(activo.symbol, tf, opcionesMercadoDe(activo));
+          if(datos && datos.length >= 2 && datos[0].price){
+            suma += ((datos[datos.length-1].price - datos[0].price) / datos[0].price) * 100;
+            cuenta++;
+          }
+        }catch(e){ /* un fallo puntual de un activo/timeframe no detiene el resto */ }
+      }
+      const promedio = cuenta > 0 ? (suma / cuenta) : null;
+      const el = document.getElementById('marketStatusPulsoHist-' + tf);
+      if(el) el.textContent = (promedio === null) ? '—' : (promedio >= 0 ? '+' : '') + promedio.toFixed(2) + '%';
+    }
   }
 
   function actualizarEstadoConexion(){
@@ -355,7 +430,7 @@
   }
 
   function posicionDeSymbol(symbol){
-    const idx = ACTIVOS.findIndex(a => a.symbol === symbol);
+    const idx = watchlist.findIndex(a => a.symbol === symbol);
     return idx === -1 ? null : idx + 1;
   }
 
@@ -368,7 +443,7 @@
     actualizarBotonesTimeframe();
     actualizarLineaVelas();
     actualizarTituloResumen();
-    ACTIVOS.forEach(activo => {
+    watchlist.forEach(activo => {
       cargarHistoricoActivo(activo, posicionDeSymbol(activo.symbol));
     });
     cargarGraficoAnalizador(); // Sprint MARKET-7 — PARTE 8: el selector global también actualiza el Analizador
@@ -387,6 +462,9 @@
   // Sprint MARKET-6 — PARTE 4/9: línea discreta que aclara qué velas usa
   // la temporalidad activa. Opción visual preferida del brief.
   const DESCRIPCION_TIMEFRAME = {
+    '1M':  'Último minuto · velas de 1s',
+    '5M':  'Últimos 5 min · velas de 1s',
+    '15M': 'Últimos 15 min · velas de 1 min',
     '1H':  'Mostrando última 1 hora · velas de 1 minuto',
     '4H':  'Mostrando últimas 4 horas · velas de 5 minutos',
     '24H': 'Mostrando últimas 24 horas · velas de 15 minutos',
@@ -433,14 +511,20 @@
     inicializado = true;
     timeframeActual = TIMEFRAME_POR_DEFECTO; // PASO — la temporalidad inicial siempre es 1H
 
+    // Sprint MARKET-8 — carga la watchlist guardada; si no existe o está
+    // corrupta, usa WATCHLIST_INICIAL (los 10 valores por defecto de siempre).
+    const guardada = cargarWatchlistLocalStorage();
+    watchlist = guardada || WATCHLIST_INICIAL.slice();
+
     crearTarjetasIniciales();
     actualizarEstadoConexion();
     actualizarFechaHora();
     attachSelectorTimeframe();
+    attachEditorWatchlistListeners();
     actualizarLineaVelas();
     actualizarTituloResumen();
 
-    ACTIVOS.forEach((activo, indice) => {
+    watchlist.forEach((activo, indice) => {
       const posicion = indice + 1;
       renderTarjeta(activo, posicion);
 
@@ -472,12 +556,13 @@
     calcularPulso();
     intervaloEstadoConexion = setInterval(actualizarEstadoConexion, 5000);
     iniciarAnalizador(); // Sprint MARKET-7 — independiente del Top 10, inicializado en paralelo
+    calcularPulsoHistoricoMultitemporal(); // Sprint MARKET-8 — una sola vez, no en cada tick
   }
 
   function destroy(){
     if(!inicializado) return;
     destruirAnalizador(); // Sprint MARKET-7 — limpia su propio listener/gráfico antes de lo demás
-    ACTIVOS.forEach(activo => {
+    watchlist.forEach(activo => {
       const cb = callbacksPorSymbol[activo.symbol];
       if(cb && typeof BinanceMarketData !== 'undefined'){
         const opcionesMercado = activo.marketType === 'FUTURES' ? { marketType: 'FUTURES' } : undefined;
@@ -510,6 +595,7 @@
   let analizadorCallbackTicker = null;
   let analizadorChart = null;
   let analizadorSerie = null;
+  let analizadorSerieVolumen = null; // Sprint MARKET-8
   let analizadorUltimaVela = null;
   let analizadorCargando = false;
   let analizadorConError = false;
@@ -643,15 +729,25 @@
     if(!analizadorChart){
       analizadorChart = LightweightCharts.createChart(contenedor, {
         width: contenedor.clientWidth,
-        height: 280,
+        height: 400, // MARKET-8 PARTE 10 — gráfico más grande, tipo exchange
         layout: { background: { color: 'transparent' }, textColor: '#9CA3AF' },
         grid: { vertLines: { color: 'rgba(255,255,255,0.05)' }, horzLines: { color: 'rgba(255,255,255,0.05)' } },
-        timeScale: { timeVisible: true, secondsVisible: false }
+        timeScale: { timeVisible: true, secondsVisible: false },
+        crosshair: { mode: 0 } // Normal — crosshair + tooltip nativos de la librería
       });
       analizadorSerie = analizadorChart.addCandlestickSeries({
         upColor: '#22C55E', downColor: '#EF4444', borderVisible: false,
-        wickUpColor: '#22C55E', wickDownColor: '#EF4444'
+        wickUpColor: '#22C55E', wickDownColor: '#EF4444',
+        priceLineVisible: true // línea de precio actual — nativa de la librería
       });
+      // PARTE 11 — volumen como histograma en un panel inferior propio,
+      // usando quoteVolume real (mismo dato ya extendido en marketData.js).
+      analizadorSerieVolumen = analizadorChart.addHistogramSeries({
+        priceFormat: { type: 'volume' },
+        priceScaleId: 'volumen'
+      });
+      analizadorChart.priceScale('volumen').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
+
       window.addEventListener('resize', () => {
         if(analizadorChart && contenedor) analizadorChart.applyOptions({ width: contenedor.clientWidth });
       });
@@ -664,6 +760,13 @@
 
     analizadorSerie.setData(velas);
     analizadorUltimaVela = velas.length ? velas[velas.length - 1] : null;
+
+    if(analizadorSerieVolumen){
+      const volumenes = datos
+        .map(d => ({ time: Math.floor(d.time / 1000), value: d.quoteVolume || 0, color: d.price >= d.open ? 'rgba(34,197,94,0.5)' : 'rgba(239,68,68,0.5)' }))
+        .filter(v => !isNaN(v.value));
+      analizadorSerieVolumen.setData(volumenes);
+    }
   }
 
   // Sprint MARKET-7 — carga (o recarga, en cambio de temporalidad) el
@@ -743,7 +846,7 @@
         const card = e.target.closest('.market-status-card');
         if(!card) return;
         const symbol = card.id.replace('marketStatusCard-', '');
-        const activo = ACTIVOS.find(a => a.symbol === symbol);
+        const activo = watchlist.find(a => a.symbol === symbol);
         if(activo) seleccionarActivoAnalizador(activo.symbol, activo.nombre, activo.marketType || 'SPOT');
       });
     }
@@ -769,6 +872,7 @@
       analizadorChart.remove();
       analizadorChart = null;
       analizadorSerie = null;
+      analizadorSerieVolumen = null;
     }
     analizadorSymbolActual = null;
     analizadorCallbackTicker = null;
@@ -777,7 +881,203 @@
     analizadorConError = false;
   }
 
-  global.MarketStatus = { init, destroy, ACTIVOS };
+  /* ============================================================
+     Sprint MARKET-8 — Watchlist configurable. Persistencia local
+     (localStorage) — NO Supabase. Reutiliza exclusivamente
+     BinanceMarketData.search()/loadCatalog() para agregar activos —
+     nunca un catálogo manual paralelo.
+     ============================================================ */
+  function guardarWatchlistLocalStorage(){
+    try{
+      if(typeof localStorage === 'undefined') return;
+      localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(watchlist));
+    }catch(e){ /* optimización, no requisito duro */ }
+  }
+
+  function cargarWatchlistLocalStorage(){
+    try{
+      if(typeof localStorage === 'undefined') return null;
+      const raw = localStorage.getItem(WATCHLIST_STORAGE_KEY);
+      if(!raw) return null;
+      const parsed = JSON.parse(raw);
+      if(!Array.isArray(parsed) || parsed.length === 0 || parsed.length > WATCHLIST_MAX) return null;
+      if(!parsed.every(a => a && typeof a.symbol === 'string' && typeof a.abrev === 'string')) return null;
+      return parsed;
+    }catch(e){ return null; } // localStorage corrupto/no disponible -> usar WATCHLIST_INICIAL, nunca romper
+  }
+
+  // Reemplaza la watchlist completa: desuscribe TODOS los tickers de la
+  // lista anterior antes de suscribir los nuevos — nunca deja listeners
+  // huérfanos. Recarga tarjetas + historial + Pulso/Resumen.
+  async function aplicarNuevaWatchlist(nuevaLista){
+    if(!Array.isArray(nuevaLista) || nuevaLista.length === 0 || nuevaLista.length > WATCHLIST_MAX) return false;
+    const symbolsVistos = new Set();
+    for(const a of nuevaLista){
+      if(!a || typeof a.symbol !== 'string') return false;
+      if(symbolsVistos.has(a.symbol)) return false; // sin duplicados
+      symbolsVistos.add(a.symbol);
+    }
+
+    watchlist.forEach(activo => {
+      const cb = callbacksPorSymbol[activo.symbol];
+      if(cb && typeof BinanceMarketData !== 'undefined'){
+        BinanceMarketData.unsubscribeTicker(activo.symbol, cb, opcionesMercadoDe(activo));
+      }
+    });
+
+    watchlist = nuevaLista;
+    guardarWatchlistLocalStorage();
+
+    callbacksPorSymbol = {};
+    tickersRecibidos = {};
+    historialPrecios = {};
+    historicoCompleto = {};
+    cargandoHistorico = {};
+    historicoConError = {};
+
+    crearTarjetasIniciales();
+
+    watchlist.forEach((activo, indice) => {
+      const posicion = indice + 1;
+      renderTarjeta(activo, posicion);
+      const opciones = opcionesMercadoDe(activo);
+      const callback = (ticker) => {
+        tickersRecibidos[activo.symbol] = ticker;
+        actualizarUltimoPuntoSparkline(activo.symbol, ticker.price);
+        renderTarjeta(activo, posicion);
+        calcularPulso();
+      };
+      callbacksPorSymbol[activo.symbol] = callback;
+      if(typeof BinanceMarketData !== 'undefined'){
+        BinanceMarketData.subscribeTicker(activo.symbol, callback, opciones);
+        const cacheado = BinanceMarketData.getTicker(activo.symbol, opciones);
+        if(cacheado){ tickersRecibidos[activo.symbol] = cacheado; renderTarjeta(activo, posicion); }
+      }
+      cargarHistoricoActivo(activo, posicion);
+    });
+
+    calcularPulso();
+    calcularPulsoHistoricoMultitemporal(); // Sprint MARKET-8 — recalcula la fila histórica para la nueva watchlist
+    return true;
+  }
+
+  // ---- Editor de Watchlist (UI mínima funcional: reemplazar/quitar/reordenar/agregar) ----
+  function renderEditorWatchlist(){
+    const contenedor = document.getElementById('watchlistEditorLista');
+    if(!contenedor) return;
+    contenedor.innerHTML = watchlist.map((a, i) => `
+      <div style="display:flex; align-items:center; gap:var(--space-2); padding:var(--space-1) 0; border-bottom:1px solid var(--color-border);">
+        <span style="width:20px; color:var(--color-text-muted); font-size:var(--fs-xs);">${i+1}</span>
+        <strong style="flex:1;">${escapeHtml(a.symbol)}</strong>
+        <button type="button" class="btn-secondary watchlist-mover" data-idx="${i}" data-dir="-1" ${i===0?'disabled':''} style="padding:2px 8px;">▲</button>
+        <button type="button" class="btn-secondary watchlist-mover" data-idx="${i}" data-dir="1" ${i===watchlist.length-1?'disabled':''} style="padding:2px 8px;">▼</button>
+        <button type="button" class="btn-secondary watchlist-quitar" data-idx="${i}" style="padding:2px 8px;">✕</button>
+      </div>
+    `).join('');
+    const agregarBtn = document.getElementById('watchlistAgregarBtn');
+    if(agregarBtn) agregarBtn.disabled = watchlist.length >= WATCHLIST_MAX;
+  }
+
+  function moverEnWatchlist(idx, dir){
+    const nueva = watchlist.slice();
+    const destino = idx + dir;
+    if(destino < 0 || destino >= nueva.length) return;
+    [nueva[idx], nueva[destino]] = [nueva[destino], nueva[idx]];
+    watchlist = nueva; // edición en memoria — se persiste solo al pulsar Guardar
+    renderEditorWatchlist();
+  }
+
+  function quitarDeWatchlist(idx){
+    if(watchlist.length <= 1) return; // conservar al menos 1 activo
+    watchlist = watchlist.slice(0, idx).concat(watchlist.slice(idx+1));
+    renderEditorWatchlist();
+  }
+
+  function manejarBusquedaAgregarWatchlist(){
+    const inputEl = document.getElementById('watchlistAgregarBuscador');
+    const resultadosEl = document.getElementById('watchlistAgregarResultados');
+    if(!inputEl || !resultadosEl) return;
+    const query = inputEl.value.trim();
+    if(!query || typeof BinanceMarketData === 'undefined' || BinanceMarketData.getCatalog().length === 0){
+      resultadosEl.style.display = 'none'; resultadosEl.innerHTML = ''; return;
+    }
+    const yaEnLista = new Set(watchlist.map(a => a.symbol));
+    const resultados = BinanceMarketData.search(query).filter(r => !yaEnLista.has(r.symbol)).slice(0, 10);
+    resultadosEl.style.display = '';
+    resultadosEl.innerHTML = resultados.length === 0
+      ? `<div style="padding:var(--space-2); color:var(--color-text-muted); font-size:var(--fs-sm);">Sin resultados nuevos para "${escapeHtml(query)}".</div>`
+      : resultados.map(r => `<div class="watchlist-agregar-item" data-symbol="${escapeHtml(r.symbol)}" data-base="${escapeHtml(r.baseAsset)}" style="padding:var(--space-2); cursor:pointer; border-bottom:1px solid var(--color-border);"><strong>${escapeHtml(r.symbol)}</strong></div>`).join('');
+  }
+
+  function agregarAWatchlist(symbol, baseAsset){
+    if(watchlist.length >= WATCHLIST_MAX) return; // máximo 10
+    if(watchlist.some(a => a.symbol === symbol)) return; // sin duplicados
+    watchlist = watchlist.concat([{ symbol, abrev: baseAsset, nombre: baseAsset }]);
+    renderEditorWatchlist();
+    const inputEl = document.getElementById('watchlistAgregarBuscador');
+    const resultadosEl = document.getElementById('watchlistAgregarResultados');
+    if(inputEl) inputEl.value = '';
+    if(resultadosEl){ resultadosEl.innerHTML=''; resultadosEl.style.display='none'; }
+  }
+
+  function attachEditorWatchlistListeners(){
+    const abrirBtn = document.getElementById('watchlistEditarBtn');
+    const panelEl = document.getElementById('watchlistEditorPanel');
+    const guardarBtn = document.getElementById('watchlistGuardarBtn');
+    const cancelarBtn = document.getElementById('watchlistCancelarBtn');
+    let watchlistAntesDeEditar = null;
+
+    if(abrirBtn && panelEl){
+      abrirBtn.addEventListener('click', () => {
+        watchlistAntesDeEditar = watchlist.slice();
+        if(typeof BinanceMarketData !== 'undefined' && BinanceMarketData.getCatalog().length === 0){
+          BinanceMarketData.loadCatalog().catch(() => {});
+        }
+        renderEditorWatchlist();
+        panelEl.style.display = '';
+      });
+    }
+    if(guardarBtn && panelEl){
+      guardarBtn.addEventListener('click', async () => {
+        await aplicarNuevaWatchlist(watchlist); // ya está en memoria; esto la persiste y resuscribe correctamente
+        panelEl.style.display = 'none';
+      });
+    }
+    if(cancelarBtn && panelEl){
+      cancelarBtn.addEventListener('click', () => {
+        if(watchlistAntesDeEditar) watchlist = watchlistAntesDeEditar; // descarta cambios no guardados
+        panelEl.style.display = 'none';
+      });
+    }
+
+    const listaEl = document.getElementById('watchlistEditorLista');
+    if(listaEl){
+      listaEl.addEventListener('click', (e) => {
+        const moverBtn = e.target.closest('.watchlist-mover');
+        if(moverBtn){ moverEnWatchlist(parseInt(moverBtn.dataset.idx,10), parseInt(moverBtn.dataset.dir,10)); return; }
+        const quitarBtn = e.target.closest('.watchlist-quitar');
+        if(quitarBtn){ quitarDeWatchlist(parseInt(quitarBtn.dataset.idx,10)); return; }
+      });
+    }
+
+    const buscadorAgregarEl = document.getElementById('watchlistAgregarBuscador');
+    if(buscadorAgregarEl) buscadorAgregarEl.addEventListener('input', manejarBusquedaAgregarWatchlist);
+
+    const resultadosAgregarEl = document.getElementById('watchlistAgregarResultados');
+    if(resultadosAgregarEl){
+      resultadosAgregarEl.addEventListener('click', (e) => {
+        const item = e.target.closest('.watchlist-agregar-item');
+        if(item) agregarAWatchlist(item.dataset.symbol, item.dataset.base);
+      });
+    }
+  }
+
+  global.MarketStatus = {
+    init, destroy,
+    get ACTIVOS(){ return watchlist; }, // compatibilidad — siempre refleja la watchlist actual, ya no una lista fija
+    getWatchlist: () => watchlist.slice(),
+    setWatchlist: aplicarNuevaWatchlist
+  };
 
   init();
 

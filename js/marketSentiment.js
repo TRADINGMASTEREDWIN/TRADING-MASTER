@@ -12,11 +12,20 @@
 
 (function(global){
   const API_URL = 'https://api.alternative.me/fng/?limit=1';
+  // Sprint MARKET-8 — histórico: un único fetch con limit=35 (~35 días)
+  // permite derivar Ahora/Ayer/Semana pasada/Mes pasado SIN 4 consultas
+  // separadas. Alternative.me devuelve un registro por día, data[0]=hoy,
+  // data[1]=ayer, etc. Caché propio con TTL más largo (histórico diario,
+  // no cambia varias veces al día).
+  const API_URL_HISTORICO = 'https://api.alternative.me/fng/?limit=35';
   const CACHE_KEY = 'tradingMasterFearGreedCache';
+  const CACHE_KEY_HISTORICO = 'tradingMasterFearGreedHistoricoCache';
   const CACHE_TTL_MS = 30 * 60 * 1000; // ~30 minutos
+  const CACHE_TTL_HISTORICO_MS = 6 * 60 * 60 * 1000; // ~6 horas — dato diario, no hace falta refrescarlo tan seguido
 
   let inicializado = false;
   let ultimoDatoValido = null;
+  let ultimoHistoricoValido = null; // { ahora, ayer, semana, mes } cada uno {value, timestamp} o null
   let intervaloRefresh = null;
 
   function clasificarEspanol(valor){
@@ -47,6 +56,93 @@
 
   function cacheVigente(dato){
     return !!dato && (Date.now() - dato.timestamp) < CACHE_TTL_MS;
+  }
+
+  function leerCacheHistorico(){
+    try{
+      if(typeof localStorage === 'undefined') return null;
+      const raw = localStorage.getItem(CACHE_KEY_HISTORICO);
+      if(!raw) return null;
+      const parsed = JSON.parse(raw);
+      if(!parsed || typeof parsed.timestamp !== 'number' || !Array.isArray(parsed.serie)) return null;
+      return parsed;
+    }catch(e){ return null; }
+  }
+
+  function guardarCacheHistorico(dato){
+    try{
+      if(typeof localStorage === 'undefined') return;
+      localStorage.setItem(CACHE_KEY_HISTORICO, JSON.stringify(dato));
+    }catch(e){ /* optimización, no requisito duro */ }
+  }
+
+  function cacheHistoricoVigente(dato){
+    return !!dato && (Date.now() - dato.timestamp) < CACHE_TTL_HISTORICO_MS;
+  }
+
+  // Criterio documentado: la serie de Alternative.me trae un registro por
+  // día calendario, data[0]=hoy. "Semana pasada"=índice 7, "Mes pasado"=
+  // índice 30. Si la serie es más corta de lo esperado (API cambia el
+  // límite real devuelto), se usa el ÚLTIMO índice disponible como la
+  // observación histórica más cercana — nunca se inventa un valor.
+  function extraerPuntosHistoricos(serie){
+    if(!Array.isArray(serie) || serie.length === 0) return null;
+    const en = (i) => {
+      const idx = Math.min(i, serie.length - 1);
+      const item = serie[idx];
+      const valor = parseInt(item && item.value, 10);
+      return isNaN(valor) ? null : valor;
+    };
+    return { ahora: en(0), ayer: en(1), semana: en(7), mes: en(30) };
+  }
+
+  async function refreshHistorico(forzar){
+    if(!forzar){
+      const cacheado = leerCacheHistorico();
+      if(cacheHistoricoVigente(cacheado)){
+        ultimoHistoricoValido = extraerPuntosHistoricos(cacheado.serie);
+        renderHistorico(ultimoHistoricoValido);
+        return ultimoHistoricoValido;
+      }
+    }
+
+    try{
+      const response = await fetch(API_URL_HISTORICO);
+      if(!response.ok) throw new Error(`Alternative.me (histórico) respondió con estado ${response.status}`);
+
+      const json = await response.json();
+      const serie = json && Array.isArray(json.data) ? json.data : null;
+      if(!serie || serie.length === 0) throw new Error('Respuesta inesperada de Alternative.me: falta data[].');
+
+      guardarCacheHistorico({ serie, timestamp: Date.now() });
+      ultimoHistoricoValido = extraerPuntosHistoricos(serie);
+      renderHistorico(ultimoHistoricoValido);
+      return ultimoHistoricoValido;
+
+    }catch(error){
+      console.error('MarketSentiment: no se pudo obtener el histórico de Fear & Greed:', error);
+      if(ultimoHistoricoValido) renderHistorico(ultimoHistoricoValido); // conserva el último válido, nunca inventa
+      return null;
+    }
+  }
+
+  function renderHistorico(puntos){
+    if(!puntos) return;
+    const mapaIds = { ayer: 'marketSentimentAyer', semana: 'marketSentimentSemana', mes: 'marketSentimentMes' };
+    Object.keys(mapaIds).forEach(clave => {
+      const valorEl = document.getElementById(mapaIds[clave] + 'Valor');
+      const clasifEl = document.getElementById(mapaIds[clave] + 'Clasif');
+      const valor = puntos[clave];
+      if(valorEl) valorEl.textContent = (valor === null) ? '—' : String(valor);
+      if(clasifEl){
+        if(valor === null){ clasifEl.textContent = ''; }
+        else{
+          const clasif = clasificarEspanol(valor);
+          clasifEl.textContent = clasif.texto;
+          clasifEl.style.color = clasif.color;
+        }
+      }
+    });
   }
 
   // Posición del indicador sobre el arco semicircular (centro 100,100 radio 82).
@@ -157,6 +253,13 @@
     if(cacheado){ ultimoDatoValido = cacheado; render(cacheado, false); }
 
     refresh(false);
+
+    // Sprint MARKET-8 — histórico completamente independiente del selector
+    // 1M/5M/.../7D de Market Status (Fear & Greed tiene su propia
+    // temporalidad, diaria, nunca la del mercado Binance).
+    const cacheadoHistorico = leerCacheHistorico();
+    if(cacheadoHistorico){ ultimoHistoricoValido = extraerPuntosHistoricos(cacheadoHistorico.serie); renderHistorico(ultimoHistoricoValido); }
+    refreshHistorico(false);
 
     intervaloRefresh = setInterval(() => refresh(false), CACHE_TTL_MS);
   }

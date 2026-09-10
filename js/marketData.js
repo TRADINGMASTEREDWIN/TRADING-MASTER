@@ -394,7 +394,13 @@
   const BINANCE_FUTURES_KLINES_URL = 'https://fapi.binance.com/fapi/v1/klines';
 
   // timeframe visible -> { interval de Binance, cuántas velas pedir }
+  // Sprint MARKET-8 — tabla oficial de "período de análisis" (no solo
+  // tamaño de vela): 1M/5M usan velas de 1s (Binance las soporta en Spot);
+  // el resto mantiene exactamente las mismas equivalencias de MARKET-5/6/7.
   const CONFIG_TIMEFRAME = {
+    '1M':  { interval: '1s',  limit: 60 },
+    '5M':  { interval: '1s',  limit: 300 },
+    '15M': { interval: '1m',  limit: 15 },
     '1H':  { interval: '1m',  limit: 60 },
     '4H':  { interval: '5m',  limit: 48 },
     '24H': { interval: '15m', limit: 96 },
