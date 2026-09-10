@@ -39,6 +39,12 @@
 
   let watchlist = WATCHLIST_INICIAL.slice(); // lista REAL en uso — mutable
 
+  // MARKET CONTEXT FOUNDATION — Sprint 0, Fase 4.1. Captura del ÚLTIMO
+  // resultado ya calculado por calcularPulso() (misma fórmula, mismos
+  // datos) — se asigna DENTRO de calcularPulso(), nunca se recalcula
+  // aparte. Null hasta que calcularPulso() corra al menos una vez.
+  let ultimoPulsoCalculado = null;
+
   // Colores decorativos por símbolo — distinción visual únicamente, no son
   // logos oficiales ni ningún dato obtenido de Binance.
   const COLOR_POR_SYMBOL = {
@@ -341,6 +347,7 @@
 
     if(conDatos === 0){
       tituloEl.textContent = 'Esperando datos...';
+      ultimoPulsoCalculado = { status: 'SIN_DATOS' }; // MARKET CONTEXT FOUNDATION — captura, no cambia el comportamiento visual
       return;
     }
 
@@ -349,6 +356,18 @@
     const pctPositivo = Math.round((positivos / conDatos) * 100);
     const pctNegativo = Math.round((negativos / conDatos) * 100);
     const promedio = sumaVariacion / conDatos;
+
+    // MARKET CONTEXT FOUNDATION — captura de los MISMOS valores que las
+    // líneas de abajo ya escriben al DOM. No es un cálculo nuevo: ganador/
+    // perdedor/estado/promedio ya existen en este punto de la función.
+    ultimoPulsoCalculado = {
+      status: 'OK',
+      positivos, negativos, neutrales, conDatos,
+      estado, promedio,
+      timeframeActual,
+      ganador: ganador ? Object.assign({}, ganador) : null,
+      perdedor: perdedor ? Object.assign({}, perdedor) : null
+    };
 
     tituloEl.textContent = titulo;
     const estadoEl = document.getElementById('marketStatusPulsoEstado');
@@ -760,6 +779,19 @@
         <div class="market11-session-progress"><span style="width:${estado.progreso || 0}%;"></span></div>
       </div>`;
     }).join('');
+  }
+
+  // MARKET CONTEXT FOUNDATION — Sprint 0, Fase 4.1. Misma función pura
+  // obtenerEstadoSesion() que ya usa actualizarSesionesMercado() para
+  // pintar el DOM — aquí simplemente se devuelve el resultado en vez de
+  // escribirlo en pantalla. Cero cálculos nuevos, cero calendario nuevo.
+  // No depende de `inicializado`: SESIONES_MERCADO/EXCEPCIONES_SESIONES/
+  // FERIADOS_TOKIO_POR_ANIO ya existen desde que se carga el script.
+  function estadoSesionesActual(){
+    const ahora = new Date();
+    return SESIONES_MERCADO.map(sesion =>
+      Object.assign({ id: sesion.id, nombre: sesion.nombre }, obtenerEstadoSesion(sesion, ahora))
+    );
   }
 
   function init(){
@@ -1379,7 +1411,13 @@
     init, destroy,
     get ACTIVOS(){ return watchlist; }, // compatibilidad — siempre refleja la watchlist actual, ya no una lista fija
     getWatchlist: () => watchlist.slice(),
-    setWatchlist: aplicarNuevaWatchlist
+    setWatchlist: aplicarNuevaWatchlist,
+    // MARKET CONTEXT FOUNDATION — Sprint 0, Fase 4.1 (getters de solo lectura)
+    getPulsoActual: () => {
+      if(!inicializado) return { status: 'NO_INICIALIZADO' };
+      return ultimoPulsoCalculado || { status: 'SIN_DATOS' };
+    },
+    getEstadoSesiones: estadoSesionesActual
   };
 
   init();
