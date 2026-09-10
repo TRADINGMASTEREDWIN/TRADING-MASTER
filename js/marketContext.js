@@ -39,34 +39,43 @@
   const CONTEXTO_TIMEFRAMES = ['15M', '1H', '4H', '1D', '1W'];
 
   /* ============================================================
-     MARKET TYPE — resolución PROVISIONAL (Fase 2, aprobada).
-
-     Regla actual: si el símbolo existe en el catálogo Spot público de
-     Binance (ya cargado por marketData.js), es SPOT. Si no aparece
-     ahí, se asume FUTURES — mismo criterio ya usado a mano para
-     HYPEUSDT en el resto del proyecto.
-
-     Se deja ENCAPSULADA en esta única función a propósito: el día que
-     se decida una fuente de verdad más robusta (ej. una columna en
-     `assets`), solo esta función cambia — nada más en este archivo
-     necesita enterarse. NO se modificó `assets` para este Sprint.
+     INSTRUMENTO — resolución centralizada (Fase 4.2.5).
+     InstrumentCatalog es la fuente de identidad. Para llamadas antiguas
+     sin exchange se conserva BINANCE como proveedor por defecto.
+     IDENTIDAD: exchange + marketType + symbol
      ============================================================ */
-  async function resolverMarketType(symbol){
-    const s = String(symbol || '').trim().toUpperCase();
-    if(!s) return 'FUTURES'; // sin símbolo no hay forma de confirmar Spot — mismo criterio conservador
+  async function resolverInstrumento(opciones){
+    const symbol = String(opciones && opciones.symbol || '').trim().toUpperCase();
+    if(!symbol) return { status: 'INVALID_INPUT', instrument: null, matches: [] };
 
-    if(typeof BinanceMarketData === 'undefined'){
-      console.error('[MarketContext] BinanceMarketData no está disponible — no se puede resolver marketType, se asume FUTURES.');
-      return 'FUTURES';
+    const exchange = String(opciones && opciones.exchange || 'BINANCE').trim().toUpperCase();
+    const marketTypeSolicitado = String(opciones && opciones.marketType || '').trim().toUpperCase();
+
+    if(typeof InstrumentCatalog !== 'undefined' && typeof InstrumentCatalog.resolve === 'function'){
+      const resultado = await InstrumentCatalog.resolve({ symbol, exchange, marketType: marketTypeSolicitado || undefined });
+      if(resultado.status === 'OK') return { status: 'OK', instrument: resultado.instrument, matches: resultado.matches || [] };
+      if(marketTypeSolicitado || exchange !== 'BINANCE') return { status: resultado.status, instrument: null, matches: resultado.matches || [] };
     }
-    try{
-      await BinanceMarketData.loadCatalog(); // no-op si ya está cargado (loadCatalog cachea internamente)
-    }catch(error){
-      console.error('[MarketContext] No se pudo cargar el catálogo Spot para resolverMarketType, se asume FUTURES:', error);
-      return 'FUTURES';
-    }
-    const enCatalogoSpot = BinanceMarketData.getCatalog().some(item => item.symbol === s);
-    return enCatalogoSpot ? 'SPOT' : 'FUTURES';
+
+    const marketType = marketTypeSolicitado || await resolverMarketTypeLegacy(symbol);
+    return {
+      status: 'LEGACY_FALLBACK',
+      instrument: { exchange: 'BINANCE', marketType, symbol, baseAsset: null, quoteAsset: null, id: `BINANCE|${marketType}|${symbol}` },
+      matches: []
+    };
+  }
+
+  async function resolverMarketTypeLegacy(symbol){
+    const s = String(symbol || '').trim().toUpperCase();
+    if(!s) return 'FUTURES';
+    if(typeof BinanceMarketData === 'undefined') return 'FUTURES';
+    try{ await BinanceMarketData.loadCatalog(); }catch(error){ return 'FUTURES'; }
+    return BinanceMarketData.getCatalog().some(item => item.symbol === s) ? 'SPOT' : 'FUTURES';
+  }
+
+  async function resolverMarketType(symbol){
+    const resultado = await resolverInstrumento({ symbol });
+    return resultado.instrument ? resultado.instrument.marketType : 'FUTURES';
   }
 
   /* ============================================================
@@ -116,13 +125,22 @@
      Un fallo obteniendo velas de UNA temporalidad, o calculando UN
      indicador, nunca tumba el resto (regla explícita del Sprint).
      ============================================================ */
-  async function construirAssetContext(symbol, marketType, variablesCalculables){
+  async function construirAssetContext(instrument, variablesCalculables){
+    const symbol = instrument.symbol;
+    const marketType = instrument.marketType;
+    const exchange = instrument.exchange;
     const timeframes = {};
 
     for(const tf of CONTEXTO_TIMEFRAMES){
       let candles;
       try{
-        candles = await BinanceMarketData.getHistoricalCandles(symbol, tf, { marketType });
+        if(exchange === 'BINANCE') {
+          candles = await BinanceMarketData.getHistoricalCandles(symbol, tf, { marketType });
+        } else if(exchange === 'BITUNIX') {
+          candles = await BitunixProvider.getHistoricalCandles(symbol, tf);
+        } else {
+          throw new Error('Exchange no soportado: ' + exchange);
+        }
       }catch(error){
         // Esta temporalidad queda marcada con su propio error — las demás continúan.
         timeframes[tf] = { indicators: {}, status: 'ERROR', error: String(error && error.message || error) };
@@ -140,7 +158,7 @@
       timeframes[tf] = { indicators, status: 'OK' };
     }
 
-    return { symbol, marketType, timeframes };
+    return { symbol, exchange, marketType, instrumentId: instrument.id || null, timeframes };
   }
 
   /* ============================================================
@@ -185,16 +203,21 @@
     }
     const symbolNormalizado = symbol.trim().toUpperCase();
 
-    let marketType = opciones && opciones.marketType;
-    if(marketType !== 'SPOT' && marketType !== 'FUTURES'){
-      marketType = await resolverMarketType(symbolNormalizado);
+    const instrumento = await resolverInstrumento({
+      symbol: symbolNormalizado,
+      exchange: opciones && opciones.exchange,
+      marketType: opciones && opciones.marketType
+    });
+
+    if(!instrumento.instrument){
+      return { status: instrumento.status || 'NOT_FOUND', reason: 'No se pudo resolver la identidad del instrumento', assetContext: null, globalContext: null, matches: instrumento.matches || [] };
     }
 
     const variablesCalculables = await obtenerVariablesCalculables();
 
     let assetContext;
     try{
-      assetContext = await construirAssetContext(symbolNormalizado, marketType, variablesCalculables);
+      assetContext = await construirAssetContext(instrumento.instrument, variablesCalculables);
     }catch(error){
       // Red de seguridad: no debería llegar aquí (los fallos por
       // temporalidad/indicador ya se capturan adentro), pero si algo
@@ -209,6 +232,7 @@
 
   global.MarketContext = {
     getMarketContext,
+    resolverInstrumento,
     resolverMarketType // expuesta a propósito — ver nota PROVISIONAL arriba
   };
 

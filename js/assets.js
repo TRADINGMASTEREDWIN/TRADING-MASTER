@@ -179,8 +179,8 @@
   }
 
   async function asegurarCatalogoCryptoCargado(){
-    if(typeof BinanceMarketData === 'undefined') return; // marketData.js no cargado -> no romper nada
-    if(BinanceMarketData.getCatalog().length > 0){
+    if(typeof InstrumentCatalog === 'undefined') return; // catálogo unificado no cargado -> no romper nada
+    if(InstrumentCatalog.getCatalog().length > 0){
       renderEstadoBuscadorCrypto('');
       return;
     }
@@ -188,16 +188,21 @@
 
     catalogoCryptoCargando = true;
     catalogoCryptoConError = false;
-    renderEstadoBuscadorCrypto('Cargando catálogo de Binance…');
+    renderEstadoBuscadorCrypto('Cargando catálogo de instrumentos…');
 
     try{
-      await BinanceMarketData.loadCatalog();
-      catalogoCryptoConError = false;
-      renderEstadoBuscadorCrypto('');
+      const resultado = await InstrumentCatalog.load();
+      catalogoCryptoConError = resultado.status === 'ERROR' && resultado.instruments.length === 0;
+      if(catalogoCryptoConError){
+        throw new Error('Ningún proveedor de instrumentos está disponible.');
+      }
+      renderEstadoBuscadorCrypto(resultado.status === 'PARTIAL'
+        ? 'Catálogo parcialmente disponible. Algunos mercados podrían no aparecer.'
+        : '');
     }catch(error){
-      console.error('MARKET-2B.1: no se pudo cargar el catálogo de Binance para el buscador:', error);
+      console.error('MARKET-4.2.4: no se pudo cargar el catálogo unificado de instrumentos:', error);
       catalogoCryptoConError = true;
-      renderEstadoBuscadorCrypto('No se pudo cargar el catálogo de Binance. <button type="button" id="cryptoReintentarBtn" class="btn-secondary" style="margin-left:8px;">Reintentar</button>');
+      renderEstadoBuscadorCrypto('No se pudo cargar el catálogo de instrumentos. <button type="button" id="cryptoReintentarBtn" class="btn-secondary" style="margin-left:8px;">Reintentar</button>');
     }finally{
       catalogoCryptoCargando = false;
     }
@@ -208,39 +213,45 @@
     if(estadoEl) estadoEl.innerHTML = mensajeHtml;
   }
 
-  function manejarBusquedaCrypto(){
+  async function manejarBusquedaCrypto(){
     const inputEl = document.getElementById('cryptoBuscadorInput');
     const resultadosEl = document.getElementById('cryptoBuscadorResultados');
     if(!inputEl || !resultadosEl) return;
 
     const query = inputEl.value.trim();
-    if(!query || catalogoCryptoConError || typeof BinanceMarketData === 'undefined' || BinanceMarketData.getCatalog().length === 0){
+    if(!query || catalogoCryptoConError || typeof InstrumentCatalog === 'undefined'){
       resultadosEl.style.display = 'none';
       resultadosEl.innerHTML = '';
       return;
     }
 
-    const resultados = BinanceMarketData.search(query).slice(0, 20); // limita para eficiencia visual
-    if(resultados.length === 0){
-      resultadosEl.style.display = '';
-      resultadosEl.innerHTML = `<div style="padding: var(--space-2); color: var(--color-text-muted); font-size: var(--fs-sm);">Sin resultados para "${escapeHtml(query)}".</div>`;
-      return;
-    }
+    try{
+      const resultados = (await InstrumentCatalog.search(query)).slice(0, 20);
+      if(resultados.length === 0){
+        resultadosEl.style.display = '';
+        resultadosEl.innerHTML = `<div style="padding: var(--space-2); color: var(--color-text-muted); font-size: var(--fs-sm);">Sin resultados para "${escapeHtml(query)}".</div>`;
+        return;
+      }
 
-    resultadosEl.style.display = '';
-    resultadosEl.innerHTML = resultados.map(r =>
-      `<div class="crypto-buscador-item" data-symbol="${escapeHtml(r.symbol)}" style="padding: var(--space-2); cursor:pointer; border-bottom:1px solid var(--color-border); display:flex; justify-content:space-between;">
-        <strong>${escapeHtml(r.symbol)}</strong>
-        <span style="color: var(--color-text-muted); font-size: var(--fs-sm);">${escapeHtml(r.baseAsset)} / ${escapeHtml(r.quoteAsset)}</span>
-      </div>`
-    ).join('');
+      resultadosEl.style.display = '';
+      resultadosEl.innerHTML = resultados.map(r =>
+        `<div class="crypto-buscador-item" data-symbol="${escapeHtml(r.symbol)}" data-exchange="${escapeHtml(r.exchange)}" data-market-type="${escapeHtml(r.marketType)}" data-instrument-id="${escapeHtml(r.id)}" style="padding: var(--space-2); cursor:pointer; border-bottom:1px solid var(--color-border); display:flex; justify-content:space-between; gap:var(--space-3);">
+          <strong>${escapeHtml(r.symbol)}</strong>
+          <span style="color: var(--color-text-muted); font-size: var(--fs-sm);">${escapeHtml(r.exchange)} · ${escapeHtml(r.marketType)} · ${escapeHtml(r.baseAsset)} / ${escapeHtml(r.quoteAsset)}</span>
+        </div>`
+      ).join('');
+    }catch(error){
+      console.error('MARKET-4.2.4: error buscando instrumentos:', error);
+      resultadosEl.style.display = '';
+      resultadosEl.innerHTML = `<div style="padding: var(--space-2); color: var(--color-text-muted); font-size: var(--fs-sm);">No se pudo realizar la búsqueda.</div>`;
+    }
   }
 
   // Sincroniza #selectActivo (nunca lo reemplaza) e imita exactamente lo
   // que ya hace poblarSelectActivoOperacion(): agrega la opción si falta,
   // fija su valor, y dispara 'change' para reutilizar
   // actualizarVisibilidadActivoOtro() ya existente sin duplicar esa lógica.
-  function seleccionarActivoCrypto(symbol){
+  function seleccionarActivoCrypto(symbol, instrumento){
     const selectActivoEl = document.getElementById('selectActivo');
     if(!selectActivoEl) return;
 
@@ -252,6 +263,15 @@
       selectActivoEl.appendChild(opcion);
     }
     selectActivoEl.value = symbol;
+    if(instrumento){
+      selectActivoEl.dataset.instrumentId = instrumento.instrumentId || '';
+      selectActivoEl.dataset.exchange = instrumento.exchange || '';
+      selectActivoEl.dataset.marketType = instrumento.marketType || '';
+    } else {
+      delete selectActivoEl.dataset.instrumentId;
+      delete selectActivoEl.dataset.exchange;
+      delete selectActivoEl.dataset.marketType;
+    }
     selectActivoEl.dispatchEvent(new Event('change'));
 
     const inputEl = document.getElementById('cryptoBuscadorInput');
@@ -349,7 +369,11 @@
     if(resultadosEl){
       resultadosEl.addEventListener('click', (e) => {
         const item = e.target.closest('.crypto-buscador-item');
-        if(item) seleccionarActivoCrypto(item.dataset.symbol);
+        if(item) seleccionarActivoCrypto(item.dataset.symbol, {
+          instrumentId: item.dataset.instrumentId,
+          exchange: item.dataset.exchange,
+          marketType: item.dataset.marketType
+        });
       });
     }
 
