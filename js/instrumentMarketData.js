@@ -33,6 +33,24 @@
     return { marketType: instrumento.marketType };
   }
 
+  async function getHistoricalCandles(instrumento, timeframe, opciones){
+    const i = normalizarInstrumento(instrumento);
+    if(!i) throw new Error('InstrumentMarketData.getHistoricalCandles: instrumento inválido');
+
+    if(esBinance(i) && global.BinanceMarketData && typeof global.BinanceMarketData.getHistoricalCandles === 'function'){
+      return global.BinanceMarketData.getHistoricalCandles(i.symbol, timeframe, {
+        ...(opciones || {}),
+        marketType: i.marketType
+      });
+    }
+
+    if(esBitunix(i) && i.marketType === 'FUTURES' && global.BitunixProvider && typeof global.BitunixProvider.getHistoricalCandles === 'function'){
+      return global.BitunixProvider.getHistoricalCandles(i.symbol, timeframe, opciones || {});
+    }
+
+    throw new Error(`InstrumentMarketData.getHistoricalCandles: proveedor no soportado para ${i.exchange}/${i.marketType}`);
+  }
+
   async function getTicker(instrumento){
     const i = normalizarInstrumento(instrumento);
     if(!i) return null;
@@ -124,6 +142,7 @@
   global.InstrumentMarketData = {
     POLLING_MS,
     getTicker,
+    getHistoricalCandles,
     subscribeTicker,
     unsubscribeTicker
   };

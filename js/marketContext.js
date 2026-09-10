@@ -134,13 +134,10 @@
     for(const tf of CONTEXTO_TIMEFRAMES){
       let candles;
       try{
-        if(exchange === 'BINANCE') {
-          candles = await BinanceMarketData.getHistoricalCandles(symbol, tf, { marketType });
-        } else if(exchange === 'BITUNIX') {
-          candles = await BitunixProvider.getHistoricalCandles(symbol, tf);
-        } else {
-          throw new Error('Exchange no soportado: ' + exchange);
+        if(typeof InstrumentMarketData === 'undefined' || typeof InstrumentMarketData.getHistoricalCandles !== 'function'){
+          throw new Error('InstrumentMarketData.getHistoricalCandles no está disponible');
         }
+        candles = await InstrumentMarketData.getHistoricalCandles(instrument, tf);
       }catch(error){
         // Esta temporalidad queda marcada con su propio error — las demás continúan.
         timeframes[tf] = { indicators: {}, status: 'ERROR', error: String(error && error.message || error) };
