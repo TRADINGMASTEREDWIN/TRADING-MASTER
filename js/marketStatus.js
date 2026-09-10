@@ -95,6 +95,7 @@
   };
   let analizadorTimeframeActual = TIMEFRAME_GRAFICO_POR_DEFECTO;
   let intervaloEstadoConexion = null;
+  let intervaloSesiones = null;
 
   function formatearPrecioInteligente(precio){
     if(precio === null || precio === undefined || isNaN(precio)) return null;
@@ -516,6 +517,113 @@
     actualizarBotonesTimeframe();
   }
 
+  /* ============================================================
+     MARKET-10 — Sesiones de mercado
+     Referencia visual de liquidez global. Usa zonas horarias reales,
+     incluyendo DST para Nueva York, y actualiza la cuenta regresiva cada segundo.
+     ============================================================ */
+  const SESIONES_MERCADO = [
+    { id:'nyse', icono:'🇺🇸', nombre:'Wall Street', mercado:'NYSE · sesión principal', timezone:'America/New_York', horario:'09:30–16:00', sesiones:[{apertura:[9,30],cierre:[16,0]}] },
+    { id:'tokio', icono:'🇯🇵', nombre:'Tokio', mercado:'Tokyo Stock Exchange · sesión principal', timezone:'Asia/Tokyo', horario:'09:00–11:30 · 12:30–15:30', sesiones:[{apertura:[9,0],cierre:[11,30]},{apertura:[12,30],cierre:[15,30]}] }
+  ];
+
+  function partesZona(fecha, timezone){
+    const partes=new Intl.DateTimeFormat('en-US',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23',weekday:'short'}).formatToParts(fecha);
+    const out={}; partes.forEach(p=>{if(p.type!=='literal') out[p.type]=p.value;});
+    return {year:Number(out.year),month:Number(out.month),day:Number(out.day),hour:Number(out.hour),minute:Number(out.minute),second:Number(out.second),weekday:out.weekday};
+  }
+
+  function utcDesdeZona(year,month,day,hour,minute,second,timezone){
+    let guess=new Date(Date.UTC(year,month-1,day,hour,minute,second||0));
+    for(let i=0;i<4;i++){
+      const p=partesZona(guess,timezone);
+      const representado=Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute,p.second);
+      const objetivo=Date.UTC(year,month-1,day,hour,minute,second||0);
+      guess=new Date(guess.getTime()+(objetivo-representado));
+    }
+    return guess;
+  }
+
+  function sumarDiasCalendario(year,month,day,dias){
+    const d=new Date(Date.UTC(year,month-1,day+dias));
+    return {year:d.getUTCFullYear(),month:d.getUTCMonth()+1,day:d.getUTCDate()};
+  }
+
+  function esFinDeSemana(year,month,day){
+    const dow=new Date(Date.UTC(year,month-1,day)).getUTCDay();
+    return dow===0||dow===6;
+  }
+
+  function fechaPascua(year){
+    const a=year%19,b=Math.floor(year/100),c=year%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),month=Math.floor((h+l-7*m+114)/31),day=((h+l-7*m+114)%31)+1;
+    return {year,month,day};
+  }
+  function sumarDiasFecha(fecha,dias){ const d=new Date(Date.UTC(fecha.year,fecha.month-1,fecha.day+dias)); return {year:d.getUTCFullYear(),month:d.getUTCMonth()+1,day:d.getUTCDate()}; }
+  function claveFecha(y,m,d){ return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+
+  function esFeriadoNYSE(year,month,day){
+    const k=claveFecha(year,month,day), p=fechaPascua(year), viernes=sumarDiasFecha(p,-2);
+    const lunesDeMes=(mes)=>{ const d=new Date(Date.UTC(year,mes,1)); while(d.getUTCDay()!==1) d.setUTCDate(d.getUTCDate()+1); return d; };
+    const ultimoLunes=(mes)=>{ const d=new Date(Date.UTC(year,mes+1,0)); while(d.getUTCDay()!==1) d.setUTCDate(d.getUTCDate()-1); return d; };
+    const cuartoJueves=(()=>{const d=new Date(Date.UTC(year,10,1)); while(d.getUTCDay()!==4) d.setUTCDate(d.getUTCDate()+1); d.setUTCDate(d.getUTCDate()+21); return d;})();
+    const observado=(mes,dia)=>{ const d=new Date(Date.UTC(year,mes,dia)); if(d.getUTCDay()===6)d.setUTCDate(d.getUTCDate()-1); if(d.getUTCDay()===0)d.setUTCDate(d.getUTCDate()+1); return claveFecha(d.getUTCFullYear(),d.getUTCMonth()+1,d.getUTCDate()); };
+    const lista=new Set([
+      observado(0,1), observado(11,25),
+      observado(6,4),
+      ...(year>=2022?[observado(5,19)]:[]),
+      claveFecha(year,viernes.year===year?viernes.month:2,viernes.day),
+      claveFecha(year,ultimoLunes(4).getUTCMonth()+1,ultimoLunes(4).getUTCDate()),
+      claveFecha(year,cuartoJueves.getUTCMonth()+1,cuartoJueves.getUTCDate()),
+      claveFecha(year,lunesDeMes(0).getUTCMonth()+1,lunesDeMes(0).getUTCDate()+14),
+      claveFecha(year,lunesDeMes(1).getUTCMonth()+1,lunesDeMes(1).getUTCDate()+14),
+      claveFecha(year,ultimoLunes(8).getUTCMonth()+1,ultimoLunes(8).getUTCDate())
+    ]);
+    return lista.has(k);
+  }
+
+  function obtenerEstadoSesion(sesion,ahora){
+    const p=partesZona(ahora,sesion.timezone), candidatos=[];
+    for(let delta=0;delta<=7;delta++){
+      const fecha=sumarDiasCalendario(p.year,p.month,p.day,delta);
+      if(esFinDeSemana(fecha.year,fecha.month,fecha.day)) continue;
+      if(sesion.id==='nyse' && esFeriadoNYSE(fecha.year,fecha.month,fecha.day)) continue;
+      for(const bloque of sesion.sesiones){
+        const inicio=utcDesdeZona(fecha.year,fecha.month,fecha.day,bloque.apertura[0],bloque.apertura[1],0,sesion.timezone);
+        const fin=utcDesdeZona(fecha.year,fecha.month,fecha.day,bloque.cierre[0],bloque.cierre[1],0,sesion.timezone);
+        candidatos.push({inicio,fin,fecha});
+      }
+    }
+    const actual=candidatos.find(x=>ahora>=x.inicio&&ahora<x.fin);
+    if(actual) return {abierto:true,etiqueta:'ABIERTO',color:'var(--color-success)',fondo:'var(--color-success-soft)',objetivo:actual.fin,accion:'Cierra en'};
+    const siguiente=candidatos.find(x=>x.inicio>ahora);
+    return {abierto:false,etiqueta:'CERRADO',color:'var(--color-text-muted)',fondo:'var(--color-bg)',objetivo:siguiente?siguiente.inicio:null,accion:'Abre en'};
+  }
+
+  function formatoCuentaRegresiva(ms){
+    if(ms<=0)return '00:00:00';
+    const total=Math.floor(ms/1000),h=Math.floor(total/3600),m=Math.floor((total%3600)/60),s=total%60;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
+  function formatoHoraZona(fecha,timezone){ return new Intl.DateTimeFormat('es-PA',{timeZone:timezone,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(fecha); }
+
+  function actualizarSesionesMercado(){
+    const contenedor=document.getElementById('marketSessionsCards'); if(!contenedor)return;
+    const ahora=new Date(), localEl=document.getElementById('marketSessionsLocalTime');
+    if(localEl) localEl.textContent=`Hora Panamá · ${new Intl.DateTimeFormat('es-PA',{timeZone:'America/Panama',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(ahora)}`;
+    contenedor.innerHTML=SESIONES_MERCADO.map(sesion=>{
+      const estado=obtenerEstadoSesion(sesion,ahora), countdown=estado.objetivo?formatoCuentaRegresiva(estado.objetivo-ahora):'—', hora=estado.objetivo?formatoHoraZona(estado.objetivo,sesion.timezone):'—';
+      return `<div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface, var(--color-bg));">
+        <div style="font-size:1.8rem;line-height:1;">${sesion.icono}</div>
+        <div style="min-width:0;flex:1;">
+          <div style="display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;"><strong>${sesion.nombre}</strong><span style="font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;background:${estado.fondo};color:${estado.color};border:1px solid var(--color-border);">${estado.etiqueta}</span></div>
+          <div style="font-size:var(--fs-xs);color:var(--color-text-muted);margin-top:2px;">${sesion.mercado}</div>
+          <div style="font-size:var(--fs-xs);color:var(--color-text-muted);margin-top:5px;">Horario: ${sesion.horario} · Próximo evento: ${hora}</div>
+        </div>
+        <div style="text-align:right;min-width:108px;"><div style="font-size:10px;color:var(--color-text-muted);">${estado.accion}</div><div style="font-size:1.25rem;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:.02em;">${countdown}</div></div>
+      </div>`;
+    }).join('');
+  }
+
   function init(){
     if(inicializado) return;
     if(typeof BinanceMarketData === 'undefined') return;
@@ -530,6 +638,7 @@
     crearTarjetasIniciales();
     actualizarEstadoConexion();
     actualizarFechaHora();
+    actualizarSesionesMercado();
     attachSelectorTimeframe();
     attachEditorWatchlistListeners();
     actualizarLineaVelas();
@@ -566,6 +675,7 @@
 
     calcularPulso();
     intervaloEstadoConexion = setInterval(actualizarEstadoConexion, 5000);
+    intervaloSesiones = setInterval(actualizarSesionesMercado, 1000);
     iniciarAnalizador(); // Sprint MARKET-7 — independiente del Top 10, inicializado en paralelo
     calcularPulsoHistoricoMultitemporal(); // Sprint MARKET-8 — una sola vez, no en cada tick
   }
@@ -581,7 +691,9 @@
       }
     });
     if(intervaloEstadoConexion) clearInterval(intervaloEstadoConexion);
+    if(intervaloSesiones) clearInterval(intervaloSesiones);
     intervaloEstadoConexion = null;
+    intervaloSesiones = null;
     callbacksPorSymbol = {};
     tickersRecibidos = {};
     historialPrecios = {}; // reinicia la mini-gráfica — nunca conserva "historial" entre sesiones
@@ -760,7 +872,7 @@
     if(!analizadorChart){
       analizadorChart = LightweightCharts.createChart(contenedor, {
         width: contenedor.clientWidth,
-        height: 400, // MARKET-8 PARTE 10 — gráfico más grande, tipo exchange
+        height: Math.max(440, Math.min(600, contenedor.clientHeight || 520)), // MARKET-10 — más altura sin desbordar la pantalla
         layout: { background: { color: 'transparent' }, textColor: '#9CA3AF' },
         grid: { vertLines: { color: 'rgba(255,255,255,0.05)' }, horzLines: { color: 'rgba(255,255,255,0.05)' } },
         timeScale: {
