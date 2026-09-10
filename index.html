@@ -13,6 +13,105 @@
     }
   })();
 </script>
+
+<style id="market11-visual-style">
+/* ============================================================
+   MARKET-11 — jerarquía visual y señales de estado
+   Solo presentación. No modifica la lógica de datos.
+   ============================================================ */
+#marketStatusWidget.market11-shell{
+  border:1px solid var(--color-border);
+  border-top:3px solid var(--color-primary);
+  border-radius:var(--radius-lg, 12px);
+  background:var(--color-surface, var(--color-bg));
+  box-shadow:0 1px 3px rgba(0,0,0,.04);
+}
+#marketStatusWidget .market11-divider{
+  height:1px; background:var(--color-border); opacity:.9; margin:var(--space-4) 0;
+}
+#marketStatusCards.market11-watchlist{
+  gap:var(--space-3);
+}
+#marketStatusCards .market-status-card.market11-card{
+  background:var(--color-surface, var(--color-bg)) !important;
+  border:1px solid var(--color-border) !important;
+  border-top:2px solid var(--asset-color, var(--color-border)) !important;
+  box-shadow:0 1px 2px rgba(0,0,0,.035);
+  transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+#marketStatusCards .market-status-card.market11-card:hover{
+  transform:translateY(-1px);
+  box-shadow:0 4px 12px rgba(0,0,0,.07);
+}
+.market11-section-card{
+  background:var(--color-surface, var(--color-bg));
+  border:1px solid var(--color-border);
+  border-radius:var(--radius-md);
+  box-shadow:0 1px 2px rgba(0,0,0,.03);
+}
+.market11-section-heading{
+  display:flex; align-items:center; gap:8px;
+  font-weight:750;
+}
+.market11-section-heading::before{
+  content:""; width:4px; height:18px; border-radius:4px; background:var(--color-primary); flex:0 0 auto;
+}
+.market11-session-card{
+  position:relative; overflow:hidden;
+  border:1px solid var(--color-border);
+  border-left:4px solid var(--session-color, var(--color-border));
+  border-radius:var(--radius-md);
+  background:var(--color-surface, var(--color-bg));
+  padding:var(--space-3);
+  box-shadow:0 1px 2px rgba(0,0,0,.03);
+}
+.market11-session-card.is-open{ background:var(--session-soft, var(--color-bg)); }
+.market11-session-card.is-pause{ background:rgba(234,179,8,.06); }
+.market11-session-card.is-preopen{ background:rgba(59,130,246,.05); }
+.market11-session-status{
+  display:inline-flex; align-items:center; gap:5px;
+  font-size:10px; font-weight:800; letter-spacing:.02em;
+  padding:3px 8px; border-radius:999px;
+  color:var(--session-color, var(--color-text-muted));
+  background:var(--session-soft, var(--color-bg));
+  border:1px solid var(--session-color, var(--color-border));
+}
+.market11-session-dot{
+  width:7px; height:7px; border-radius:50%; background:currentColor; display:inline-block;
+  box-shadow:0 0 0 3px color-mix(in srgb, currentColor 12%, transparent);
+}
+.market11-session-event{
+  font-size:10px; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:.04em;
+}
+.market11-session-countdown{
+  font-size:1.3rem; font-weight:850; font-variant-numeric:tabular-nums; letter-spacing:.02em;
+}
+.market11-session-progress{
+  height:5px; border-radius:999px; background:var(--color-border); overflow:hidden; margin-top:8px;
+}
+.market11-session-progress > span{
+  display:block; height:100%; border-radius:999px; background:var(--session-color, var(--color-primary)); transition:width .8s linear;
+}
+.market11-insights-grid{
+  display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:var(--space-3); margin-top:var(--space-4);
+}
+@media(max-width:1000px){ .market11-insights-grid{grid-template-columns:1fr 1fr;} }
+@media(max-width:700px){ .market11-insights-grid{grid-template-columns:1fr;} }
+.market11-range{
+  position:relative; height:5px; border-radius:999px; background:var(--color-border); overflow:hidden; margin-top:5px;
+}
+.market11-range-fill{ height:100%; border-radius:999px; background:var(--asset-color, var(--color-primary)); }
+.market11-range-marker{
+  position:absolute; top:50%; width:9px; height:9px; border-radius:50%;
+  background:var(--color-text-primary); border:2px solid var(--color-surface, var(--color-bg));
+  transform:translate(-50%,-50%); box-shadow:0 1px 3px rgba(0,0,0,.2);
+}
+.market11-live-pill{
+  display:inline-flex; align-items:center; gap:5px;
+}
+.market11-live-pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;}
+</style>
+
 </head>
 <body>
 
@@ -146,7 +245,7 @@
            MarketStatus, MarketSentiment) no cambió, solo su presentación.
            #resumen (KPIs) permanece exactamente igual, sin tocar.
            ============================================================ -->
-      <div class="section" id="marketStatusWidget" style="padding: var(--space-4); margin-bottom: var(--space-3);">
+      <div class="section market11-shell" id="marketStatusWidget" style="padding: var(--space-4); margin-bottom: var(--space-3);">
         <div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:var(--space-2); margin-bottom: var(--space-1);">
           <div>
             <div style="display:flex; align-items:center; gap:var(--space-3); flex-wrap:wrap;">
@@ -187,13 +286,15 @@
 
         <!-- MARKET-UI: sin "Cap. Mercado" (no es un dato real de Binance) —
              se muestra Máximo/Mínimo 24h en su lugar (dato real ya recibido). -->
-        <div id="marketStatusCards" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-3); margin-top:var(--space-3);"></div>
+        <div id="marketStatusCards" class="market11-watchlist" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-3); margin-top:var(--space-3);"></div>
+
+        <div class="market11-divider"></div>
 
         <!-- MARKET-10 — Sesiones de mercado: referencia de liquidez global. -->
-        <div id="marketSessionsWidget" style="margin-top:var(--space-4); padding:var(--space-3); border:1px solid var(--color-border); border-radius:var(--radius-md); background:var(--color-bg);">
+        <div id="marketSessionsWidget" class="market11-section-card" style="margin-top:0; padding:var(--space-3);">
           <div style="display:flex; align-items:center; justify-content:space-between; gap:var(--space-2); flex-wrap:wrap; margin-bottom:var(--space-3);">
             <div>
-              <div style="font-weight:700;">🌐 Sesiones de mercado</div>
+              <div class="market11-section-heading">🌐 Sesiones de mercado</div>
               <div style="font-size:var(--fs-xs); color:var(--color-text-muted); margin-top:2px;">Horarios regulares · cuenta regresiva hasta apertura o cierre</div>
             </div>
             <div id="marketSessionsLocalTime" style="font-size:var(--fs-xs); color:var(--color-text-muted);">Hora local: —</div>
@@ -201,11 +302,11 @@
           <div id="marketSessionsCards" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:var(--space-3);"></div>
         </div>
 
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-3); margin-top: var(--space-4);">
+        <div class="market11-insights-grid">
 
           <!-- A. Índice de Miedo y Codicia — lógica en js/marketSentiment.js -->
-          <div class="section" id="marketSentimentWidget" style="padding: var(--space-3); text-align:center;">
-            <div style="font-weight:700; text-align:left; margin-bottom:var(--space-2);">Índice de Miedo y Codicia</div>
+          <div class="section market11-section-card" id="marketSentimentWidget" style="padding: var(--space-3); text-align:center;">
+            <div class="market11-section-heading" style="margin-bottom:var(--space-2);">Índice de Miedo y Codicia</div>
             <div id="marketSentimentGauge"></div>
             <div id="marketSentimentValor" style="font-size:2rem; font-weight:700; margin-top:-var(--space-2);">—</div>
             <div id="marketSentimentClasificacion" style="display:inline-block; font-weight:700; font-size:var(--fs-sm); padding:2px 14px; border-radius:999px; margin-top:var(--space-1);">Cargando...</div>
@@ -226,8 +327,8 @@
           </div>
 
           <!-- B. Pulso del Mercado — lógica en js/marketStatus.js -->
-          <div class="section" id="marketStatusPulso" style="padding: var(--space-3);">
-            <div style="font-weight:700; margin-bottom:var(--space-2);">📊 Pulso del Mercado</div>
+          <div class="section market11-section-card" id="marketStatusPulso" style="padding: var(--space-3);">
+            <div class="market11-section-heading" style="margin-bottom:var(--space-2);">📊 Pulso del Mercado</div>
             <div id="marketStatusPulsoTitulo" style="font-size: var(--fs-lg); font-weight:700; color:var(--color-success);">Esperando datos...</div>
             <div id="marketStatusPulsoEstado" style="font-weight:700; font-size:var(--fs-sm); margin-bottom:var(--space-1);"></div>
             <div id="marketStatusPulsoSubtitulo" style="color:var(--color-text-muted); font-size:var(--fs-sm); margin-bottom:var(--space-3);"></div>
@@ -257,7 +358,7 @@
           </div>
 
           <!-- C. Resumen del período — lógica en js/marketStatus.js -->
-          <div class="section" style="padding: var(--space-3);">
+          <div class="section market11-section-card" style="padding: var(--space-3);">
             <div id="marketStatusResumenTitulo" style="font-weight:700; margin-bottom:var(--space-3);">📈 Resumen 1H (Top 10)</div>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
               <div><span id="marketStatusVarPromLabel" style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Variación promedio 1H</span><span id="marketStatusResumenPromedio" style="font-size:var(--fs-lg); font-weight:700;">—</span></div>
@@ -272,6 +373,8 @@
         </div>
       </div>
 
+      <div class="market11-divider"></div>
+
       <!-- ============================================================
            Sprint MARKET-7 — Analizador de Activos. Independiente del
            Top 10/Pulso/Resumen (que viven arriba, sin tocar). Reutiliza
@@ -279,8 +382,8 @@
            — ningún catálogo ni WebSocket nuevo. El gráfico usa TradingView
            Lightweight Charts SOLO para dibujar; los datos son de Binance.
            ============================================================ -->
-      <div class="section" id="analizadorActivos" style="padding: var(--space-4); margin-bottom: var(--space-3);">
-        <div style="font-weight:700; font-size:var(--fs-lg); margin-bottom:var(--space-3);">📈 Analizador de Activos</div>
+      <div class="section market11-shell" id="analizadorActivos" style="padding: var(--space-4); margin-bottom: var(--space-3); border-top-color:var(--color-info);">
+        <div class="market11-section-heading" style="font-size:var(--fs-lg); margin-bottom:var(--space-3);">📈 Analizador de Activos</div>
 
         <div style="position:relative; margin-bottom:var(--space-3);">
           <input type="text" id="analizadorBuscador" placeholder="🔍 Buscar activo..." style="width:100%; max-width:320px;">
