@@ -159,19 +159,15 @@
           <div style="text-align:right;">
             <div id="marketStatusFechaHora" style="font-size:var(--fs-sm); color:var(--color-text-muted);">—</div>
             <div style="font-size:var(--fs-xs); color:var(--color-success); margin-top:2px;">● Datos en vivo · Binance</div>
-            <!-- Sprint MARKET-8 — período de análisis: 1M/5M/15M/1H/4H/24H/7D -->
-            <div style="display:inline-flex; gap:2px; background:var(--color-bg); border:1px solid var(--color-border); border-radius:var(--radius-md); padding:2px; margin-top:var(--space-2); flex-wrap:wrap;">
-              <button type="button" id="marketStatusTf-1M" style="border:none; background:transparent; padding:3px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">1 min</button>
-              <button type="button" id="marketStatusTf-5M" style="border:none; background:transparent; padding:3px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">5 min</button>
-              <button type="button" id="marketStatusTf-15M" style="border:none; background:transparent; padding:3px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">15 min</button>
+            <!-- MARKET-9 — período estadístico del mercado. Independiente del gráfico. -->
+            <div style="font-size:var(--fs-xs); color:var(--color-text-muted); margin-top:var(--space-2);">Período del mercado:</div>
+            <div style="display:inline-flex; gap:2px; background:var(--color-bg); border:1px solid var(--color-border); border-radius:var(--radius-md); padding:2px; margin-top:2px; flex-wrap:wrap;">
               <button type="button" id="marketStatusTf-1H" style="border:none; background:transparent; padding:3px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">1H</button>
               <button type="button" id="marketStatusTf-4H" style="border:none; background:transparent; padding:3px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">4H</button>
               <button type="button" id="marketStatusTf-24H" style="border:none; background:transparent; padding:3px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">24H</button>
               <button type="button" id="marketStatusTf-7D" style="border:none; background:transparent; padding:3px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">7D</button>
             </div>
-            <!-- Sprint MARKET-6/8 — PARTE 8: aclaración discreta de "período de análisis" -->
-            <div style="font-size:var(--fs-xs); color:var(--color-text-muted); margin-top:var(--space-1);">Período de análisis:</div>
-            <div id="marketStatusVelasInfo" style="font-size:var(--fs-xs); color:var(--color-text-muted);"></div>
+            <div id="marketStatusVelasInfo" style="font-size:var(--fs-xs); color:var(--color-text-muted); margin-top:2px;"></div>
             <!-- Sprint MARKET-6 — PARTE 10: indicador discreto, nunca oculta datos válidos existentes -->
             <div id="marketStatusActualizando" style="font-size:var(--fs-xs); color:var(--color-primary); margin-top:2px; min-height:1em;"></div>
           </div>
@@ -294,6 +290,19 @@
           </div>
         </div>
 
+        <div style="display:flex; align-items:center; gap:var(--space-2); flex-wrap:wrap; margin-bottom:var(--space-2);">
+          <span style="font-size:var(--fs-xs); color:var(--color-text-muted); font-weight:600;">Timeframe de vela:</span>
+          <div style="display:inline-flex; gap:2px; background:var(--color-bg); border:1px solid var(--color-border); border-radius:var(--radius-md); padding:2px; flex-wrap:wrap;">
+            <button type="button" id="analizadorTf-1m" style="border:none; background:transparent; padding:4px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;" aria-pressed="false">1m</button>
+            <button type="button" id="analizadorTf-5m" style="border:none; background:transparent; padding:4px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;" aria-pressed="false">5m</button>
+            <button type="button" id="analizadorTf-15m" style="border:none; background:transparent; padding:4px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;" aria-pressed="false">15m</button>
+            <button type="button" id="analizadorTf-30m" style="border:none; background:transparent; padding:4px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;" aria-pressed="false">30m</button>
+            <button type="button" id="analizadorTf-1H" style="border:none; background:transparent; padding:4px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;" aria-pressed="false">1H</button>
+            <button type="button" id="analizadorTf-4H" style="border:none; background:transparent; padding:4px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;" aria-pressed="false">4H</button>
+            <button type="button" id="analizadorTf-1D" style="border:none; background:transparent; padding:4px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;" aria-pressed="false">1D</button>
+            <button type="button" id="analizadorTf-1W" style="border:none; background:transparent; padding:4px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;" aria-pressed="false">1W</button>
+          </div>
+        </div>
         <div id="analizadorVelasInfo" style="font-size:var(--fs-xs); color:var(--color-text-muted); margin-bottom:var(--space-2);"></div>
 
         <div style="position:relative;">
