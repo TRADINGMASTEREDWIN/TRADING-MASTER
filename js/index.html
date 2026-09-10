@@ -1,0 +1,3215 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trading Master</title>
+<link rel="stylesheet" href="css/styles.css">
+  <script>
+  (function(){
+    var temaGuardado = localStorage.getItem('trading-master-theme');
+    if(temaGuardado === 'dark' || temaGuardado === 'light'){
+      document.documentElement.setAttribute('data-theme', temaGuardado);
+    }
+  })();
+</script>
+
+<style id="market11-visual-style">
+/* ============================================================
+   MARKET-11 — jerarquía visual y señales de estado
+   Solo presentación. No modifica la lógica de datos.
+   ============================================================ */
+#marketStatusWidget.market11-shell{
+  border:1px solid var(--color-border);
+  border-top:3px solid var(--color-primary);
+  border-radius:var(--radius-lg, 12px);
+  background:var(--color-surface, var(--color-bg));
+  box-shadow:0 1px 3px rgba(0,0,0,.04);
+}
+#marketStatusWidget .market11-divider{
+  height:1px; background:var(--color-border); opacity:.9; margin:var(--space-4) 0;
+}
+#marketStatusCards.market11-watchlist{
+  gap:var(--space-3);
+}
+#marketStatusCards .market-status-card.market11-card{
+  background:var(--color-surface, var(--color-bg)) !important;
+  border:1px solid var(--color-border) !important;
+  border-top:2px solid var(--asset-color, var(--color-border)) !important;
+  box-shadow:0 1px 2px rgba(0,0,0,.035);
+  transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+#marketStatusCards .market-status-card.market11-card:hover{
+  transform:translateY(-1px);
+  box-shadow:0 4px 12px rgba(0,0,0,.07);
+}
+.market11-section-card{
+  background:var(--color-surface, var(--color-bg));
+  border:1px solid var(--color-border);
+  border-radius:var(--radius-md);
+  box-shadow:0 1px 2px rgba(0,0,0,.03);
+}
+.market11-section-heading{
+  display:flex; align-items:center; gap:8px;
+  font-weight:750;
+}
+.market11-section-heading::before{
+  content:""; width:4px; height:18px; border-radius:4px; background:var(--color-primary); flex:0 0 auto;
+}
+.market11-session-card{
+  position:relative; overflow:hidden;
+  border:1px solid var(--color-border);
+  border-left:4px solid var(--session-color, var(--color-border));
+  border-radius:var(--radius-md);
+  background:var(--color-surface, var(--color-bg));
+  padding:var(--space-3);
+  box-shadow:0 1px 2px rgba(0,0,0,.03);
+}
+.market11-session-card.is-open{ background:var(--session-soft, var(--color-bg)); }
+.market11-session-card.is-pause{ background:rgba(234,179,8,.06); }
+.market11-session-card.is-preopen{ background:rgba(59,130,246,.05); }
+.market11-session-status{
+  display:inline-flex; align-items:center; gap:5px;
+  font-size:10px; font-weight:800; letter-spacing:.02em;
+  padding:3px 8px; border-radius:999px;
+  color:var(--session-color, var(--color-text-muted));
+  background:var(--session-soft, var(--color-bg));
+  border:1px solid var(--session-color, var(--color-border));
+}
+.market11-session-dot{
+  width:7px; height:7px; border-radius:50%; background:currentColor; display:inline-block;
+  box-shadow:0 0 0 3px color-mix(in srgb, currentColor 12%, transparent);
+}
+.market11-session-event{
+  font-size:10px; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:.04em;
+}
+.market11-session-countdown{
+  font-size:1.3rem; font-weight:850; font-variant-numeric:tabular-nums; letter-spacing:.02em;
+}
+.market11-session-progress{
+  height:5px; border-radius:999px; background:var(--color-border); overflow:hidden; margin-top:8px;
+}
+.market11-session-progress > span{
+  display:block; height:100%; border-radius:999px; background:var(--session-color, var(--color-primary)); transition:width .8s linear;
+}
+.market11-insights-grid{
+  display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:var(--space-3); margin-top:var(--space-4);
+}
+@media(max-width:1000px){ .market11-insights-grid{grid-template-columns:1fr 1fr;} }
+@media(max-width:700px){ .market11-insights-grid{grid-template-columns:1fr;} }
+.market11-range{
+  position:relative; height:5px; border-radius:999px; background:var(--color-border); overflow:hidden; margin-top:5px;
+}
+.market11-range-fill{ height:100%; border-radius:999px; background:var(--asset-color, var(--color-primary)); }
+.market11-range-marker{
+  position:absolute; top:50%; width:9px; height:9px; border-radius:50%;
+  background:var(--color-text-primary); border:2px solid var(--color-surface, var(--color-bg));
+  transform:translate(-50%,-50%); box-shadow:0 1px 3px rgba(0,0,0,.2);
+}
+.market11-live-pill{
+  display:inline-flex; align-items:center; gap:5px;
+}
+.market11-live-pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;}
+</style>
+
+</head>
+<body>
+
+<div id="loginScreen" style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;">
+  <div class="card" style="width:100%; max-width:380px; padding:32px;">
+    <div style="text-align:center; margin-bottom:24px;">
+      <div class="sidebar-brand-mark" style="margin:0 auto 12px;">TM</div>
+      <h1 style="font-size:var(--fs-lg); font-weight:700;">Trading Master</h1>
+      <p style="color:var(--color-text-secondary); font-size:var(--fs-sm);">Inicia sesión para continuar</p>
+    </div>
+    <div class="form-field" style="margin-bottom:16px;">
+      <label for="loginEmail">Correo electrónico</label>
+      <input type="email" id="loginEmail" placeholder="tu@correo.com" autocomplete="email">
+    </div>
+    <div class="form-field" style="margin-bottom:8px;">
+      <label for="loginPassword">Contraseña</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <div id="loginError" style="display:none; color:var(--color-danger); font-size:var(--fs-sm); margin-bottom:12px;"></div>
+    <button class="btn-primary" id="loginBtn" style="width:100%; margin-top:8px;">Iniciar sesión</button>
+  </div>
+</div>
+
+<div class="app" id="app" style="display:none;">
+
+  <!-- ============================================================
+       SIDEBAR
+       ============================================================ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-mark">TM</div>
+      <div class="sidebar-brand-text">Trading Master</div>
+    </div>
+
+    <nav class="nav-group">
+      <div class="nav-group-title">Menú</div>
+      <a class="nav-item active" data-nav="mercado">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 010 20 15.3 15.3 0 010-20z"/></svg>
+        <span class="nav-label">🌐 Estado del Mercado</span>
+      </a>
+      <a class="nav-item" data-nav="inicio">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V10"/></svg>
+        <span class="nav-label">📊 Dashboard</span>
+      </a>
+      <a class="nav-item" data-nav="trades">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="14" y2="18"/></svg>
+        <span class="nav-label">📈 Trades</span>
+      </a>
+      <a class="nav-item" data-nav="historial">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span class="nav-label">🕒 Historial de Trades</span>
+      </a>
+      <a class="nav-item" data-nav="estrategias">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+        <span class="nav-label">🎯 Estrategias</span>
+      </a>
+      <a class="nav-item" data-nav="analytics">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span class="nav-label">📊 Analytics</span>
+      </a>
+      <a class="nav-item" data-nav="plan-trading">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6a2 2 0 012 2v1H7V4a2 2 0 012-2z"/><rect x="5" y="4" width="14" height="18" rx="2"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="13" y2="18"/></svg>
+        <span class="nav-label">📋 Plan de Trading</span>
+      </a>
+      <a class="nav-item" data-nav="configuracion">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        <span class="nav-label">⚙️ Configuración</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" title="Colapsar menú">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+      </button>
+      <span class="nav-label sidebar-footer-text" style="font-size:var(--fs-xs); color:var(--color-text-muted);">Edwin Chica</span>
+    </div>
+  </aside>
+
+  <div class="app-main">
+
+    <!-- ============================================================
+         TOPBAR
+         ============================================================ -->
+    <header class="topbar">
+      <div style="display:flex; align-items:center; gap: var(--space-4);">
+        <button class="icon-btn" id="mobileMenuBtn" title="Abrir menú" style="display:none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        </button>
+        <h1 class="topbar-title">Trading Master</h1>
+      </div>
+
+      <div class="topbar-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Buscar operaciones, activos, estrategias…">
+      </div>
+
+      <div class="topbar-actions">
+        <button class="icon-btn" id="themeToggleBtn" title="Cambiar tema">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        </button>
+        <button class="icon-btn" title="Notificaciones">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        </button>
+      <div class="avatar" title="Edwin Chica">EC</div>
+        <button class="icon-btn" id="logoutBtn" title="Cerrar sesión">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ============================================================
+         CONTENIDO PRINCIPAL
+         ============================================================ -->
+    <main class="content">
+      <!-- NAV-01: "vistaInicio" (antes "vistaGeneral") — Dashboard Ejecutivo,
+           visible por defecto al abrir Trading Master. -->
+      <!-- ============================================================
+           Sprint NAV-MARKET — Estado del Mercado, vista independiente.
+           Contiene exactamente el mismo HTML/lógica que antes vivía
+           dentro de #vistaInicio — MarketStatus/MarketSentiment no
+           cambiaron, solo su contenedor. #vistaInicio (ahora Dashboard)
+           conserva únicamente los KPIs personales.
+           ============================================================ -->
+      <div id="vistaMercado">
+
+      <!-- ============================================================
+           Sprint MARKET-UI — Rediseño visual de Market Status. Reemplaza
+           por completo el HTML de #marketPulseWidget (MARKET-3),
+           #marketStatusWidget (MARKET-3B) y #marketSentimentWidget
+           (MARKET-4) — la LÓGICA de esos 3 módulos (BinanceMarketData,
+           MarketStatus, MarketSentiment) no cambió, solo su presentación.
+           #resumen (KPIs) permanece exactamente igual, sin tocar.
+           ============================================================ -->
+      <div class="section market11-shell" id="marketStatusWidget" style="padding: var(--space-4); margin-bottom: var(--space-3);">
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:var(--space-2); margin-bottom: var(--space-1);">
+          <div>
+            <div style="display:flex; align-items:center; gap:var(--space-3); flex-wrap:wrap;">
+              <span class="section-title" style="margin:0; font-size:var(--fs-xl);">👁 Mi Watchlist</span>
+              <span id="marketStatusEstadoConexion" style="background:var(--color-success-soft); color:var(--color-success); font-size:var(--fs-xs); font-weight:700; padding:2px 10px; border-radius:999px;">Conectando con el mercado...</span>
+              <button type="button" id="watchlistEditarBtn" class="btn-secondary" style="padding:2px 10px; font-size:var(--fs-xs);">✏️ Editar Watchlist</button>
+            </div>
+            <div style="color: var(--color-text-muted); font-size: var(--fs-sm); margin-top:var(--space-1);">Hasta 10 criptomonedas (sin stablecoins) · Datos en tiempo real de Binance</div>
+          </div>
+          <div style="text-align:right;">
+            <div id="marketStatusFechaHora" style="font-size:var(--fs-sm); color:var(--color-text-muted);">—</div>
+            <div style="font-size:var(--fs-xs); color:var(--color-success); margin-top:2px;">● Datos en vivo · Binance</div>
+            <!-- MARKET-9 — período estadístico del mercado. Independiente del gráfico. -->
+            <div style="font-size:var(--fs-xs); color:var(--color-text-muted); margin-top:var(--space-2);">Período del mercado:</div>
+            <div style="display:inline-flex; gap:2px; background:var(--color-bg); border:1px solid var(--color-border); border-radius:var(--radius-md); padding:2px; margin-top:2px; flex-wrap:wrap;">
+              <button type="button" id="marketStatusTf-1H" style="border:none; background:transparent; padding:3px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">1H</button>
+              <button type="button" id="marketStatusTf-4H" style="border:none; background:transparent; padding:3px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">4H</button>
+              <button type="button" id="marketStatusTf-24H" style="border:none; background:transparent; padding:3px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">24H</button>
+              <button type="button" id="marketStatusTf-7D" style="border:none; background:transparent; padding:3px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;">7D</button>
+            </div>
+            <div id="marketStatusVelasInfo" style="font-size:var(--fs-xs); color:var(--color-text-muted); margin-top:2px;"></div>
+            <!-- Sprint MARKET-6 — PARTE 10: indicador discreto, nunca oculta datos válidos existentes -->
+            <div id="marketStatusActualizando" style="font-size:var(--fs-xs); color:var(--color-primary); margin-top:2px; min-height:1em;"></div>
+          </div>
+
+          <!-- Sprint MARKET-8 — Editor de Watchlist (oculto por defecto) -->
+          <div id="watchlistEditorPanel" style="display:none; width:100%; margin-top:var(--space-3); padding:var(--space-3); background:var(--color-bg); border:1px solid var(--color-border); border-radius:var(--radius-md);">
+            <div style="font-weight:700; margin-bottom:var(--space-2);">Editar Watchlist (máximo 10, sin duplicados)</div>
+            <div id="watchlistEditorLista" style="max-height:280px; overflow-y:auto; margin-bottom:var(--space-3);"></div>
+            <div style="position:relative; margin-bottom:var(--space-3);">
+              <input type="text" id="watchlistAgregarBuscador" placeholder="🔍 Agregar activo..." style="width:100%; max-width:300px;">
+              <div id="watchlistAgregarResultados" style="position:absolute; z-index:10; background:var(--color-bg); border:1px solid var(--color-border); border-radius:var(--radius-md); max-height:200px; overflow-y:auto; width:100%; max-width:300px; display:none;"></div>
+            </div>
+            <button type="button" id="watchlistGuardarBtn" class="btn-primary">Guardar</button>
+            <button type="button" id="watchlistCancelarBtn" class="btn-secondary">Cancelar</button>
+          </div>
+        </div>
+
+        <!-- MARKET-UI: sin "Cap. Mercado" (no es un dato real de Binance) —
+             se muestra Máximo/Mínimo 24h en su lugar (dato real ya recibido). -->
+        <div id="marketStatusCards" class="market11-watchlist" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-3); margin-top:var(--space-3);"></div>
+
+        <div class="market11-divider"></div>
+
+        <!-- MARKET-10 — Sesiones de mercado: referencia de liquidez global. -->
+        <div id="marketSessionsWidget" class="market11-section-card" style="margin-top:0; padding:var(--space-3);">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:var(--space-2); flex-wrap:wrap; margin-bottom:var(--space-3);">
+            <div>
+              <div class="market11-section-heading">🌐 Sesiones de mercado</div>
+              <div style="font-size:var(--fs-xs); color:var(--color-text-muted); margin-top:2px;">Horarios regulares · cuenta regresiva hasta apertura o cierre</div>
+            </div>
+            <div id="marketSessionsLocalTime" style="font-size:var(--fs-xs); color:var(--color-text-muted);">Hora local: —</div>
+          </div>
+          <div id="marketSessionsCards" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:var(--space-3);"></div>
+        </div>
+
+        <div class="market11-insights-grid">
+
+          <!-- A. Índice de Miedo y Codicia — lógica en js/marketSentiment.js -->
+          <div class="section market11-section-card" id="marketSentimentWidget" style="padding: var(--space-3); text-align:center;">
+            <div class="market11-section-heading" style="margin-bottom:var(--space-2);">Índice de Miedo y Codicia</div>
+            <div id="marketSentimentGauge"></div>
+            <div id="marketSentimentValor" style="font-size:2rem; font-weight:700; margin-top:-var(--space-2);">—</div>
+            <div id="marketSentimentClasificacion" style="display:inline-block; font-weight:700; font-size:var(--fs-sm); padding:2px 14px; border-radius:999px; margin-top:var(--space-1);">Cargando...</div>
+            <div style="text-align:left; font-size:var(--fs-xs); color:var(--color-text-muted); margin-top:var(--space-3); display:flex; flex-direction:column; gap:2px;">
+              <span>🔴 0-24 · Miedo extremo</span>
+              <span>🟠 25-44 · Miedo</span>
+              <span>🟡 45-55 · Neutral</span>
+              <span>🟢 56-100 · Codicia / Codicia extrema</span>
+            </div>
+            <div id="marketSentimentFuente" style="font-size: var(--fs-xs); color: var(--color-text-muted); margin-top:var(--space-2); text-align:left;"></div>
+            <div id="marketSentimentActualizacion" style="font-size: var(--fs-xs); color: var(--color-text-muted); text-align:left;"></div>
+            <!-- Sprint MARKET-8 — PARTE 16/17: contexto histórico, independiente del selector de mercado -->
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:var(--space-2); margin-top:var(--space-3); padding-top:var(--space-2); border-top:1px solid var(--color-border); text-align:left;">
+              <div><span style="font-size:var(--fs-xs); color:var(--color-text-muted); display:block;">Ayer</span><span id="marketSentimentAyerValor" style="font-weight:700;">—</span> <span id="marketSentimentAyerClasif" style="font-size:var(--fs-xs);"></span></div>
+              <div><span style="font-size:var(--fs-xs); color:var(--color-text-muted); display:block;">Semana pasada</span><span id="marketSentimentSemanaValor" style="font-weight:700;">—</span> <span id="marketSentimentSemanaClasif" style="font-size:var(--fs-xs);"></span></div>
+              <div><span style="font-size:var(--fs-xs); color:var(--color-text-muted); display:block;">Mes pasado</span><span id="marketSentimentMesValor" style="font-weight:700;">—</span> <span id="marketSentimentMesClasif" style="font-size:var(--fs-xs);"></span></div>
+            </div>
+          </div>
+
+          <!-- B. Pulso del Mercado — lógica en js/marketStatus.js -->
+          <div class="section market11-section-card" id="marketStatusPulso" style="padding: var(--space-3);">
+            <div class="market11-section-heading" style="margin-bottom:var(--space-2);">📊 Pulso del Mercado</div>
+            <div id="marketStatusPulsoTitulo" style="font-size: var(--fs-lg); font-weight:700; color:var(--color-success);">Esperando datos...</div>
+            <div id="marketStatusPulsoEstado" style="font-weight:700; font-size:var(--fs-sm); margin-bottom:var(--space-1);"></div>
+            <div id="marketStatusPulsoSubtitulo" style="color:var(--color-text-muted); font-size:var(--fs-sm); margin-bottom:var(--space-3);"></div>
+            <div style="height:8px; border-radius:4px; background:var(--color-danger); overflow:hidden; display:flex;">
+              <div id="marketStatusBarraPositiva" style="background:var(--color-success); width:0%;"></div>
+              <div id="marketStatusBarraNegativa" style="background:var(--color-danger); width:0%;"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:var(--space-2); font-size:var(--fs-sm);">
+              <span><strong id="marketStatusPctPositivo">—</strong> <span style="color:var(--color-text-muted);">Activos al alza</span></span>
+              <span><strong id="marketStatusPctNegativo">—</strong> <span style="color:var(--color-text-muted);">Activos a la baja</span></span>
+            </div>
+            <div id="marketStatusExplicacion" style="background:var(--color-success-soft); color:var(--color-success); font-size:var(--fs-sm); padding:var(--space-2); border-radius:var(--radius-md); margin-top:var(--space-3);"></div>
+            <div style="display:flex; justify-content:space-between; margin-top:var(--space-3); font-size:var(--fs-xs); color:var(--color-text-muted);">
+              <span><span id="marketStatusGanadorLabel">🏆 Mayor ganador</span>: <strong id="marketStatusGanador" style="color:var(--color-text-primary);">—</strong></span>
+              <span><span id="marketStatusPerdedorLabel">📉 Mayor perdedor</span>: <strong id="marketStatusPerdedor" style="color:var(--color-text-primary);">—</strong></span>
+            </div>
+            <!-- Sprint MARKET-8 — PARTE 22: comportamiento por período, calculado una sola vez -->
+            <div style="margin-top:var(--space-3); padding-top:var(--space-2); border-top:1px solid var(--color-border); display:grid; grid-template-columns: repeat(4, 1fr); gap:var(--space-1); font-size:var(--fs-xs);">
+              <div><span style="color:var(--color-text-muted); display:block;">1M</span><span id="marketStatusPulsoHist-1M">—</span></div>
+              <div><span style="color:var(--color-text-muted); display:block;">5M</span><span id="marketStatusPulsoHist-5M">—</span></div>
+              <div><span style="color:var(--color-text-muted); display:block;">15M</span><span id="marketStatusPulsoHist-15M">—</span></div>
+              <div><span style="color:var(--color-text-muted); display:block;">1H</span><span id="marketStatusPulsoHist-1H">—</span></div>
+              <div><span style="color:var(--color-text-muted); display:block;">4H</span><span id="marketStatusPulsoHist-4H">—</span></div>
+              <div><span style="color:var(--color-text-muted); display:block;">24H</span><span id="marketStatusPulsoHist-24H">—</span></div>
+              <div><span style="color:var(--color-text-muted); display:block;">7D</span><span id="marketStatusPulsoHist-7D">—</span></div>
+            </div>
+          </div>
+
+          <!-- C. Resumen del período — lógica en js/marketStatus.js -->
+          <div class="section market11-section-card" style="padding: var(--space-3);">
+            <div id="marketStatusResumenTitulo" style="font-weight:700; margin-bottom:var(--space-3);">📈 Resumen 1H (Top 10)</div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-3);">
+              <div><span id="marketStatusVarPromLabel" style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Variación promedio 1H</span><span id="marketStatusResumenPromedio" style="font-size:var(--fs-lg); font-weight:700;">—</span></div>
+              <div><span id="marketStatusVolLabel" style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Volumen 1H</span><span id="marketStatusResumenVolumen" style="font-size:var(--fs-lg); font-weight:700;">—</span></div>
+              <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Activos en positivo</span><span id="marketStatusResumenPositivos" style="font-size:var(--fs-lg); font-weight:700; color:var(--color-success);">—</span></div>
+              <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Activos en negativo</span><span id="marketStatusResumenNegativos" style="font-size:var(--fs-lg); font-weight:700; color:var(--color-danger);">—</span></div>
+              <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Mejor comportamiento</span><span id="marketStatusResumenMejor" style="font-size:var(--fs-sm); font-weight:700; color:var(--color-success);">—</span></div>
+              <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Mayor caída</span><span id="marketStatusResumenPeor" style="font-size:var(--fs-sm); font-weight:700; color:var(--color-danger);">—</span></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="market11-divider"></div>
+
+      <!-- ============================================================
+           Sprint MARKET-7 — Analizador de Activos. Independiente del
+           Top 10/Pulso/Resumen (que viven arriba, sin tocar). Reutiliza
+           BinanceMarketData.search()/getHistoricalPrices()/subscribeTicker()
+           — ningún catálogo ni WebSocket nuevo. El gráfico usa TradingView
+           Lightweight Charts SOLO para dibujar; los datos son de Binance.
+           ============================================================ -->
+      <div class="section market11-shell" id="analizadorActivos" style="padding: var(--space-4); margin-bottom: var(--space-3); border-top-color:var(--color-info);">
+        <div class="market11-section-heading" style="font-size:var(--fs-lg); margin-bottom:var(--space-3);">📈 Analizador de Activos</div>
+
+        <div style="position:relative; margin-bottom:var(--space-3);">
+          <input type="text" id="analizadorBuscador" placeholder="🔍 Buscar activo..." style="width:100%; max-width:320px;">
+          <div id="analizadorResultados" style="position:absolute; z-index:10; background:var(--color-bg); border:1px solid var(--color-border); border-radius:var(--radius-md); max-height:240px; overflow-y:auto; width:100%; max-width:320px; display:none;"></div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:var(--space-3); flex-wrap:wrap; margin-bottom:var(--space-2);">
+          <div id="analizadorLogo"></div>
+          <div>
+            <div><span id="analizadorSimbolo" style="font-weight:700; font-size:var(--fs-lg);">BTC</span> <span id="analizadorNombre" style="color:var(--color-text-muted); font-size:var(--fs-sm);">Bitcoin</span></div>
+            <div id="analizadorPar" style="font-size:var(--fs-xs); color:var(--color-text-muted);">BTC/USDT</div>
+          </div>
+          <div style="margin-left:auto; text-align:right;">
+            <div style="display:flex; align-items:center; gap:var(--space-2); justify-content:flex-end;">
+              <span id="analizadorPrecio" style="font-size:var(--fs-xl); font-weight:700;">—</span>
+              <span id="analizadorVariacion" style="font-size:var(--fs-sm); font-weight:600;">—</span>
+            </div>
+            <span id="analizadorEstado" style="font-size:var(--fs-xs); color:var(--color-text-muted);">Cargando mercado...</span>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:var(--space-2); flex-wrap:wrap; margin-bottom:var(--space-2);">
+          <span style="font-size:var(--fs-xs); color:var(--color-text-muted); font-weight:600;">Timeframe de vela:</span>
+          <div style="display:inline-flex; gap:2px; background:var(--color-bg); border:1px solid var(--color-border); border-radius:var(--radius-md); padding:2px; flex-wrap:wrap;">
+            <button type="button" id="analizadorTf-1m" style="border:none; background:transparent; padding:4px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;" aria-pressed="false">1m</button>
+            <button type="button" id="analizadorTf-5m" style="border:none; background:transparent; padding:4px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;" aria-pressed="false">5m</button>
+            <button type="button" id="analizadorTf-15m" style="border:none; background:transparent; padding:4px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;" aria-pressed="false">15m</button>
+            <button type="button" id="analizadorTf-30m" style="border:none; background:transparent; padding:4px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;" aria-pressed="false">30m</button>
+            <button type="button" id="analizadorTf-1H" style="border:none; background:transparent; padding:4px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;" aria-pressed="false">1H</button>
+            <button type="button" id="analizadorTf-4H" style="border:none; background:transparent; padding:4px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;" aria-pressed="false">4H</button>
+            <button type="button" id="analizadorTf-1D" style="border:none; background:transparent; padding:4px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;" aria-pressed="false">1D</button>
+            <button type="button" id="analizadorTf-1W" style="border:none; background:transparent; padding:4px 8px; border-radius:6px; font-size:var(--fs-xs); font-weight:700; cursor:pointer;" aria-pressed="false">1W</button>
+          </div>
+        </div>
+        <div id="analizadorVelasInfo" style="font-size:var(--fs-xs); color:var(--color-text-muted); margin-bottom:var(--space-2);"></div>
+
+        <div style="position:relative;">
+          <div id="analizadorGraficoContenedor" style="width:100%; height:clamp(440px, 58vh, 600px); min-height:440px;"></div>
+          <div id="analizadorEstadoCarga" style="position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.3); color:var(--color-text-muted); font-size:var(--fs-sm); border-radius:var(--radius-md);"></div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:var(--space-3); margin-top:var(--space-3); font-size:var(--fs-sm);">
+          <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Máximo del período</span><span id="analizadorMaximo" style="font-weight:700;">—</span></div>
+          <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Mínimo del período</span><span id="analizadorMinimo" style="font-weight:700;">—</span></div>
+          <div><span style="color:var(--color-text-muted); display:block; font-size:var(--fs-xs);">Volumen del período</span><span id="analizadorVolumen" style="font-weight:700;">—</span></div>
+        </div>
+      </div>
+
+      </div>
+
+      <div id="vistaInicio">
+
+      <!-- ===================== RESUMEN (KPIs principales — Fase 0.4) ===================== -->
+      <section class="section" id="resumen">
+        <span class="section-title section-title-accent" style="--accent-color: var(--color-info);">📊 Dashboard</span>
+        <div class="stat-grid">
+          <div class="stat-card stat-card-hero">
+            <div class="stat-card-top">
+              <span class="stat-card-label">Capital</span>
+              <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+            </div>
+            <div class="stat-card-value" id="statCapitalAcumulado">—</div>
+            <span class="stat-card-delta">Resultado neto acumulado</span>
+          </div>
+          <div class="stat-card stat-card-hero">
+            <div class="stat-card-top">
+              <span class="stat-card-label">Operaciones</span>
+              <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="14" y2="18"/></svg></div>
+            </div>
+            <div class="stat-card-value" id="statTotalOperaciones">0</div>
+            <span class="stat-card-delta">Total registradas</span>
+          </div>
+          <div class="stat-card stat-card-hero">
+            <div class="stat-card-top">
+              <span class="stat-card-label">Win Rate</span>
+              <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+            </div>
+            <div class="stat-card-value" id="statWinRate">—</div>
+            <span class="stat-card-delta">Ganadoras / total</span>
+          </div>
+          <div class="stat-card stat-card-hero">
+            <div class="stat-card-top">
+              <span class="stat-card-label">Profit Factor</span>
+              <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+            </div>
+            <div class="stat-card-value" id="statProfitFactor">—</div>
+            <span class="stat-card-delta">Ganancia bruta / pérdida bruta</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== DASHBOARD (reservado para gráficos — fases futuras, sin cambios) ===================== -->
+      <section class="section section-muted" id="dashboard">
+        <span class="section-title">Evolución del capital <span class="badge neutral" style="margin-left:6px;">Próximamente</span></span>
+        <div class="stat-grid">
+          <div class="stat-card"><span class="stat-card-label">Capital</span><div class="chart-placeholder">Espacio reservado para gráfica de capital</div></div>
+          <div class="stat-card"><span class="stat-card-label">Win Rate</span><div class="chart-placeholder">Espacio reservado para gráfica de Win Rate</div></div>
+          <div class="stat-card"><span class="stat-card-label">Profit Factor</span><div class="chart-placeholder">Espacio reservado para gráfica de Profit Factor</div></div>
+          <div class="stat-card"><span class="stat-card-label">Drawdown</span><div class="chart-placeholder">Espacio reservado para gráfica de Drawdown</div></div>
+        </div>
+      </section>
+
+      <!-- ===================== INDICADORES DE RENDIMIENTO (segunda fila — Fase 0.4) ===================== -->
+      <section class="section" id="indicadores">
+        <span class="section-title section-title-accent" style="--accent-color: var(--color-purple);">🟣 Indicadores de Rendimiento</span>
+        <div class="stat-grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
+          <div class="metric-card"><div class="metric-card-value" id="statExpectancy">—</div><div class="metric-card-label">Expectancy</div></div>
+          <div class="metric-card"><div class="metric-card-value" id="statDrawdownMax">—</div><div class="metric-card-label">Drawdown máximo</div></div>
+          <div class="metric-card"><div class="metric-card-value" id="statPromedioGanancia">—</div><div class="metric-card-label">Promedio de Ganancia</div></div>
+          <div class="metric-card"><div class="metric-card-value" id="statPromedioPerdida">—</div><div class="metric-card-label">Promedio de Pérdida</div></div>
+        </div>
+      </section>
+
+      <!-- ===================== RESUMEN DE DESEMPEÑO (Fase 0.4) ===================== -->
+      <section class="card" id="resumen-desempeno" style="border-left: 3px solid var(--color-gold);">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div class="card-header-icon icon-gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></div>
+            <div>
+              <h2>🏆 Resumen de Desempeño</h2>
+              <div class="card-header-sub">Conteo y extremos de tus operaciones</div>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="stat-grid" style="grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));">
+            <div class="metric-card"><div class="metric-card-value" id="resumenGanadoras">0</div><div class="metric-card-label">Ganadoras</div></div>
+            <div class="metric-card"><div class="metric-card-value" id="resumenPerdedoras">0</div><div class="metric-card-label">Perdedoras</div></div>
+            <div class="metric-card"><div class="metric-card-value" id="resumenBreakEven">0</div><div class="metric-card-label">Break Even</div></div>
+            <div class="metric-card"><div class="metric-card-value" id="resumenMejorOperacion" style="font-size: var(--fs-base);">—</div><div class="metric-card-label">Mejor operación</div></div>
+            <div class="metric-card"><div class="metric-card-value" id="resumenPeorOperacion" style="font-size: var(--fs-base);">—</div><div class="metric-card-label">Peor operación</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== RENDIMIENTO POR CATEGORÍA (Fase 0.4) ===================== -->
+      <section class="card" id="rendimiento-categoria" style="border-left: 3px solid var(--color-info);">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div class="card-header-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="5" height="9" rx="1"/><rect x="9.5" y="7" width="5" height="14" rx="1"/><rect x="16" y="3" width="5" height="18" rx="1"/></svg></div>
+            <div>
+              <h2>📈 Rendimiento por Categoría</h2>
+              <div class="card-header-sub">Mejor PnL neto promedio por grupo</div>
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead>
+              <tr><th>Categoría</th><th>Mejor resultado</th></tr>
+            </thead>
+            <tbody id="rendimientoCategoriaBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===================== RESUMEN POR CUENTA (Fase 0.4) ===================== -->
+      <section class="card" id="resumen-cuenta" style="border-left: 3px solid var(--color-teal);">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div class="card-header-icon icon-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
+            <div>
+              <h2>💳 Resumen por Cuenta</h2>
+              <div class="card-header-sub">Comparativa de desempeño entre tus cuentas</div>
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead>
+              <tr><th>Cuenta</th><th>Operaciones</th><th>PnL</th><th>Win Rate</th></tr>
+            </thead>
+            <tbody id="resumenCuentaBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      </div><!-- /vistaInicio -->
+
+      <!-- ===================== TRADES (NAV-01) — Registrar Trade + Historial ===================== -->
+      <div id="vistaTrades" style="display:none;">
+
+      <!-- ===================== FORMULARIO — NUEVA OPERACIÓN ===================== -->
+      <section class="card" id="nueva-operacion">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="card-header-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
+            <div>
+              <h2>Nueva operación</h2>
+              <div class="card-header-sub">Registra cada detalle de tu ejecución</div>
+            </div>
+            <span class="badge warning" id="editModeBadge" style="display:none;">Editando operación</span>
+          </div>
+        </div>
+        <div class="card-body">
+
+          <div class="form-tabs" id="formTabs">
+            <button class="form-tab active" data-tab="operacion" type="button">📋 Operación</button>
+            <button class="form-tab" data-tab="plan" type="button">🎯 Plan de la Operación</button>
+            <button class="form-tab" data-tab="psicologia" type="button">🧠 Psicología y Aprendizaje</button>
+            <button class="form-tab" data-tab="evidencia" type="button">📷 Evidencia</button>
+            <button class="form-tab" data-tab="resumen" type="button">📄 Resumen</button>
+          </div>
+
+          <!-- Panel: Operación (v0.4.5 — fusiona Información general + Mercado + Gestión) -->
+          <div class="form-panel active" data-panel="operacion">
+
+            <!-- GT-01.1: se elimina el selector "Estado del Trade" — el sistema
+                 deduce Abierto/Cerrado automáticamente según los datos de cierre. -->
+            <div class="form-field-full" id="modoCierreAviso" style="display:none; margin-bottom: var(--space-5); padding: var(--space-3) var(--space-4); background: var(--color-gold-soft); border: 1px solid var(--color-gold); border-radius: var(--radius-md); font-size: var(--fs-sm); color: var(--color-text);">
+              🔒 Completando el cierre de este Trade — los datos de apertura se muestran solo para consulta y quedan bloqueados en este flujo.
+            </div>
+
+            <!-- Sprint UX-3.2A — reorganización visual en 4 bloques conceptuales.
+                 Mismos campos, mismos data-field, mismos ids, mismos mensajes de
+                 error — solo cambia el agrupamiento. Ningún campo se eliminó,
+                 renombró ni se le cambió su data-field. -->
+
+            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin-bottom: var(--space-2);">① Información de la operación</div>
+            <div class="form-grid">
+              <div class="form-field">
+                <label>Fecha de entrada *</label>
+                <input type="date" data-field="fecha">
+                <span class="field-error" data-error-for="fecha">La fecha de entrada es obligatoria.</span>
+              </div>
+              <div class="form-field">
+                <label>Hora de entrada *</label>
+                <input type="time" data-field="horaEntrada">
+                <span class="field-error" data-error-for="horaEntrada">La hora de entrada es obligatoria.</span>
+              </div>
+              <div class="form-field">
+                <label>Mercado *</label>
+                <select data-field="mercado" id="selectMercado"></select>
+                <span class="field-error" data-error-for="mercado">Selecciona un mercado.</span>
+              </div>
+              <div class="form-field">
+                <label>Tipo de operación *</label>
+                <select data-field="tipoOperacion" id="selectTipoOperacion"></select>
+                <span class="field-error" data-error-for="tipoOperacion">Selecciona el tipo de operación.</span>
+              </div>
+              <div class="form-field" id="activoSelectWrapper">
+                <label>Activo *</label>
+                <select data-field="activo" id="selectActivo"></select>
+                <span class="field-error" data-error-for="activo">El activo es obligatorio.</span>
+              </div>
+              <!-- Sprint MARKET-2B.1 — buscador inteligente, SOLO para el mercado
+                   Cripto. #selectActivo (arriba) nunca se elimina ni se reemplaza:
+                   sigue siendo la única fuente de verdad para collectFormData()/
+                   populateForm() — este bloque solo lo mantiene sincronizado. -->
+              <div class="form-field" id="cryptoBuscadorWrapper" style="display:none;">
+                <label>Buscar activo Crypto</label>
+                <input type="text" id="cryptoBuscadorInput" placeholder="🔍 Buscar activo o símbolo...">
+                <div id="cryptoBuscadorEstado" style="font-size: var(--fs-xs); color: var(--color-text-muted); margin-top: var(--space-1);"></div>
+                <div id="cryptoBuscadorResultados" style="margin-top: var(--space-1); max-height: 240px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); display: none;"></div>
+              </div>
+              <!-- Sprint MARKET-3 — Precio actual de mercado (solo lectura,
+                   automático, vía Binance). NUNCA escribe en "Precio de
+                   entrada" — son campos completamente independientes. -->
+              <div class="form-field" id="precioVivoWrapper" style="display:none;">
+                <label>Precio actual de mercado</label>
+                <div id="precioVivoValor" style="font-size: var(--fs-lg); font-weight:700;">—</div>
+                <span id="precioVivoEstado" style="color: var(--color-text-muted); font-size: var(--fs-xs);"></span>
+              </div>
+              <div class="form-field" id="activoOtroWrapper" style="display:none;">
+                <label>Escribe el activo</label>
+                <input type="text" data-field="activoOtro" placeholder="ej. EUR/USD, PEPE...">
+              </div>
+              <div class="form-field">
+                <label>Cuenta *</label>
+                <select data-field="cuenta" id="selectCuenta"></select>
+                <span class="field-error" data-error-for="cuenta">Selecciona una cuenta.</span>
+              </div>
+              <div class="form-field">
+                <label>Dirección *</label>
+                <div class="segmented" id="direccionSegmented">
+                 
+                  <button class="buy active" type="button" data-direction="Compra">Compra</button>
+                  <button class="sell" type="button" data-direction="Venta">Venta</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">② Entrada</div>
+            <div class="form-grid">
+              <div class="form-field">
+                <label>Tipo de Entrada</label>
+                <select data-field="tipoEntrada" id="selectTipoEntrada"></select>
+              </div>
+              <div class="form-field">
+                <label>Precio de entrada *</label>
+                <input type="text" inputmode="decimal" class="input-numerico" data-field="precioEntrada" placeholder="0.00">
+                <span class="field-error" data-error-for="precioEntrada">Ingresa un precio de entrada válido.</span>
+              </div>
+              <div class="form-field">
+                <label>Margen utilizado *</label>
+                <input type="text" inputmode="decimal" class="input-numerico" data-field="margenUtilizado" placeholder="0.00">
+                <span class="field-error" data-error-for="margenUtilizado">El margen utilizado es obligatorio.</span>
+              </div>
+              <div class="form-field">
+                <label>Apalancamiento (X) *</label>
+                <input type="text" inputmode="decimal" class="input-numerico" data-field="apalancamiento" placeholder="ej. 5">
+                <span class="field-error" data-error-for="apalancamiento">El apalancamiento es obligatorio.</span>
+              </div>
+              <div class="form-field">
+                <label>Tamaño de posición</label>
+                <input type="text" inputmode="decimal" class="input-numerico" data-field="tamanoPosicion" placeholder="0.00">
+                <span class="dropzone-hint">Se calcula solo (Margen × Apalancamiento) — puedes editarlo manualmente si lo necesitas.</span>
+              </div>
+            </div>
+
+            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">③ Gestión y Riesgo</div>
+            <div class="form-grid">
+              <div class="form-field">
+                <label>Stop Loss</label>
+                <input type="text" inputmode="decimal" class="input-numerico" data-field="stopLoss" placeholder="0.00">
+                <span class="field-error" data-error-for="stopLoss">Si ingresas un Stop Loss, debe ser un número válido.</span>
+              </div>
+              <div class="form-field"><label>Take Profit</label><input type="text" inputmode="decimal" class="input-numerico" data-field="takeProfit" placeholder="0.00"></div>
+              <div class="form-field">
+                <label>Riesgo %</label>
+                <input type="text" inputmode="decimal" class="input-numerico" data-field="riesgoPct" placeholder="0.5">
+                <span class="field-error" data-error-for="riesgoPct">El riesgo % debe estar entre 0 y 100.</span>
+              </div>
+              <div class="form-field">
+                <label>Comisión apertura</label>
+                <input type="text" inputmode="decimal" class="input-numerico" data-field="comisionApertura" placeholder="0.00">
+                <span class="field-error" data-error-for="comisionApertura">No puede ser negativa.</span>
+              </div>
+            </div>
+            <!-- Sprint UX-3.2A — vista previa en vivo. Reutiliza calcularOperacion(),
+                 la misma función que ya existe; ningún cálculo nuevo. Sin Stop Loss,
+                 estos campos muestran "—" (nunca 0), tal como ya hace calcularOperacion(). -->
+            <div class="form-field-full" style="margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-md); display: flex; gap: var(--space-6); flex-wrap: wrap;">
+              <div><span style="font-size: var(--fs-xs); color: var(--color-text-muted); display:block;">Riesgo ($)</span><span id="previewRiesgoDinero" style="font-weight:700;">—</span></div>
+              <div><span style="font-size: var(--fs-xs); color: var(--color-text-muted); display:block;">Riesgo (%)</span><span id="previewRiesgoPct" style="font-weight:700;">—</span></div>
+              <div><span style="font-size: var(--fs-xs); color: var(--color-text-muted); display:block;">Reward ($)</span><span id="previewRewardDinero" style="font-weight:700;">—</span></div>
+              <div><span style="font-size: var(--fs-xs); color: var(--color-text-muted); display:block;">RR planificado</span><span id="previewRRPlanificado" style="font-weight:700;">—</span></div>
+            </div>
+
+            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">④ Cierre / Resultado</div>
+            <div class="form-grid">
+              <div class="form-field">
+                <label>Fecha de salida</label>
+                <input type="date" data-field="fechaSalida">
+                <span class="field-error" data-error-for="fechaSalida">Obligatoria para cerrar el Trade.</span>
+                <span class="dropzone-hint">Solo si el Trade ya está cerrado.</span>
+              </div>
+              <div class="form-field">
+                <label>Hora de salida</label>
+                <input type="time" data-field="horaSalida">
+                <span class="field-error" data-error-for="horaSalida">Obligatoria para cerrar el Trade.</span>
+                <span class="dropzone-hint">Solo si el Trade ya está cerrado.</span>
+              </div>
+              <div class="form-field">
+                <label>Precio de salida</label>
+                <input type="text" inputmode="decimal" class="input-numerico" data-field="precioSalida" placeholder="0.00">
+                <span class="field-error" data-error-for="precioSalida">Obligatorio y válido para cerrar el Trade.</span>
+              </div>
+              <div class="form-field">
+                <label>Comisión cierre</label>
+                <input type="text" inputmode="decimal" class="input-numerico" data-field="comisionCierre" placeholder="0.00">
+                <span class="field-error" data-error-for="comisionCierre">No puede ser negativa.</span>
+              </div>
+              <div class="form-field">
+                <label>Costo adicional</label>
+                <input type="text" inputmode="decimal" class="input-numerico" data-field="costoAdicional" placeholder="0.00">
+                <span class="field-error" data-error-for="costoAdicional">No puede ser negativo.</span>
+                <span class="dropzone-hint">Funding fee, intereses, swap, etc.</span>
+              </div>
+            </div>
+            <!-- Sprint UX-3.2A — vista previa en vivo del resultado. Mismo criterio:
+                 solo se muestra "Abierto"/"—" hasta que haya datos de cierre suficientes. -->
+            <div class="form-field-full" style="margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-md); display: flex; gap: var(--space-6); flex-wrap: wrap;">
+              <div><span style="font-size: var(--fs-xs); color: var(--color-text-muted); display:block;">PnL neto</span><span id="previewPnlNeto" style="font-weight:700;">—</span></div>
+              <div><span style="font-size: var(--fs-xs); color: var(--color-text-muted); display:block;">R Múltiple</span><span id="previewRMultiple" style="font-weight:700;">—</span></div>
+              <div><span style="font-size: var(--fs-xs); color: var(--color-text-muted); display:block;">Resultado %</span><span id="previewResultadoPct" style="font-weight:700;">—</span></div>
+              <div><span style="font-size: var(--fs-xs); color: var(--color-text-muted); display:block;">Estado</span><span id="previewEstadoResultado" style="font-weight:700;">🟡 Abierto</span></div>
+            </div>
+          </div>
+
+          <!-- Panel: Plan de la Operación (v0.4.5 — fusiona Estrategia + Contexto del Mercado + Confirmaciones) -->
+          <div class="form-panel" data-panel="plan">
+
+            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin-bottom: var(--space-2);">Estrategia</div>
+            <div class="form-grid">
+              <div class="form-field">
+                <label>Tipo de Trade</label>
+                <select data-field="tipoTrade" id="selectTipoTrade"></select>
+              </div>
+              <div class="form-field">
+                <label>Temporalidad de ejecución *</label>
+                <select data-field="temporalidad" id="selectTemporalidad"></select>
+                <span class="field-error" data-error-for="temporalidad">Selecciona la temporalidad de ejecución.</span>
+              </div>
+             <div class="form-field">
+                <label>Temporalidad de Decisión</label>
+                <select data-field="temporalidadDecision" id="selectTemporalidadDecision"></select>
+              </div>
+            </div>
+<div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Plan de la Operación</div>
+<div id="planOperacionDinamicaContainer"></div>
+            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Indicadores Técnicos</div>
+<div class="card" style="background: var(--color-bg);">
+  <div class="card-body" style="padding: var(--space-4);">
+    <div id="indicadoresTecnicosDinamicaContainer"></div>
+  </div>
+</div>
+
+            <!-- ARQ-01: Variable de Decisión — Liquidez. Primera de una serie
+                 de "variables de decisión" (Analytics futuro las recorrerá
+                 desde op.decisiones sin necesitar conocerlas de antemano). -->
+           
+           <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Variable de Decisión: Liquidez</div>
+<div class="card" style="background: var(--color-bg);">
+  <div class="card-body" style="padding: var(--space-4);">
+    <div id="liquidezDinamicaContainer"></div>
+  </div>
+</div>
+            <!-- IMP-04: Variable de Decisión — Estructura (segunda de la serie) -->
+            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Variable de Decisión: Estructura</div>
+<div class="card" style="background: var(--color-bg);">
+  <div class="card-body" style="padding: var(--space-4);">
+    <div id="estructuraDinamicaContainer"></div>
+  </div>
+</div>
+
+            <!-- ASE X: Variable de Decisión — Price Action (tercera de la serie) -->
+      <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Variable de Decisión: Price Action</div>
+<div class="card" style="background: var(--color-bg);">
+  <div class="card-body" style="padding: var(--space-4);">
+    <div id="priceActionDinamicaContainer"></div>
+  </div>
+</div>
+
+            <!-- Variable de Decisión — Desequilibrios (cuarta de la serie) -->
+           <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Variable de Decisión: Desequilibrios</div>
+<div class="card" style="background: var(--color-bg);">
+  <div class="card-body" style="padding: var(--space-4);">
+    <div id="desequilibriosDinamicaContainer"></div>
+  </div>
+</div>
+
+            <!-- Variable de Decisión — Volumen (quinta de la serie) -->
+           <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Variable de Decisión: Volumen</div>
+<div class="card" style="background: var(--color-bg);">
+  <div class="card-body" style="padding: var(--space-4);">
+    <div id="volumenDinamicaContainer"></div>
+  </div>
+</div>
+<div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Variables Observadas <span class="badge info" style="margin-left:6px;">Nuevo</span></div>
+<div id="variablesObservadasContainer"></div>
+           
+          </div>
+
+         <!-- Panel: Psicología y Aprendizaje (sin cambios de contenido, Fase 4.4) -->
+<div class="form-panel" data-panel="psicologia">
+  <div id="estadoMentalDinamicaContainer"></div>
+</div>
+
+          <!-- Panel: Evidencia (sin cambios) -->
+          <div class="form-panel" data-panel="evidencia">
+            <div class="form-field" style="margin-bottom: var(--space-4);">
+              <label>Link del gráfico (ej. TradingView)</label>
+              <input type="text" data-field="linkGrafico" placeholder="https://www.tradingview.com/x/...">
+            </div>
+            <input type="file" id="imageInput" accept="image/*" style="display:none;">
+            <div class="dropzone" id="dropzone">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <span>Arrastra una imagen o haz clic para subir</span>
+              <span class="dropzone-hint">PNG, JPG — máx. 5MB</span>
+            </div>
+            <div class="file-preview" id="filePreview">
+              <div class="file-preview-thumb" id="filePreviewThumb"></div>
+              <span class="file-preview-name" id="filePreviewName">—</span>
+              <button class="btn-ghost" id="removeImageBtn" title="Eliminar imagen" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Panel: Resumen (v0.4.5 — vista previa de solo lectura antes de guardar, NO es la Ficha Técnica) -->
+          <div class="form-panel" data-panel="resumen">
+            <div id="resumenPrevioContenido">
+              <span style="color: var(--color-text-muted); font-size: var(--fs-sm);">Completa el formulario y abre esta pestaña para revisar un resumen antes de guardar.</span>
+            </div>
+            <div class="form-actions">
+            <button class="btn-secondary" id="cancelBtn" type="button">Cancelar</button>
+            <button class="btn-secondary" id="resetBtn" type="button">Limpiar formulario</button>
+            <button class="btn-primary" id="saveBtn" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <span id="saveBtnLabel">Guardar operación</span>
+            </button>
+          </div>
+          </div>
+
+          
+
+        </div>
+      </section>
+<section class="card" id="operaciones-abiertas">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div class="card-header-icon icon-gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+            <div>
+              <h2>🟡 Operaciones Abiertas</h2>
+              <div class="card-header-sub"><span id="operacionesAbiertasCount">0</span> operaciones en curso</div>
+            </div>
+          </div>
+        </div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead>
+              <tr><th>ID</th><th>Fecha</th><th>Activo</th><th>Dirección</th><th class="col-actions">Acciones</th></tr>
+            </thead>
+            <tbody id="operacionesAbiertasTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      </div><!-- /vistaTrades -->
+
+      <!-- ===================== MI PLAN DE TRADING (Fase 4.3) ===================== -->
+      <div id="vistaPlanTrading" style="display:none;">
+        <div class="card" style="margin-bottom: var(--space-6);">
+          <div class="card-body">
+            <h2 style="font-size: var(--fs-xl); margin-bottom: var(--space-2);">📋 Mi Plan de Trading</h2>
+            <p class="plan-header-intro">Tu manual operativo como trader. Consulta y actualiza tu metodología cuando lo necesites.</p>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: var(--space-6);">
+
+          <!-- Objetivos -->
+          <div class="card plan-card" data-plan-key="objetivos">
+            <div class="card-header">
+              <h2>🎯 Objetivos</h2>
+              <button class="btn-ghost plan-edit-btn" type="button">✏ Editar</button>
+            </div>
+            <div class="card-body">
+              <div class="plan-view-text" data-view-for="objetivos"></div>
+              <textarea class="plan-textarea" data-edit-for="objetivos" style="display:none;" placeholder="Objetivos anuales, mensuales y semanales..."></textarea>
+              <div class="plan-actions">
+                <button class="btn-secondary plan-cancel-btn" type="button">Cancelar</button>
+                <button class="btn-primary plan-save-btn" type="button">Guardar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Principios -->
+          <div class="card plan-card" data-plan-key="principios">
+            <div class="card-header">
+              <h2>📜 Principios</h2>
+              <button class="btn-ghost plan-edit-btn" type="button">✏ Editar</button>
+            </div>
+            <div class="card-body">
+              <div class="plan-view-text" data-view-for="principios"></div>
+              <textarea class="plan-textarea" data-edit-for="principios" style="display:none;" placeholder="Tus reglas fundamentales como trader..."></textarea>
+              <div class="plan-actions">
+                <button class="btn-secondary plan-cancel-btn" type="button">Cancelar</button>
+                <button class="btn-primary plan-save-btn" type="button">Guardar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Gestión del Riesgo -->
+          <div class="card plan-card" data-plan-key="gestionRiesgo">
+            <div class="card-header">
+              <h2>🛡️ Gestión del Riesgo</h2>
+              <button class="btn-ghost plan-edit-btn" type="button">✏ Editar</button>
+            </div>
+            <div class="card-body">
+              <div class="plan-view-text" data-view-for="gestionRiesgo"></div>
+              <textarea class="plan-textarea" data-edit-for="gestionRiesgo" style="display:none;" placeholder="Riesgo máximo por operación, riesgo diario, riesgo semanal, drawdown permitido..."></textarea>
+              <div class="plan-actions">
+                <button class="btn-secondary plan-cancel-btn" type="button">Cancelar</button>
+                <button class="btn-primary plan-save-btn" type="button">Guardar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mercados que opero -->
+          <div class="card plan-card" data-plan-key="mercados">
+            <div class="card-header">
+              <h2>🌐 Mercados que opero</h2>
+              <button class="btn-ghost plan-edit-btn" type="button">✏ Editar</button>
+            </div>
+            <div class="card-body">
+              <div class="plan-view-text" data-view-for="mercados"></div>
+              <textarea class="plan-textarea" data-edit-for="mercados" style="display:none;" placeholder="Un mercado o activo por línea..."></textarea>
+              <div class="plan-actions">
+                <button class="btn-secondary plan-cancel-btn" type="button">Cancelar</button>
+                <button class="btn-primary plan-save-btn" type="button">Guardar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Estrategias -->
+          <div class="card plan-card" data-plan-key="estrategias">
+            <div class="card-header">
+              <h2>🧠 Estrategias</h2>
+              <button class="btn-ghost plan-edit-btn" type="button">✏ Editar</button>
+            </div>
+            <div class="card-body">
+              <div class="plan-view-text" data-view-for="estrategias"></div>
+              <textarea class="plan-textarea" data-edit-for="estrategias" style="display:none;" placeholder="Nombre y descripción de cada estrategia..."></textarea>
+              <div class="plan-actions">
+                <button class="btn-secondary plan-cancel-btn" type="button">Cancelar</button>
+                <button class="btn-primary plan-save-btn" type="button">Guardar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Checklist de Entrada -->
+          <div class="card plan-card" data-plan-key="checklistEntrada">
+            <div class="card-header">
+              <h2>✅ Checklist de Entrada</h2>
+              <button class="btn-ghost plan-edit-btn" type="button">✏ Editar</button>
+            </div>
+            <div class="card-body">
+              <div class="plan-view-text" data-view-for="checklistEntrada"></div>
+              <textarea class="plan-textarea" data-edit-for="checklistEntrada" style="display:none;" placeholder="Tu checklist antes de entrar a una operación..."></textarea>
+              <div class="plan-actions">
+                <button class="btn-secondary plan-cancel-btn" type="button">Cancelar</button>
+                <button class="btn-primary plan-save-btn" type="button">Guardar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Gestión de la Operación -->
+          <div class="card plan-card" data-plan-key="gestionOperacion">
+            <div class="card-header">
+              <h2>⚙️ Gestión de la Operación</h2>
+              <button class="btn-ghost plan-edit-btn" type="button">✏ Editar</button>
+            </div>
+            <div class="card-body">
+              <div class="plan-view-text" data-view-for="gestionOperacion"></div>
+              <textarea class="plan-textarea" data-edit-for="gestionOperacion" style="display:none;" placeholder="Reglas de Stop Loss, Break Even, parciales y salida..."></textarea>
+              <div class="plan-actions">
+                <button class="btn-secondary plan-cancel-btn" type="button">Cancelar</button>
+                <button class="btn-primary plan-save-btn" type="button">Guardar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Psicología -->
+          <div class="card plan-card" data-plan-key="psicologia">
+            <div class="card-header">
+              <h2>🧘 Psicología y Aprendizaje</h2>
+              <button class="btn-ghost plan-edit-btn" type="button">✏ Editar</button>
+            </div>
+            <div class="card-body">
+              <div class="plan-view-text" data-view-for="psicologia"></div>
+              <textarea class="plan-textarea" data-edit-for="psicologia" style="display:none;" placeholder="Tus reglas psicológicas..."></textarea>
+              <div class="plan-actions">
+                <button class="btn-secondary plan-cancel-btn" type="button">Cancelar</button>
+                <button class="btn-primary plan-save-btn" type="button">Guardar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Revisión Semanal -->
+          <div class="card plan-card" data-plan-key="revisionSemanal">
+            <div class="card-header">
+              <h2>🔁 Revisión Semanal</h2>
+              <button class="btn-ghost plan-edit-btn" type="button">✏ Editar</button>
+            </div>
+            <div class="card-body">
+              <div class="plan-view-text" data-view-for="revisionSemanal"></div>
+              <textarea class="plan-textarea" data-edit-for="revisionSemanal" style="display:none;" placeholder="Tu lista de verificación semanal..."></textarea>
+              <div class="plan-actions">
+                <button class="btn-secondary plan-cancel-btn" type="button">Cancelar</button>
+                <button class="btn-primary plan-save-btn" type="button">Guardar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notas -->
+          <div class="card plan-card" data-plan-key="notas">
+            <div class="card-header">
+              <h2>🗒️ Notas</h2>
+              <button class="btn-ghost plan-edit-btn" type="button">✏ Editar</button>
+            </div>
+            <div class="card-body">
+              <div class="plan-view-text" data-view-for="notas"></div>
+              <textarea class="plan-textarea" data-edit-for="notas" style="display:none;" placeholder="Espacio libre..."></textarea>
+              <div class="plan-actions">
+                <button class="btn-secondary plan-cancel-btn" type="button">Cancelar</button>
+                <button class="btn-primary plan-save-btn" type="button">Guardar</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div><!-- /vistaPlanTrading -->
+
+      <!-- ===================== GESTIÓN DE CUENTAS (AC-01) ===================== -->
+      <!-- ===================== ESTRATEGIAS (NAV-01) — en desarrollo ===================== -->
+      <div id="vistaEstrategias" style="display:none;">
+        <section class="card">
+          <div class="card-header">
+            <div class="card-header-title-group">
+              <div class="card-header-icon icon-purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
+              <div><h2>🎯 Estrategias</h2></div>
+            </div>
+          </div>
+          <div class="card-body">
+            <p style="color: var(--color-text-secondary);">Módulo en desarrollo.</p>
+          </div>
+        </section>
+      </div><!-- /vistaEstrategias -->
+
+      <!-- ===================== ANALYTICS (NAV-01) — próximamente ===================== -->
+      <div id="vistaAnalytics" style="display:none;">
+        <section class="card">
+          <div class="card-header">
+            <div class="card-header-title-group">
+              <div class="card-header-icon icon-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="5" height="9" rx="1"/><rect x="9.5" y="7" width="5" height="14" rx="1"/><rect x="16" y="3" width="5" height="18" rx="1"/></svg></div>
+              <div><h2>📊 Analytics</h2></div>
+            </div>
+          </div>
+          <div class="card-body">
+            <p style="color: var(--color-text-secondary);">Próximamente.</p>
+          </div>
+        </section>
+      </div><!-- /vistaAnalytics -->
+
+      <!-- ===================== CONFIGURACIÓN (NAV-01) — preparada para el futuro ===================== -->
+      <div id="vistaConfiguracion" style="display:none;">
+       <!-- ===================== FASE 3 — CATÁLOGOS GENERALES ===================== -->
+      <!-- Reemplaza el contenido de vistaConfiguracion (antes vacío/placeholder) -->
+
+      <div class="card" style="margin-bottom: var(--space-6);">
+        <div class="card-body">
+          <h2 style="font-size: var(--fs-xl); margin-bottom: var(--space-2);">⚙️ Configuración</h2>
+          <p class="plan-header-intro">Centro administrativo — Cuentas, Activos, Brokers, Mercados, catálogos generales y Variables, todos en un solo lugar.</p>
+        </div>
+      </div>
+
+      <!-- ===================== SPRINT: Reorganización de Navegación ===================== -->
+      <div class="config-layout">
+<nav class="config-subnav">
+          <div class="config-subnav-group-title">Trading</div>
+          <a class="config-subnav-item active" data-config-nav="cuentas">💼 Cuentas</a>
+          <a class="config-subnav-item" data-config-nav="activos">💠 Activos</a>
+          <a class="config-subnav-item" data-config-nav="brokers">🏦 Brokers</a>
+          <a class="config-subnav-item" data-config-nav="mercados">📊 Mercados</a>
+
+          <div class="config-subnav-group-title">Catálogos</div>
+          <a class="config-subnav-item" data-config-nav="temporalidades">⏱️ Temporalidades</a>
+          <a class="config-subnav-item" data-config-nav="horizontes">🎯 Horizontes</a>
+          <a class="config-subnav-item" data-config-nav="direcciones">↕️ Direcciones</a>
+          <a class="config-subnav-item" data-config-nav="tipos-entrada">📥 Tipos de Entrada</a>
+          <a class="config-subnav-item" data-config-nav="tipos-operacion">🔄 Tipos de Operación</a>
+          <a class="config-subnav-item" data-config-nav="variables">🧩 Variables</a>
+
+          <div class="config-subnav-group-title">Sistema</div>
+          <a class="config-subnav-item" data-config-nav="apariencia">🎨 Apariencia</a>
+        </nav>
+
+        <div class="config-content">
+      <div id="vistaCuentas" >
+
+        <!-- Formulario de Cuenta (crear/editar) -->
+        <section class="card" style="margin-bottom: var(--space-6);" id="cuenta-form-card">
+          <div class="card-header">
+            <div class="card-header-title-group">
+              <div class="card-header-icon icon-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3v4M8 3v4"/><line x1="2" y1="11" x2="22" y2="11"/></svg></div>
+              <div>
+                <h2>💼 Cuentas</h2>
+                <div class="card-header-sub" id="cuentaFormSub">Registra una nueva cuenta de trading</div>
+              </div>
+            </div>
+            <span class="badge gold" id="cuentaEditBadge" style="display:none;">Editando cuenta</span>
+          </div>
+          <div class="card-body">
+
+            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin-bottom: var(--space-2);">Información general</div>
+            <div class="form-grid">
+              <div class="form-field">
+                <label>Nombre de la Cuenta *</label>
+                <input type="text" data-cuenta-campo="nombre" placeholder="ej. Binance Real">
+                <span class="field-error" data-cuenta-error-for="nombre">El nombre es obligatorio.</span>
+              </div>
+              <div class="form-field">
+                <label>Plataforma *</label>
+                <input type="text" data-cuenta-campo="plataforma" placeholder="ej. Binance, Bybit, MT5">
+                <span class="field-error" data-cuenta-error-for="plataforma">La plataforma es obligatoria.</span>
+              </div>
+              <div class="form-field">
+                <label>Tipo de Cuenta *</label>
+                <select id="selectTipoCuenta" data-cuenta-campo="tipoCuenta"></select>
+                <span class="field-error" data-cuenta-error-for="tipoCuenta">Selecciona un tipo de cuenta.</span>
+              </div>
+              <div class="form-field">
+                <label>Estado</label>
+                <div class="segmented" id="estadoCuentaSegmented">
+                  <button class="buy active" type="button" data-estado="Activa">Activa</button>
+                  <button class="sell" type="button" data-estado="Inactiva">Inactiva</button>
+                </div>
+              </div>
+              <div class="form-field">
+                <label>Fecha de Inicio de la Cuenta</label>
+                <input type="date" data-cuenta-campo="fechaInicio">
+                <span class="dropzone-hint">Cuándo empezaste a operar esta cuenta (no es la fecha en que la registraste aquí).</span>
+              </div>
+              <div class="form-field">
+                <label>Color de la Cuenta</label>
+                <input type="color" data-cuenta-campo="color" value="#2563EB" style="height: 42px; padding: 4px; cursor: pointer;">
+                <span class="dropzone-hint">Solo visual — se usará en futuras gráficas de Analytics.</span>
+              </div>
+              <div class="form-field form-field-full">
+                <label>Descripción</label>
+                <input type="text" data-cuenta-campo="descripcion" placeholder="Notas breves sobre el propósito de esta cuenta...">
+              </div>
+            </div>
+
+            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Capital</div>
+            <div class="form-grid">
+              <div class="form-field">
+                <label>Capital Inicial *</label>
+                <input type="text" inputmode="decimal" class="input-numerico" data-cuenta-campo="capitalInicial" placeholder="0.00">
+                <span class="field-error" data-cuenta-error-for="capitalInicial">El capital inicial es obligatorio y debe ser válido.</span>
+              </div>
+              <div class="form-field">
+                <label>Capital Objetivo</label>
+                <input type="text" inputmode="decimal" class="input-numerico" data-cuenta-campo="capitalObjetivo" placeholder="0.00">
+              </div>
+              <div class="form-field">
+                <label>Moneda *</label>
+                <select id="selectMonedaCuenta" data-cuenta-campo="moneda"></select>
+                <span class="field-error" data-cuenta-error-for="moneda">Selecciona una moneda.</span>
+              </div>
+            </div>
+
+            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Gestión del Riesgo</div>
+            <div class="form-grid">
+              <div class="form-field">
+                <label>Drawdown Máximo Permitido</label>
+                <input type="text" inputmode="decimal" class="input-numerico" data-cuenta-campo="drawdownMaximo" placeholder="ej. 10 (%)">
+              </div>
+              <div class="form-field">
+                <label>Pérdida Máxima Diaria</label>
+                <input type="text" inputmode="decimal" class="input-numerico" data-cuenta-campo="perdidaMaximaDiaria" placeholder="ej. 3 (%)">
+              </div>
+            </div>
+
+            <div class="form-field-full" style="font-size: var(--fs-sm); font-weight: 700; color: var(--color-text-secondary); margin: var(--space-5) 0 var(--space-2);">Información adicional</div>
+            <div class="form-grid">
+              <div class="form-field form-field-full">
+                <label>Notas</label>
+                <textarea data-cuenta-campo="notas" placeholder="Notas libres sobre esta cuenta..."></textarea>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button class="btn-secondary" id="cuentaCancelBtn" type="button">Cancelar</button>
+              <button class="btn-primary" id="cuentaSaveBtn" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <span id="cuentaSaveBtnLabel">Guardar cuenta</span>
+              </button>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- Listado de Cuentas -->
+        <section class="card" id="cuentas-listado">
+          <div class="card-header">
+            <div class="card-header-title-group">
+              <div class="card-header-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="14" y2="18"/></svg></div>
+              <div>
+                <h2>Listado de Cuentas</h2>
+                <div class="card-header-sub"><span id="cuentasCount">0</span> cuentas registradas</div>
+              </div>
+            </div>
+          </div>
+          <div class="table-wrap" style="max-height: none;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nombre</th>
+                  <th>Plataforma</th>
+                  <th>Tipo</th>
+                  <th>Capital Inicial</th>
+                  <th>Moneda</th>
+                  <th>Estado</th>
+                  <th class="col-actions">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="cuentasTableBody">
+                <!-- Filas generadas dinámicamente vía renderCuentasTable() -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </div><!-- /vistaCuentas -->
+
+      <div id="vistaActivos" style="display:none;">
+
+        <section class="card" style="margin-bottom: var(--space-6);" id="activo-form-card">
+          <div class="card-header">
+            <div class="card-header-title-group">
+              <div class="card-header-icon icon-purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+              <div>
+                <h2>💠 Activos</h2>
+                <div class="card-header-sub" id="activoFormSub">Registra un nuevo activo</div>
+              </div>
+            </div>
+            <span class="badge gold" id="activoEditBadge" style="display:none;">Editando activo</span>
+          </div>
+          <div class="card-body">
+
+            <div class="form-grid">
+              <div class="form-field">
+                <label>Símbolo *</label>
+                <input type="text" data-activo-campo="simbolo" placeholder="ej. BTC, AAPL">
+                <span class="field-error" data-activo-error-for="simbolo">El símbolo es obligatorio.</span>
+              </div>
+              <div class="form-field">
+                <label>Nombre</label>
+                <input type="text" data-activo-campo="nombre" placeholder="ej. Bitcoin, Apple Inc.">
+              </div>
+              <div class="form-field">
+                <label>Mercado *</label>
+                <select id="selectMercadoActivo" data-activo-campo="mercado"></select>
+                <span class="field-error" data-activo-error-for="mercado">Selecciona un mercado.</span>
+              </div>
+              <div class="form-field">
+                <label>Estado</label>
+                <div class="segmented" id="estadoActivoSegmented">
+                  <button class="buy active" type="button" data-valor="activo">Activo</button>
+                  <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button class="btn-secondary" id="activoCancelBtn" type="button">Cancelar</button>
+              <button class="btn-primary" id="activoSaveBtn" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <span id="activoSaveBtnLabel">Guardar activo</span>
+              </button>
+            </div>
+
+          </div>
+        </section>
+
+        <section class="card" id="activos-listado">
+          <div class="card-header">
+            <div class="card-header-title-group">
+              <div class="card-header-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="14" y2="18"/></svg></div>
+              <div>
+                <h2>Listado de Activos</h2>
+                <div class="card-header-sub"><span id="activosCount">0</span> activos registrados</div>
+              </div>
+            </div>
+          </div>
+          <div class="table-wrap" style="max-height: none;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Símbolo</th>
+                  <th>Nombre</th>
+                  <th>Mercado</th>
+                  <th>Estado</th>
+                  <th class="col-actions">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="activosTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+      </div><!-- /vistaActivos -->
+
+<div id="configPanelBrokers" style="display:none;">
+      <!-- ===== 1. BROKERS ===== -->
+      <section class="card" style="margin-bottom: var(--space-6);" id="broker-form-card">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div><h2>1. Brokers</h2><div class="card-header-sub" id="brokerFormSub">Registra un nuevo broker</div></div>
+          </div>
+          <span class="badge gold" id="brokerEditBadge" style="display:none;">Editando broker</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Nombre *</label>
+              <input type="text" data-broker-campo="nombre" placeholder="ej. Binance">
+              <span class="field-error" data-broker-error-for="nombre">El nombre es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Sitio web</label>
+              <input type="text" data-broker-campo="sitioWeb" placeholder="https://...">
+            </div>
+            <div class="form-field">
+              <label>Logo (URL)</label>
+              <input type="text" data-broker-campo="logoUrl" placeholder="https://...">
+            </div>
+            <div class="form-field">
+              <label>Estado</label>
+              <div class="segmented" id="estadoBrokerSegmented">
+                <button class="buy active" type="button" data-valor="activo">Activo</button>
+                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-secondary" id="brokerCancelBtn" type="button">Cancelar</button>
+            <button class="btn-primary" id="brokerSaveBtn" type="button"><span id="brokerSaveBtnLabel">Guardar broker</span></button>
+          </div>
+        </div>
+      </section>
+      <section class="card" style="margin-bottom: var(--space-6);">
+        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Brokers</h2><div class="card-header-sub"><span id="brokersCount">0</span> brokers registrados</div></div></div></div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead><tr><th>Nombre</th><th>Estado</th><th class="col-actions">Acciones</th></tr></thead>
+            <tbody id="brokersTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+
+      </div><!-- /configPanelBrokers -->
+
+<div id="configPanelMercados" style="display:none;">
+      <!-- ===== 2. MERCADOS ===== -->
+      <section class="card" style="margin-bottom: var(--space-6);" id="mercadogen-form-card">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div><h2>2. Mercados</h2><div class="card-header-sub" id="mercadoGenFormSub">Registra un nuevo mercado</div></div>
+          </div>
+          <span class="badge gold" id="mercadoGenEditBadge" style="display:none;">Editando mercado</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Nombre *</label>
+              <input type="text" data-mercadogen-campo="nombre" placeholder="ej. Forex">
+              <span class="field-error" data-mercadogen-error-for="nombre">El nombre es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Estado</label>
+              <div class="segmented" id="estadoMercadoGenSegmented">
+                <button class="buy active" type="button" data-valor="activo">Activo</button>
+                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-secondary" id="mercadoGenCancelBtn" type="button">Cancelar</button>
+            <button class="btn-primary" id="mercadoGenSaveBtn" type="button"><span id="mercadoGenSaveBtnLabel">Guardar mercado</span></button>
+          </div>
+        </div>
+      </section>
+      <section class="card" style="margin-bottom: var(--space-6);">
+        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Mercados</h2><div class="card-header-sub"><span id="mercadosGenCount">0</span> mercados registrados</div></div></div></div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead><tr><th>Nombre</th><th class="col-actions">Acciones</th></tr></thead>
+            <tbody id="mercadosGenTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+
+      </div><!-- /configPanelMercados -->
+
+<div id="configPanelTemporalidades" style="display:none;">
+      <!-- ===== 3. TEMPORALIDADES ===== -->
+      <section class="card" style="margin-bottom: var(--space-6);" id="temporalidadgen-form-card">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div><h2>3. Temporalidades</h2><div class="card-header-sub" id="temporalidadGenFormSub">Registra una nueva temporalidad</div></div>
+          </div>
+          <span class="badge gold" id="temporalidadGenEditBadge" style="display:none;">Editando temporalidad</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Código *</label>
+              <input type="text" data-temporalidadgen-campo="codigo" placeholder="ej. 4H">
+              <span class="field-error" data-temporalidadgen-error-for="codigo">El código es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Nombre *</label>
+              <input type="text" data-temporalidadgen-campo="nombre" placeholder="ej. 4 Horas">
+              <span class="field-error" data-temporalidadgen-error-for="nombre">El nombre es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Minutos equivalentes *</label>
+              <input type="text" inputmode="decimal" class="input-numerico" data-temporalidadgen-campo="minutos" placeholder="ej. 240">
+              <span class="field-error" data-temporalidadgen-error-for="minutos">Ingresa un número válido.</span>
+            </div>
+            <div class="form-field">
+              <label>Estado</label>
+              <div class="segmented" id="estadoTemporalidadGenSegmented">
+                <button class="buy active" type="button" data-valor="activo">Activo</button>
+                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-secondary" id="temporalidadGenCancelBtn" type="button">Cancelar</button>
+            <button class="btn-primary" id="temporalidadGenSaveBtn" type="button"><span id="temporalidadGenSaveBtnLabel">Guardar temporalidad</span></button>
+          </div>
+        </div>
+      </section>
+      <section class="card" style="margin-bottom: var(--space-6);">
+        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Temporalidades</h2><div class="card-header-sub"><span id="temporalidadesGenCount">0</span> temporalidades registradas</div></div></div></div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead><tr><th>Temporalidad</th><th>Minutos</th><th class="col-actions">Acciones</th></tr></thead>
+            <tbody id="temporalidadesGenTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+
+      </div><!-- /configPanelTemporalidades -->
+
+<div id="configPanelHorizontes" style="display:none;">
+      <!-- ===== 4. HORIZONTES DE TRADING ===== -->
+      <section class="card" style="margin-bottom: var(--space-6);" id="horizontegen-form-card">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div><h2>4. Horizontes de Trading</h2><div class="card-header-sub" id="horizonteGenFormSub">Registra un nuevo horizonte de trading</div></div>
+          </div>
+          <span class="badge gold" id="horizonteGenEditBadge" style="display:none;">Editando horizonte</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Código *</label>
+              <input type="text" data-horizontegen-campo="codigo" placeholder="ej. Swing">
+              <span class="field-error" data-horizontegen-error-for="codigo">El código es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Nombre *</label>
+              <input type="text" data-horizontegen-campo="nombre" placeholder="ej. Swing Trading">
+              <span class="field-error" data-horizontegen-error-for="nombre">El nombre es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Estado</label>
+              <div class="segmented" id="estadoHorizonteGenSegmented">
+                <button class="buy active" type="button" data-valor="activo">Activo</button>
+                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-secondary" id="horizonteGenCancelBtn" type="button">Cancelar</button>
+            <button class="btn-primary" id="horizonteGenSaveBtn" type="button"><span id="horizonteGenSaveBtnLabel">Guardar horizonte</span></button>
+          </div>
+        </div>
+      </section>
+      <section class="card" style="margin-bottom: var(--space-6);">
+        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Horizontes</h2><div class="card-header-sub"><span id="horizontesGenCount">0</span> horizontes registrados</div></div></div></div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead><tr><th>Horizonte</th><th class="col-actions">Acciones</th></tr></thead>
+            <tbody id="horizontesGenTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+
+      </div><!-- /configPanelHorizontes -->
+
+<div id="configPanelDirecciones" style="display:none;">
+      <!-- ===== 6. DIRECCIONES (Long/Short) ===== -->
+      <section class="card" style="margin-bottom: var(--space-6);" id="direcciongen-form-card">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div><h2>6. Direcciones</h2><div class="card-header-sub" id="direccionGenFormSub">Registra una nueva dirección</div></div>
+          </div>
+          <span class="badge gold" id="direccionGenEditBadge" style="display:none;">Editando dirección</span>
+        </div>
+        <div class="card-body">
+          <div class="form-field-full" style="margin-bottom: var(--space-3); font-size: var(--fs-sm); color: var(--color-text-secondary);">
+            El "Código" es el valor interno que usa el motor de cálculos (debe seguir siendo "Compra" o "Venta" para las 2 direcciones existentes) — el "Nombre" es lo único que ve el usuario en el formulario.
+          </div>
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Código (interno) *</label>
+              <input type="text" data-direcciongen-campo="codigo" placeholder="ej. Compra">
+              <span class="field-error" data-direcciongen-error-for="codigo">El código es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Nombre (visible) *</label>
+              <input type="text" data-direcciongen-campo="nombre" placeholder="ej. Long">
+              <span class="field-error" data-direcciongen-error-for="nombre">El nombre es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Estado</label>
+              <div class="segmented" id="estadoDireccionGenSegmented">
+                <button class="buy active" type="button" data-valor="activo">Activo</button>
+                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-secondary" id="direccionGenCancelBtn" type="button">Cancelar</button>
+            <button class="btn-primary" id="direccionGenSaveBtn" type="button"><span id="direccionGenSaveBtnLabel">Guardar dirección</span></button>
+          </div>
+        </div>
+      </section>
+      <section class="card">
+        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Direcciones</h2><div class="card-header-sub"><span id="direccionesGenCount">0</span> direcciones registradas</div></div></div></div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead><tr><th>Dirección</th><th class="col-actions">Acciones</th></tr></thead>
+            <tbody id="direccionesGenTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      </div><!-- /configPanelDirecciones -->
+
+<div id="configPanelTiposEntrada" style="display:none;">
+      <!-- ===== 5. TIPOS DE ENTRADA ===== -->
+      <section class="card" style="margin-bottom: var(--space-6);" id="tipoentradagen-form-card">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div><h2>5. Tipos de Entrada</h2><div class="card-header-sub" id="tipoEntradaGenFormSub">Registra un nuevo tipo de entrada</div></div>
+          </div>
+          <span class="badge gold" id="tipoEntradaGenEditBadge" style="display:none;">Editando tipo de entrada</span>
+        </div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Código *</label>
+              <input type="text" data-tipoentradagen-campo="codigo" placeholder="ej. Stop">
+              <span class="field-error" data-tipoentradagen-error-for="codigo">El código es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Nombre *</label>
+              <input type="text" data-tipoentradagen-campo="nombre" placeholder="ej. Stop">
+              <span class="field-error" data-tipoentradagen-error-for="nombre">El nombre es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Estado</label>
+              <div class="segmented" id="estadoTipoEntradaGenSegmented">
+                <button class="buy active" type="button" data-valor="activo">Activo</button>
+                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-secondary" id="tipoEntradaGenCancelBtn" type="button">Cancelar</button>
+            <button class="btn-primary" id="tipoEntradaGenSaveBtn" type="button"><span id="tipoEntradaGenSaveBtnLabel">Guardar tipo de entrada</span></button>
+          </div>
+        </div>
+      </section>
+      <section class="card" style="margin-bottom: var(--space-6);">
+        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Tipos de Entrada</h2><div class="card-header-sub"><span id="tiposEntradaGenCount">0</span> tipos registrados</div></div></div></div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead><tr><th>Tipo de Entrada</th><th class="col-actions">Acciones</th></tr></thead>
+            <tbody id="tiposEntradaGenTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+
+      </div><!-- /configPanelTiposEntrada -->
+
+<div id="configPanelTiposOperacion" style="display:none;">
+        <!-- ===== 7. TIPO DE OPERACIÓN (Spot/Futuros/Margin/Loan) — Sprint 4.4 ===== -->
+      <section class="card" style="margin-bottom: var(--space-6);" id="tipooperaciongen-form-card">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div><h2>7. Tipo de Operación</h2><div class="card-header-sub" id="tipoOperacionGenFormSub">Registra un nuevo tipo de operación</div></div>
+          </div>
+          <span class="badge gold" id="tipoOperacionGenEditBadge" style="display:none;">Editando tipo de operación</span>
+        </div>
+        <div class="card-body">
+          <div class="form-field-full" style="margin-bottom: var(--space-3); font-size: var(--fs-sm); color: var(--color-text-secondary);">
+            El "Código" es el valor interno que se guarda en cada Trade — el "Nombre" es lo que ve el usuario en el formulario.
+          </div>
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Código (interno) *</label>
+              <input type="text" data-tipooperaciongen-campo="codigo" placeholder="ej. Spot">
+              <span class="field-error" data-tipooperaciongen-error-for="codigo">El código es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Nombre (visible) *</label>
+              <input type="text" data-tipooperaciongen-campo="nombre" placeholder="ej. Spot">
+              <span class="field-error" data-tipooperaciongen-error-for="nombre">El nombre es obligatorio.</span>
+            </div>
+            <div class="form-field">
+              <label>Estado</label>
+              <div class="segmented" id="estadoTipoOperacionGenSegmented">
+                <button class="buy active" type="button" data-valor="activo">Activo</button>
+                <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-secondary" id="tipoOperacionGenCancelBtn" type="button">Cancelar</button>
+            <button class="btn-primary" id="tipoOperacionGenSaveBtn" type="button"><span id="tipoOperacionGenSaveBtnLabel">Guardar tipo de operación</span></button>
+          </div>
+        </div>
+      </section>
+      <section class="card">
+        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Tipos de Operación</h2><div class="card-header-sub"><span id="tiposOperacionGenCount">0</span> tipos de operación registrados</div></div></div></div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead><tr><th>Tipo de Operación</th><th class="col-actions">Acciones</th></tr></thead>
+            <tbody id="tiposOperacionGenTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      </div><!-- /configPanelTiposOperacion -->
+
+      <div id="vistaVariables" style="display:none;">
+
+        <div class="card" style="margin-bottom: var(--space-6);">
+          <div class="card-body">
+            <h2 style="font-size: var(--fs-xl); margin-bottom: var(--space-2);">🧩 Variables</h2>
+            <p class="plan-header-intro">Administra las Categorías, Variables y Opciones que alimentarán el formulario de Trades. Este Sprint es solo el administrador — la integración con Trades es el siguiente paso.</p>
+          </div>
+        </div>
+
+
+
+      <!-- ===================== SPRINT: Administrador de Variables con navegación jerárquica ===================== -->
+      <!-- Categoría → Variables de la categoría → Opciones de la Variable. Mismo patrón
+           visual/técnico que el submenú de Configuración (cambiarConfigSubvista). -->
+      <div class="config-layout">
+        <nav class="config-subnav" id="variablesCategoriaSidebar">
+          <!-- Poblado dinámicamente por renderCategoriasVariablesSidebar() — NUNCA hardcodeado. -->
+        </nav>
+        <div style="padding: 0 var(--space-1); margin-bottom: var(--space-3);">
+          <a class="variables-subnav-item" id="verGestionCategoriasBtn" style="font-size: var(--fs-xs); color: var(--color-text-muted);">⚙️ Administrar categorías</a>
+        </div>
+
+        <div class="config-content">
+          <div class="variables-breadcrumb" id="variablesBreadcrumb">Variables / Todas</div>
+
+          <div id="panelCategoriasVariables" style="display:none;">
+        <!-- ===== 1. CATEGORÍAS DE VARIABLES ===== -->
+
+        <!-- Corrección UX — el formulario de creación/edición ya NO se abre
+             automáticamente. Vive envuelto aquí, oculto por defecto, y solo
+             se muestra al pulsar "+ Nueva categoría" o "Editar" en una fila.
+             Su interior no cambió ni un carácter. -->
+        <div id="categoriaVarFormWrapper" style="display:none; margin-bottom: var(--space-6);">
+        <section class="card" style="margin-bottom: var(--space-6);" id="categoriavar-form-card">
+          <div class="card-header">
+            <div class="card-header-title-group">
+              <div class="card-header-icon icon-purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
+              <div>
+                <h2>1. Categorías de Variables</h2>
+                <div class="card-header-sub" id="categoriaVarFormSub">Crea una nueva categoría de Variables</div>
+              </div>
+            </div>
+            <span class="badge gold" id="categoriaVarEditBadge" style="display:none;">Editando categoría</span>
+          </div>
+          <div class="card-body">
+            <div class="form-grid">
+              <div class="form-field">
+                <label>Código *</label>
+                <input type="text" data-categoriavar-campo="codigo" placeholder="ej. liquidez">
+                <span class="field-error" data-categoriavar-error-for="codigo">El código es obligatorio.</span>
+              </div>
+              <div class="form-field">
+                <label>Nombre *</label>
+                <input type="text" data-categoriavar-campo="nombre" placeholder="ej. Liquidez">
+                <span class="field-error" data-categoriavar-error-for="nombre">El nombre es obligatorio.</span>
+              </div>
+              <div class="form-field">
+                <label>Fase</label>
+                <select data-categoriavar-campo="fase">
+                  <option value="PRE_TRADE">Antes de la operación</option>
+                  <option value="DURING_TRADE">Durante la operación</option>
+                  <option value="POST_TRADE">Después de la operación</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label>Estado</label>
+                <div class="segmented" id="estadoCategoriaVarSegmented">
+                  <button class="buy active" type="button" data-valor="activo">Activo</button>
+                  <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+                </div>
+              </div>
+              <div class="form-field">
+                <label>Contexto</label>
+                <input type="text" data-categoriavar-campo="contexto" placeholder="ej. trade_decision">
+              </div>
+              <div class="form-field form-field-full">
+                <label>Descripción</label>
+                <input type="text" data-categoriavar-campo="descripcion" placeholder="Breve descripción de esta categoría...">
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn-secondary" id="categoriaVarCancelBtn" type="button">Cancelar</button>
+              <button class="btn-primary" id="categoriaVarSaveBtn" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <span id="categoriaVarSaveBtnLabel">Guardar categoría</span>
+              </button>
+            </div>
+          </div>
+        </section>
+        </div><!-- /categoriaVarFormWrapper -->
+
+        <section class="card" style="margin-bottom: var(--space-6);">
+          <div class="card-header">
+            <div class="card-header-title-group">
+              <div><h2>Categorías de Variables</h2><div class="card-header-sub"><span id="categoriasVarCount">0</span> categorías registradas</div></div>
+            </div>
+            <button class="btn-primary" id="nuevaCategoriaVarBtn" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Nueva categoría
+            </button>
+          </div>
+          <div class="table-wrap" style="max-height: none;">
+            <table class="data-table">
+              <thead><tr><th>Categoría</th><th>Fase</th><th>Variables</th><th>Estado</th><th class="col-actions">Acciones</th></tr></thead>
+              <tbody id="categoriasVarTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+
+          </div><!-- /panelCategoriasVariables -->
+
+          <div id="panelListaVariables">
+        <!-- ===== 2. VARIABLES ===== -->
+        <!-- Sprint 4.6 — el formulario ya NO aparece automáticamente. Vive
+             oculto aquí, se revela con "+ Nueva variable" o "Editar". -->
+        <div id="variableFormWrapper" style="display:none; margin-bottom: var(--space-6);">
+        <section class="card" style="margin-bottom: var(--space-6);" id="variable-form-card">
+          <div class="card-header">
+            <div class="card-header-title-group">
+              <div class="card-header-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></div>
+              <div>
+                <h2>2. Variables</h2>
+                <div class="card-header-sub" id="variableFormSub">Crea una nueva variable dentro de una categoría</div>
+              </div>
+            </div>
+            <span class="badge gold" id="variableEditBadge" style="display:none;">Editando variable</span>
+          </div>
+          <div class="card-body">
+            <div class="form-grid">
+              <div class="form-field" id="categoriaVariableFieldWrapper">
+                <label>Categoría *</label>
+                <select id="selectCategoriaVariable" data-variable-campo="categoria"></select>
+                <span class="field-error" data-variable-error-for="categoria">Selecciona una categoría.</span>
+              </div>
+              <div class="form-field">
+                <label>Tipo de dato *</label>
+                <select id="selectDataTypeVariable" data-variable-campo="tipoDato"></select>
+                <span class="field-error" data-variable-error-for="tipoDato">Selecciona un tipo de dato.</span>
+              </div>
+              <div class="form-field">
+                <label>Código *</label>
+                <input type="text" data-variable-campo="codigo" placeholder="ej. peso">
+                <span class="field-error" data-variable-error-for="codigo">El código es obligatorio.</span>
+              </div>
+              <div class="form-field">
+                <label>Nombre *</label>
+                <input type="text" data-variable-campo="nombre" placeholder="ej. Peso de la Liquidez">
+                <span class="field-error" data-variable-error-for="nombre">El nombre es obligatorio.</span>
+              </div>
+              <div class="form-field">
+                <label>¿Permite marcar como más importante?</label>
+                <div class="segmented" id="importanciaVariableSegmented">
+                  <button class="sell active" type="button" data-valor="no">No</button>
+                  <button class="buy" type="button" data-valor="si">Sí</button>
+                </div>
+              </div>
+              <div class="form-field">
+                <label>¿Es obligatoria?</label>
+                <div class="segmented" id="requeridaVariableSegmented">
+                  <button class="sell active" type="button" data-valor="no">No</button>
+                  <button class="buy" type="button" data-valor="si">Sí</button>
+                </div>
+              </div>
+              <div class="form-field">
+                <label>¿La usa la IA?</label>
+                <div class="segmented" id="iaVariableSegmented">
+                  <button class="sell" type="button" data-valor="no">No</button>
+                  <button class="buy active" type="button" data-valor="si">Sí</button>
+                </div>
+              </div>
+              <div class="form-field">
+  <label>¿Permite marcar "Influyó en mi decisión"?</label>
+  <div class="segmented" id="influenciaVariableSegmented">
+    <button class="sell" type="button" data-valor="no">No</button>
+    <button class="buy active" type="button" data-valor="si">Sí</button>
+  </div>
+</div>
+              <div class="form-field">
+                <label>Estado</label>
+                <div class="segmented" id="estadoVariableSegmented">
+                
+                  <button class="buy active" type="button" data-valor="activo">Activo</button>
+                  <button class="sell" type="button" data-valor="inactivo">Inactivo</button>
+                </div>
+              </div>
+                <div class="form-field-full" id="configMatrizVariableWrapper" style="display:none; margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--color-border);">
+  <div class="form-grid">
+    <div class="form-field">
+      <label>Período (opcional)</label>
+      <input type="text" inputmode="decimal" class="input-numerico" data-variable-campo="periodo" placeholder="ej. 50">
+      <span class="dropzone-hint">Solo para indicadores con período configurable (ej. EMA). Se combina con el nombre: "EMA" + 50 → "EMA 50".</span>
+    </div>
+  </div>
+  <div class="form-field form-field-full" style="margin-top: var(--space-3);">
+    <label>Temporalidades que usa esta Variable</label>
+    <div id="temporalidadesVariableContainer"></div>
+  </div>
+</div>
+            </div>
+            <div class="form-actions">
+              <button class="btn-secondary" id="variableCancelBtn" type="button">Cancelar</button>
+              <button class="btn-primary" id="variableSaveBtn" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <span id="variableSaveBtnLabel">Guardar variable</span>
+              </button>
+            </div>
+          </div>
+        </section>
+        </div><!-- /variableFormWrapper -->
+
+        <section class="card" style="margin-bottom: var(--space-6);">
+          <div class="card-header">
+            <div class="card-header-title-group">
+              <div><h2>Listado de Variables</h2><div class="card-header-sub"><span id="variablesCount">0</span> variables registradas</div></div>
+            </div>
+            <button class="btn-primary" id="nuevaVariableBtn" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Nueva variable
+            </button>
+          </div>
+          <div class="table-wrap" style="max-height: none;">
+            <table class="data-table">
+              <thead><tr><th>Variable</th><th>Categoría</th><th>Tipo de dato</th><th>Estado</th><th class="col-actions">Acciones</th></tr></thead>
+              <tbody id="variablesTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+
+          </div><!-- /panelListaVariables -->
+
+          <div id="panelListaOpciones" style="display:none;">
+            <button class="btn-secondary" id="volverAVariablesBtn" type="button" style="margin-bottom: var(--space-4);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+              Volver a Variables
+            </button>
+        <!-- ===== 3. OPCIONES DE VARIABLES ===== -->
+        <!-- Sprint 4.6 — mismo criterio: oculto por defecto. -->
+        <div id="opcionVarFormWrapper" style="display:none; margin-bottom: var(--space-6);">
+        <section class="card" style="margin-bottom: var(--space-6);" id="opcionvar-form-card">
+          <div class="card-header">
+            <div class="card-header-title-group">
+              <div class="card-header-icon icon-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
+              <div>
+                <h2>3. Opciones de Variables</h2>
+                <div class="card-header-sub" id="opcionVarFormSub">Crea una nueva opción dentro de una variable</div>
+              </div>
+            </div>
+            <span class="badge gold" id="opcionVarEditBadge" style="display:none;">Editando opción</span>
+          </div>
+          <div class="card-body">
+            <div class="form-grid">
+              <div class="form-field" id="variableOpcionFieldWrapper" style="display:none;">
+                <label>Variable *</label>
+                <select id="selectVariableOpcion" data-opcionvar-campo="variable"></select>
+                <span class="field-error" data-opcionvar-error-for="variable">Selecciona una variable.</span>
+              </div>
+              <div class="form-field">
+                <label>Código *</label>
+                <input type="text" data-opcionvar-campo="codigo" placeholder="ej. esencial">
+                <span class="field-error" data-opcionvar-error-for="codigo">El código es obligatorio.</span>
+              </div>
+              <div class="form-field">
+                <label>Etiqueta *</label>
+                <input type="text" data-opcionvar-campo="etiqueta" placeholder="ej. Esencial">
+                <span class="field-error" data-opcionvar-error-for="etiqueta">La etiqueta es obligatoria.</span>
+              </div>
+              <div class="form-field">
+                <label>Color</label>
+                <input type="color" data-opcionvar-campo="color" value="#2563EB" style="height: 42px; padding: 4px; cursor: pointer;">
+              </div>
+              <div class="form-field">
+                <label>Ícono / Emoji</label>
+                <input type="text" data-opcionvar-campo="icono" placeholder="ej. ⭐ o 🟢" maxlength="4">
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn-secondary" id="opcionVarCancelBtn" type="button">Cancelar</button>
+              <button class="btn-primary" id="opcionVarSaveBtn" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <span id="opcionVarSaveBtnLabel">Guardar opción</span>
+              </button>
+            </div>
+          </div>
+        </section>
+        </div><!-- /opcionVarFormWrapper -->
+
+        <section class="card" id="opcionesvar-listado">
+          <div class="card-header">
+            <div class="card-header-title-group">
+              <div><h2>Listado de Opciones</h2><div class="card-header-sub"><span id="opcionesVarCount">0</span> opciones registradas</div></div>
+            </div>
+            <button class="btn-primary" id="nuevaOpcionBtn" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Nueva opción
+            </button>
+          </div>
+          <div class="table-wrap" style="max-height: none;">
+            <table class="data-table">
+              <thead><tr><th>Opción</th><th>Variable</th><th>Estado</th><th class="col-actions">Acciones</th></tr></thead>
+              <tbody id="opcionesVarTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+
+          </div><!-- /panelListaOpciones -->
+        </div><!-- /config-content -->
+      </div><!-- /config-layout -->
+
+      </div><!-- /vistaVariables -->
+
+<div id="configPanelApariencia" style="display:none;">
+        <section class="card">
+          <div class="card-header">
+            <div class="card-header-title-group">
+              <div><h2>Apariencia</h2><div class="card-header-sub">Tema claro u oscuro para toda la aplicación</div></div>
+            </div>
+          </div>
+          <div class="card-body">
+            <p style="color: var(--color-text-secondary); margin-bottom: var(--space-4);">El cambio de tema es el mismo botón que ya tienes en la barra superior — este acceso es solo un atajo, no es una función nueva.</p>
+            <button class="btn-secondary" id="apparienciaThemeToggleShortcut" type="button">Cambiar tema claro / oscuro</button>
+          </div>
+        </section>
+      </div><!-- /configPanelApariencia -->
+
+        </div><!-- /config-content -->
+      </div><!-- /config-layout -->
+
+      </div><!-- /vistaConfiguracion -->
+      
+      <!-- ===================== HISTORIAL DE OPERACIONES ===================== -->
+      <div id="vistaHistorial" style="display:none;">
+<!-- ===================== HISTORIAL ===================== -->
+
+      <section class="card" id="historial">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div class="card-header-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="14" y2="18"/></svg></div>
+            <div>
+              <h2>Historial de Trades</h2>
+              <div class="card-header-sub"><span id="operacionesCount">0</span> operaciones registradas</div>
+            </div>
+          </div>
+          <button class="btn-secondary" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Exportar
+          </button>
+        </div>
+        <div class="filters-bar">
+          <input type="date" title="Filtrar por fecha (visual, sin función aún)">
+          <select title="Filtrar por mercado (visual, sin función aún)">
+            <option value="">Mercado</option>
+            <option>Cripto</option><option>Forex</option><option>Acciones</option><option>Futuros</option>
+          </select>
+          <select title="Filtrar por activo (visual, sin función aún)">
+            <option value="">Activo</option>
+          </select>
+          <select title="Filtrar por estrategia (visual, sin función aún)">
+            <option value="">Estrategia</option>
+          </select>
+          <select id="filtroEstadoTrade" title="Filtrar por Estado del Trade">
+            <option value="Todos">Estado del Trade: Todos</option>
+            <option value="Abierto">🟡 Abiertos</option>
+            <option value="Cerrado">🔵 Cerrados</option>
+          </select>
+          <select id="filtroResultado" title="Filtrar por Resultado">
+            <option value="Todos">Resultado: Todos</option>
+            <option value="Ganadora">🟢 Ganadoras</option>
+            <option value="Perdedora">🔴 Perdedoras</option>
+            <option value="Break Even">🟡 Break Even</option>
+          </select>
+          <select title="Filtrar por estado emocional (visual, sin función aún)">
+            <option value="">Estado emocional</option>
+            <option>Neutral</option><option>Ansiedad</option><option>Euforia</option>
+          </select>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Fecha</th>
+                <th>Activo</th>
+                <th>Mercado</th>
+                <th>Dirección</th>
+                <th>PnL</th>
+                <th>R</th>
+                <th>Ganancia %</th>
+                <th>Estado del Trade</th>
+                <th>Resultado</th>
+                <th class="col-actions">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="operationsTableBody">
+              <!-- Las filas se generan dinámicamente vía renderTable() -->
+            </tbody>
+          </table>
+        </div>
+     </section>
+      </div><!-- /vistaHistorial -->
+
+    </main>
+
+    <footer class="footer">Trading Master v0.4.5.2</footer>
+
+  </div>
+</div>
+
+<!-- ============================================================
+     TOAST CONTAINER (ahora funcional vía showToast())
+     ============================================================ -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ============================================================
+     MODAL REUTILIZABLE (ahora funcional vía openModal()/closeModal())
+     ============================================================ -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">Confirmar acción</h3>
+      <button class="icon-btn" id="modalCloseBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" id="modalBody">¿Estás seguro?</div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="modalCancelBtn" type="button">Cancelar</button>
+      <button class="btn-danger" id="modalConfirmBtn" type="button">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     FICHA TÉCNICA DEL TRADE — vista de solo lectura (Fase 4.2)
+     ============================================================ -->
+<div class="modal-overlay" id="fichaOverlay">
+  <div class="modal ficha-modal">
+    <div class="modal-header">
+      <h3 id="fichaTitulo">Ficha Técnica</h3>
+      <button class="icon-btn" id="fichaCloseBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" id="fichaBody" style="max-height: 78vh; overflow-y: auto;"></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     REGISTRO MANUAL DE MOVIMIENTOS — Sprint TV-3A. Mismo patrón
+     estructural exacto que #fichaOverlay (.modal-overlay > .modal >
+     .modal-header/.modal-body) — solo que aquí el body es un formulario
+     real, reutilizando .form-field/.form-grid/.segmented ya existentes
+     en toda la app (mismas clases del formulario de Trades/Categorías).
+     ============================================================ -->
+<div class="modal-overlay" id="movimientoOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>➕ Registrar movimiento</h3>
+      <button class="icon-btn" id="movimientoCloseBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-field">
+        <label>Categoría *</label>
+        <div class="segmented" id="movimientoCategoriaSegmented">
+          <button class="buy active" type="button" data-valor="POSITION">Movimiento de posición</button>
+          <button class="sell" type="button" data-valor="CAPITAL">Movimiento de capital</button>
+          <button class="sell" type="button" data-valor="COST">Costo</button>
+        </div>
+      </div>
+      <div class="form-field">
+        <label>Tipo *</label>
+        <div class="segmented" id="movimientoTipoSegmented"></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-field">
+          <label>Fecha real del movimiento *</label>
+          <input type="date" id="movimientoFecha">
+          <span class="field-error" data-movimiento-error-for="fecha">La fecha es obligatoria.</span>
+        </div>
+        <div class="form-field">
+          <label>Hora real del movimiento *</label>
+          <input type="time" id="movimientoHora">
+          <span class="field-error" data-movimiento-error-for="hora">La hora es obligatoria.</span>
+        </div>
+      </div>
+      <div class="form-grid" id="movimientoCamposPosition" style="display:none;">
+        <div class="form-field">
+          <label>Precio *</label>
+          <input type="text" inputmode="decimal" class="input-numerico" id="movimientoPrecio" placeholder="0.00">
+          <span class="field-error" data-movimiento-error-for="price">El precio es obligatorio y debe ser válido.</span>
+        </div>
+        <div class="form-field">
+          <label>Cantidad *</label>
+          <input type="text" inputmode="decimal" class="input-numerico" id="movimientoCantidad" placeholder="0.00">
+          <span class="field-error" data-movimiento-error-for="quantity">La cantidad es obligatoria y debe ser válida.</span>
+        </div>
+        <div class="form-field">
+          <label>Comisión</label>
+          <input type="text" inputmode="decimal" class="input-numerico" id="movimientoComision" placeholder="0.00">
+        </div>
+      </div>
+      <div class="form-grid" id="movimientoCamposMonto" style="display:none;">
+        <div class="form-field">
+          <label>Monto *</label>
+          <input type="text" inputmode="decimal" class="input-numerico" id="movimientoMonto" placeholder="0.00">
+          <span class="field-error" data-movimiento-error-for="amount">El monto es obligatorio y debe ser válido.</span>
+        </div>
+      </div>
+      <div class="form-field">
+        <label>Notas</label>
+        <input type="text" id="movimientoNotas" placeholder="Notas opcionales...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="movimientoCancelBtn" type="button">Cancelar</button>
+      <button class="btn-primary" id="movimientoSaveBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Guardar movimiento
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="js/utils.js"></script>
+<script src="js/storage.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/accounts.js"></script>
+<script src="js/plan.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/trades.js"></script>
+  <script src="js/catalog.js"></script>
+<script src="js/assets.js"></script>
+<!-- Sprint MARKET-1A — servicio aislado, sin conectar a ningún selector/formulario todavía -->
+<!-- Sprint MARKET-7 — solo para DIBUJAR el gráfico de velas; los datos siguen viniendo exclusivamente de Binance -->
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<script src="js/marketData.js"></script>
+<script src="js/bitunixProvider.js"></script>
+<script src="js/instrumentCatalog.js"></script>
+<script src="js/marketStatus.js"></script>
+<script src="js/marketSentiment.js"></script>
+  <script src="js/variables.js"></script>
+  <script src="js/catalogosGenerales.js"></script>
+  <script src="js/variablesObservadas.js"></script>
+<script>
+  /* ============================================================
+     CONSTANTES DE DATOS (Fase 3.5 — v0.3.5)
+     Fuente única de verdad para selectores y grupos de selección
+     múltiple. Agregar/renombrar/eliminar opciones se hace SOLO
+     aquí — nunca en el HTML ni en la lógica de renderizado.
+     ============================================================ */
+  const ESTRATEGIAS = [
+    'Estrategia Scalping',
+    'Estrategia Intradía',
+    'Estrategia Swing'
+  ];
+
+  const TIPOS_TRADE = ['Scalping', 'Intradía', 'Swing', 'Position'];
+
+  const MERCADOS = ['Cripto', 'Acciones', 'Oro'];
+
+  const TIPOS_OPERACION = ['Spot', 'Futuros', 'Margin', 'Loan'];
+
+  const ACTIVOS_FAVORITOS = ['BTC', 'ETH', 'SOL', 'XAU (Oro)', 'AAPL', 'TSLA'];
+
+  // AC-01: "Cuenta" pasó de ser un array fijo a una entidad completa
+  // administrada en su propio módulo (ver sección GESTIÓN DE CUENTAS).
+  const TIPOS_CUENTA = ['Real', 'Demo', 'Fondeada'];
+  // Array simple y extensible — agregar una moneda futura es una línea aquí.
+  const MONEDAS = ['USD', 'USDT', 'EUR', 'COP'];
+
+  // Temporalidades unificadas — única fuente de verdad para TODA la app
+  // (selector "Temporalidad" de Estrategia, tabla de Contexto del Mercado).
+  // Orden: de mayor a menor temporalidad (Mensual → Semanal → ... → 5m).
+  const TEMPORALIDADES = ['1M', '1W', '1D', '4H', '1H', '15m', '5m'];
+
+  // Fase 4.2: 4 estados con emoji, seleccionables con un solo clic (antes eran 6 vía <select>).
+  // Fase 4.2 — se conserva intacta: la Ficha Técnica y el análisis automático
+  // siguen usando esta constante para mostrar operaciones ANTERIORES a IMP-02.
+  const ESTADOS_MERCADO = [
+    { valor: 'Alcista', emoji: '🟢' },
+    { valor: 'Bajista', emoji: '🔴' },
+    { valor: 'Lateral', emoji: '⚪' },
+    { valor: 'Transición', emoji: '🟡' }
+  ];
+
+  // IMP-02 — nuevo modelo objetivo: solo se registra la posición del precio
+  // respecto a la EMA50, nunca una interpretación (Alcista/Bajista/Lateral).
+  const EMA50_ESTADOS = [
+    { valor: 'sobre', etiqueta: 'Sobre EMA50', emoji: '🟢' },
+    { valor: 'en', etiqueta: 'En la EMA50', emoji: '🟡' },
+    { valor: 'bajo', etiqueta: 'Bajo EMA50', emoji: '🔴' }
+  ];
+
+  // ARQ-01 — Variables de Decisión (primera: Liquidez). Se guardan códigos
+  // cortos y sin ambigüedad ("EQH", "esencial") para que Analytics pueda
+  // agrupar/filtrar limpio; la etiqueta larga es solo para mostrar al usuario.
+  const LIQUIDEZ_PESO = [
+    { valor: 'esencial', etiqueta: '⭐⭐⭐ Esencial' },
+    { valor: 'importante', etiqueta: '⭐⭐ Importante' },
+    { valor: 'complementaria', etiqueta: '⭐ Complementaria' }
+  ];
+
+  const LIQUIDEZ_ZONAS = [
+    { valor: 'EQH', etiqueta: 'Equal Highs (EQH) (Máximos iguales)' },
+    { valor: 'EQL', etiqueta: 'Equal Lows (EQL) (Mínimos iguales)' },
+    { valor: 'swingHigh', etiqueta: 'Swing High (Máximo estructural relevante)' },
+    { valor: 'swingLow', etiqueta: 'Swing Low (Mínimo estructural relevante)' },
+    { valor: 'maximoDiario', etiqueta: 'Máximo Diario (High del día)' },
+    { valor: 'minimoDiario', etiqueta: 'Mínimo Diario (Low del día)' },
+    { valor: 'maximoSesion', etiqueta: 'Máximo de Sesión (High de Asia, Londres o NY)' },
+    { valor: 'minimoSesion', etiqueta: 'Mínimo de Sesión (Low de Asia, Londres o NY)' },
+    { valor: 'otro', etiqueta: 'Otro' }
+  ];
+
+  const LIQUIDEZ_RECUPERACION = [
+    { valor: 'sinRecuperacion', etiqueta: 'Sin recuperación' },
+    { valor: 'parcial', etiqueta: 'Recuperación parcial' },
+    { valor: 'clara', etiqueta: 'Recuperación clara' }
+  ];
+
+  const LIQUIDEZ_METODO_ENTRADA = [
+    { valor: 'inmediata', etiqueta: 'Entrada inmediata' },
+    { valor: 'confirmacion', etiqueta: 'Entrada tras confirmación' },
+    { valor: 'pullback', etiqueta: 'Entrada en pullback' }
+  ];
+
+  // ASE X — nuevo campo condicional: solo aplica cuando ¿Hubo Barrido? = Sí
+  // v0.5.x — reemplaza el interruptor Sí/No: registra el estado de la
+  // liquidez al momento exacto de la decisión, no una descripción posterior
+  // del mercado. "Esperó barrido completo" (en vez de solo "Barrido
+  // completo") deja explícito que se califica la decisión del trader, no el
+  // mercado — sugerencia del usuario, coherente con la filosofía del proyecto.
+  const LIQUIDEZ_BARRIDO = [
+    { valor: 'sinBarrido', etiqueta: 'Sin barrido' },
+    { valor: 'parcial', etiqueta: 'Barrido parcial' },
+    { valor: 'completo', etiqueta: 'Esperó barrido completo' }
+  ];
+
+  const LIQUIDEZ_CALIDAD_BARRIDO = [
+    { valor: 'excelente', etiqueta: 'Excelente' },
+    { valor: 'buena', etiqueta: 'Buena' },
+    { valor: 'regular', etiqueta: 'Regular' },
+    { valor: 'debil', etiqueta: 'Débil' }
+  ];
+
+  // IMP-04 — Variable de Decisión: Estructura (segunda de la serie, tras Liquidez)
+  const ESTRUCTURA_REFERENCIAS = ['Soporte', 'Resistencia', 'Línea de tendencia'];
+  const ESTRUCTURA_FORMACIONES = ['Canal', 'Rango', 'Triángulo', 'Bandera', 'Cuña', 'Compresión'];
+  const ESTRUCTURA_UBICACION = ['Zona alta', 'Zona media', 'Zona baja'];
+  const ESTRUCTURA_HIPOTESIS = ['Continuación', 'Pullback', 'Reversión', 'Ruptura', 'Rechazo'];
+  const ESTRUCTURA_CONFIRMACIONES = [
+    'Cambio de carácter (CHOCH)', 'Ruptura de estructura (BOS)', 'Nuevo máximo (HH)',
+    'Nuevo mínimo (LL)', 'Máximo más bajo (LH)', 'Mínimo más alto (HL)'
+  ];
+
+  // ASE X — Variable de Decisión: Price Action (tercera de la serie).
+  // "Patrones observados" queda intencionalmente vacía: la lista definitiva
+  // de los 6 patrones aprobados todavía no está definida — solo se deja la
+  // estructura lista para incorporarla más adelante sin tocar el mecanismo.
+  const PRICE_ACTION_PATRONES = [
+    { valor: 'pinBar', etiqueta: 'Pin Bar (Rechazo del precio)' },
+    { valor: 'engulfing', etiqueta: 'Engulfing (Envolvente) (Cambio de control)' },
+    { valor: 'insideBar', etiqueta: 'Inside Bar (Compresión)' },
+    { valor: 'outsideBar', etiqueta: 'Outside Bar (Expansión)' },
+    { valor: 'doji', etiqueta: 'Doji (Indecisión)' },
+    { valor: 'marubozu', etiqueta: 'Marubozu (Strong Candle) (Impulso fuerte)' }
+  ];
+  const PRICE_ACTION_LECTURA = ['Rechazo', 'Impulso', 'Fortaleza', 'Debilidad', 'Absorción', 'Agotamiento'];
+  // Lista inicial — preparada para ampliarse (solo se agregan strings aquí).
+  const PRICE_ACTION_CONFIRMACIONES = [
+    'Strong Close', 'Confirmación en la siguiente vela', 'Cierre sobre nivel', 'Cierre bajo nivel'
+  ];
+
+  // Variable de Decisión: Desequilibrios (cuarta de la serie)
+  // Desequilibrios — Imbalance se reemplaza por dos contextos operativos
+  // específicos de FVG, siguiendo el mismo principio de Liquidez/Price
+  // Action: valor persistido limpio, etiqueta visible con contexto.
+  const DESEQUILIBRIOS_OBSERVADOS = [
+    { valor: 'fvgContinuation', etiqueta: 'FVG (Continuación)' },
+    { valor: 'fvgReversal', etiqueta: 'FVG (Reversión)' },
+    { valor: 'gap', etiqueta: 'Gap' },
+    { valor: 'mechazo', etiqueta: 'Mechazo' }
+  ];
+
+  // Variable de Decisión: Volumen (quinta de la serie)
+  // "Lectura del Volumen" queda con las 3 confirmadas por el usuario contra su
+  // metodología. Alto/Bajo/Creciente/Decreciente Volumen se dejan pendientes
+  // hasta confirmar el histórico definitivo — agregarlas después es una línea.
+  const VOLUMEN_LECTURA = ['Confirma el movimiento', 'No confirma el movimiento', 'Divergencia de Volumen'];
+  const VOLUMEN_VRVP = ['POC', 'HVN', 'LVN'];
+
+  // ARQ-01: "Liquidity Sweep" se quitó de aquí — ahora vive en su propio
+  // módulo "Variable de Decisión: Liquidez", mucho más rico que un simple check.
+  const CONFIRMACIONES = [
+    'Order Block', 'Fair Value Gap (FVG)', 'Imbalance',
+    'BOS', 'CHOCH', 'HH-HL', 'LH-LL', 'EMA', 'RSI', 'MACD',
+    'Volumen', 'Divergencia', 'Otro'
+  ];
+
+  // Fase 4.4 — Psicología y Aprendizaje
+  const ESTADOS_EMOCIONALES = [
+    { valor: 'Muy tranquilo', emoji: '😀' },
+    { valor: 'Confiado', emoji: '🙂' },
+    { valor: 'Neutral', emoji: '😐' },
+    { valor: 'Ansioso', emoji: '😟' },
+    { valor: 'Frustrado', emoji: '😠' },
+    { valor: 'Cansado', emoji: '😴' },
+    { valor: 'Eufórico', emoji: '⚡' }
+  ];
+
+  const EMOCIONES_DURANTE = ['FOMO', 'Ansiedad', 'Impaciencia', 'Miedo', 'Exceso de confianza', 'Disciplina', 'Otro'];
+
+  // Nombre provisional del indicador, tal como lo pidió el usuario.
+  const CRISTO_INDICADOR = [
+    { valor: 'Muy alineado', emoji: '🙏' },
+    { valor: 'En paz', emoji: '🙂' },
+    { valor: 'Normal', emoji: '😐' },
+    { valor: 'Desenfocado', emoji: '⚠' },
+    { valor: 'Muy desconectado', emoji: '❌' }
+  ];
+
+  const CAUSAS_RESULTADO = [
+    'Buena estrategia', 'Mala estrategia', 'Mala ejecución', 'Mala gestión',
+    'Mala psicología', 'Mercado impredecible', 'No estoy seguro'
+  ];
+
+  const NIVELES_CONCENTRACION = ['1', '2', '3', '4', '5'];
+  const CUMPLIMIENTO_PLAN_OPCIONES = ['Sí', 'Parcialmente', 'No'];
+
+  /* ============================================================
+     ESTADO GLOBAL DE LA APLICACIÓN
+     ============================================================ */
+
+  // --- Mi Plan de Trading (Fase 4.3) ---
+  // Nota: el prompt de esta fase pedía "LocalStorage", pero se usa window.storage
+  // (igual que las operaciones) para mantener consistencia y que el plan también
+  // se sincronice entre dispositivos vía tu cuenta de Claude.
+  const PLAN_TRADING_DEFAULTS = {
+    objetivos: 'Objetivos anuales:\n\nObjetivos mensuales:\n\nObjetivos semanales:\n',
+    principios: '',
+    gestionRiesgo: 'Riesgo máximo por operación:\nRiesgo diario:\nRiesgo semanal:\nDrawdown permitido:\n',
+    mercados: '',
+    // Semilla inicial tomada de ESTRATEGIAS — punto de enganche para integraciones futuras.
+    estrategias: ESTRATEGIAS.map(e => `${e}\nDescripción: \n`).join('\n'),
+    checklistEntrada: '',
+    gestionOperacion: 'Stop Loss:\nBreak Even:\nParciales:\nSalida:\n',
+    psicologia: '',
+    revisionSemanal: '',
+    notas: ''
+  };
+
+
+  // AC-01.1 (punto 1 + compatibilidad) — cuentas creadas antes de este
+  // refinamiento no tienen `idCuenta` todavía. Se les asigna uno de forma
+  // automática y permanente la primera vez que se cargan, sin intervención
+  // del usuario y sin duplicar el mecanismo del contador.
+
+
+  // AC-01.1 (punto 3) — operaciones registradas antes de este refinamiento
+  // guardan el NOMBRE de la cuenta en `op.cuenta`. Si ese valor no coincide
+  // con ningún `idCuenta` existente, se busca la cuenta por nombre y se
+  // completa la relación automáticamente. Si no hay coincidencia, se deja
+  // tal cual — nunca se rompe ni se genera un error.
+
+
+  // IMP-02 — migración de compatibilidad: operaciones anteriores guardaron
+  // una INTERPRETACIÓN (Alcista/Bajista/Lateral/Transición) en op.contextoMercado.
+  // El nuevo modelo guarda solo la OBSERVACIÓN objetiva (sobre/bajo EMA50).
+  // - Alcista → "sobre" y Bajista → "bajo" tienen equivalencia clara.
+  // - Lateral/Transición NO tienen una conversión confiable — esa temporalidad
+  //   queda pendiente de revisión (nunca se inventa un valor).
+  // `op.contextoMercado` NUNCA se borra: la Ficha Técnica lo sigue usando tal
+  // cual para operaciones que no tengan el nuevo campo.
+
+
+
+
+  // AC-01.1 — única función de resolución nombre↔ID, reutilizada en Ficha
+  // Técnica y Dashboard. Si `valor` es un idCuenta conocido, muestra el
+  // nombre ACTUAL de la cuenta (refleja renombres). Si no coincide con
+  // ninguna cuenta (dato antiguo sin migrar o cuenta eliminada), muestra el
+  // valor tal cual — nunca un error ni un campo vacío.
+  function obtenerNombreCuentaPorId(valor){
+    if(!valor) return '—';
+    const cuenta = cuentas.find(c => c.idCuenta === valor);
+    return cuenta ? cuenta.nombre : valor;
+  }
+
+  /* ============================================================
+     INICIALIZACIÓN
+     ============================================================ */
+
+
+  /* ============================================================
+     CONSTRUCCIÓN DINÁMICA DE SELECTORES Y GRUPOS (Fase 3.5)
+     ============================================================ */
+
+
+
+
+
+
+
+
+  // IMP-02 — "Contexto Técnico": reemplaza el modelo interpretado
+  // (Alcista/Bajista/Lateral/Transición) por una observación objetiva
+  // (precio sobre/bajo EMA50). Se reutiliza el mismo mecanismo de chips
+  // en 3 bloques ya existente — solo cambian las opciones por fila (2 en
+  // vez de 4) y el nombre de las funciones, para no confundir con el
+  // modelo anterior que la Ficha Técnica todavía usa para operaciones antiguas.
+
+
+  // Genérica desde su origen (Fase 4.2): solo lee data-value del chip activo
+  // por fila, sin importar qué modelo de datos representen esos valores.
+
+
+
+
+  // IMP-03 — configuración de temporalidades por Tipo de Trade. Es un mapa de
+  // datos, no un if/else: agregar una estrategia futura (o redefinir Position)
+  // es cambiar esta constante, nunca la lógica de abajo.
+ 
+  const TEMPORALIDADES_POR_DEFECTO = { visibles: ['1W', '1D', '4H', '1H', '15m', '5m'], opcionales: [] };
+
+  // Muestra/oculta cada fila del grid según el Tipo de Trade actual, y oculta
+  // por completo cualquier bloque cuyas filas queden todas ocultas (para no
+  // dejar un título de bloque sin contenido debajo).
+
+
+
+
+  // Fase 4.4 — Psicología y Aprendizaje: recolección/aplicación agrupada en un
+  // único objeto `psicologia`, tal como pide la arquitectura de esta fase.
+
+
+
+
+
+
+  /* ============================================================
+     VARIABLES DE DECISIÓN (ARQ-01)
+     3 helpers genéricos reutilizables por cualquier variable de decisión
+     futura (Estructura, Momentum, etc.) — el mecanismo de "toggle Sí/No
+     que revela campos condicionales" es siempre el mismo, solo cambia el
+     nombre y los campos internos.
+     ============================================================ */
+
+
+
+
+
+
+  // Lee el valor del botón activo dentro de un segmented — reutilizable por
+  // cualquier campo de una variable de decisión (no solo Liquidez).
+
+
+
+
+  // --- Liquidez: primera Variable de Decisión ---
+  // ASE X — "Calidad del Barrido" solo existe cuando ¿Hubo Barrido? = Sí.
+
+
+
+
+
+
+  // --- Estructura: segunda Variable de Decisión (IMP-04) ---
+
+  // Chip normal (reutiliza poblarGrupoMultiSeleccion) para selección única
+  // sin estrella (Ubicación, Hipótesis).
+
+
+
+
+
+
+
+
+  // Chip CON estrella: cada opción lleva su propio ⭐ interno, oculto hasta
+  // que el chip esté seleccionado. data-categoria identifica de qué grupo
+  // viene el valor (referencias/formaciones/confirmaciones), necesario para
+  // guardar factorPrincipal correctamente.
+
+
+  // Price Action — Patrones de vela: variante de poblarGrupoConEstrella para
+  // objetos {valor, etiqueta} en vez de strings simples. El código guardado
+  // queda limpio (ej. "pinBar"); la guía entre paréntesis es solo visual.
+  // Función nueva y exclusiva de esta lista — no reemplaza ni altera
+  // poblarGrupoConEstrella, que las demás Variables de Decisión siguen usando tal cual.
+
+
+
+
+
+
+
+
+
+
+
+
+  // --- Price Action: tercera Variable de Decisión (ASE X) ---
+  // Mismo mecanismo de estrella que Estructura, con sus propias funciones
+  // (duplicadas a propósito, no generalizadas) para no tocar ni arriesgar
+  // el comportamiento ya probado del módulo de Estructura.
+
+
+
+
+
+
+
+
+
+
+  // --- Desequilibrios: cuarta Variable de Decisión ---
+
+
+
+
+
+
+
+
+
+
+  // --- Volumen: quinta Variable de Decisión ---
+
+
+
+
+
+
+
+
+
+
+  // Advertencia no bloqueante (punto "VALIDACIÓN" del prompt): si influye=Sí
+  // pero no se marcó ningún elemento estructural, solo se avisa.
+
+
+  // Un solo listener genérico cubre los 6 grupos de Psicología: distingue
+  // selección única vs. múltiple por el atributo data-select-mode del contenedor.
+
+
+
+
+
+
+  // Fase 4.4 — variante de chips para constantes con emoji ({ valor, emoji }).
+
+
+  // ARQ-01 — puebla un .segmented (botones) desde un arreglo {valor, etiqueta}.
+  // El primer botón queda activo por defecto (mismo criterio que los demás
+  // segmented de la app, donde siempre hay una opción seleccionada).
+
+
+
+
+
+
+
+
+
+  /* ============================================================
+     LECTURA / ESCRITURA DEL FORMULARIO
+     ============================================================ */
+
+
+
+
+  /* ============================================================
+     VALIDACIÓN
+     ============================================================ */
+  // v0.4.5 (Parte 3) — lista mínima de campos obligatorios para guardar.
+  // Nota: Precio de salida y Riesgo % dejaron de ser obligatorios (no aparecen
+  // en la lista que definió el usuario); siguen validándose solo si se llenan.
+  const CAMPOS_OBLIGATORIOS = [
+    { campo: 'cuenta', etiqueta: 'Cuenta' },
+    { campo: 'fecha', etiqueta: 'Fecha entrada' },
+    { campo: 'horaEntrada', etiqueta: 'Hora entrada' },
+    { campo: 'mercado', etiqueta: 'Mercado' },
+    { campo: 'tipoOperacion', etiqueta: 'Tipo de operación' },
+    { campo: 'activo', etiqueta: 'Activo' },
+    { campo: 'direccion', etiqueta: 'Dirección' },
+    
+    { campo: 'temporalidad', etiqueta: 'Temporalidad de ejecución' },
+    { campo: 'precioEntrada', etiqueta: 'Precio entrada' },
+    { campo: 'margenUtilizado', etiqueta: 'Margen utilizado' },
+    { campo: 'apalancamiento', etiqueta: 'Apalancamiento' }
+    // Sprint UX-3.1 — 'stopLoss' se retiró de esta lista a propósito.
+    // Ya NO es obligatorio para guardar un Trade. Sigue en
+    // CAMPOS_OBLIGATORIOS_NUMERICOS (más abajo) — si el usuario escribe
+    // algo, debe ser un número válido; vacío ahora está permitido.
+  ];
+
+  // Entre los obligatorios, estos además deben ser un número válido (no solo "no vacíos").
+  const CAMPOS_OBLIGATORIOS_NUMERICOS = ['precioEntrada', 'stopLoss', 'margenUtilizado', 'apalancamiento'];
+
+  // GT-01.1 — campos de "apertura" que se bloquean (solo consulta) durante el
+  // flujo de "🔒 Cerrar Trade". Los campos de cierre (fechaSalida, horaSalida,
+  // precioSalida, comisiones, evidencia, psicología) nunca están en esta lista.
+  const CAMPOS_APERTURA_BLOQUEABLES = [
+    'cuenta', 'fecha', 'horaEntrada', 'mercado', 'tipoOperacion', 'activo', 'temporalidad', 'precioEntrada', 'stopLoss', 'takeProfit',
+    'margenUtilizado', 'apalancamiento', 'tamanoPosicion', 'riesgoPct'
+  ];
+
+  // Activa (true) o desactiva (false) el modo "completar cierre": bloquea los
+  // campos de apertura para consulta y muestra el aviso — no crea ningún
+  // formulario nuevo, solo ajusta el mismo formulario existente.
+
+
+
+
+
+
+
+
+  /* ============================================================
+     MOTOR DE CÁLCULOS (Fase 3 — v0.3)
+     Funciones puras e independientes: no dependen del DOM ni de
+     validateForm/renderTable, por lo que Dashboard, Estadísticas
+     y Gráficos podrán reutilizarlas en fases futuras sin cambios.
+
+     Convenciones fijadas para el proyecto:
+     - "Tamaño de posición" = valor nocional en USD (Opción A).
+       El apalancamiento ya está implícito en ese valor; no se
+       recalcula aparte.
+     - Riesgo/Reward/RR planificado/R múltiple solo se calculan
+       si hay Stop Loss válido; si no, quedan en null (se muestra "—").
+     - Break Even = PnL neto exactamente igual a 0.
+     - Resultado % = PnL neto / Tamaño de posición × 100
+       (rendimiento del trader sobre el capital arriesgado,
+       no solo la variación de precio del activo).
+     ============================================================ */
+
+
+
+
+
+
+  /* ============================================================
+     VERIFICACIÓN DE COMPLETITUD (Fase 4.1)
+     No bloquea el guardado — solo recuerda al usuario diligenciar
+     Psicología y Evidencia para mejorar la calidad del diario.
+     ============================================================ */
+
+
+
+
+  /* ============================================================
+     CRUD DE OPERACIONES
+     ============================================================ */
+
+
+  // GT-01.1 — mensaje de confirmación según el Estado del Trade ya deducido
+  // automáticamente en collectFormData(). Un solo lugar para esta redacción,
+  // reutilizado tanto al crear como al cerrar un Trade.
+
+
+
+
+
+
+
+
+  // GT-01.1: "Cerrar Trade" reutiliza editarOperacion tal cual (mismo
+  // formulario, mismo modo edición) y además bloquea los campos de apertura
+  // para que el usuario solo complete los datos de cierre pendientes. El
+  // Estado del Trade se sigue deduciendo automáticamente al guardar — no se
+  // fuerza aquí ningún valor.
+
+
+  /* ============================================================
+     RESET DEL FORMULARIO
+     ============================================================ */
+
+
+  /* ============================================================
+     FICHA TÉCNICA DEL TRADE (Fase 4.2)
+     Vista de solo lectura, en un modal dedicado (no reutiliza el
+     formulario). Solo LEE datos ya existentes — no toca CRUD,
+     persistencia, Dashboard ni motor de cálculos.
+     ============================================================ */
+
+
+  // v0.4.5: mapas de emoji centralizados — reutilizados por la Ficha Técnica
+  // y por el nuevo Resumen previo, para no duplicar la misma lógica dos veces.
+
+
+
+
+
+
+
+
+  // Fase 4.2.1 — tabla de comparación Contexto del Mercado vs. dirección de la operación.
+  // v0.4.5.1 — Hallazgo de QA (punto 6): la versión anterior del Resumen era
+  // una vista CONDENSADA que omitía campos (Take Profit, Margen, Apalancamiento,
+  // Riesgo %, comisiones, psicología completa, evidencia real, etc.), lo que
+  // podía diferir de lo realmente guardado. Corrección: reutilizar directamente
+  // construirHtmlFicha() (la misma función de la Ficha Técnica) sobre los datos
+  // en vivo del formulario — así el Resumen SIEMPRE muestra el 100% de la
+  // información y es, por construcción, idéntico a lo que se vería una vez
+  // guardado (no puede haber divergencia porque es literalmente el mismo código).
+
+
+
+
+  // Fase 4.2.1 — interpretación automática (sin porcentajes ni puntuaciones).
+  // TM-001 (v0.4.5): clasificación explícita y única fuente de verdad.
+  // Alcista/Bajista se comparan contra la dirección; Lateral y Transición
+  // SIEMPRE son neutrales — nunca deben calificarse como contratendencia.
+
+
+
+
+
+
+
+
+
+
+
+
+  /* ============================================================
+     RENDER DE LA TABLA
+     ============================================================ */
+  // TM-004 (v0.4.5): el historial se ordena por Fecha + Hora de Entrada,
+  // nunca por orden de creación del registro. Si falta la hora, se asume
+  // "00:00" únicamente para efectos de comparación (no se guarda así).
+
+
+
+
+  /* ============================================================
+     TOAST (notificaciones)
+     ============================================================ */
+  function showToast(tipo, titulo, detalle){
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${tipo}`;
+
+    const iconos = {
+      success: '<polyline points="20 6 9 17 4 12"/>',
+      danger: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+      warning: '<path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>'
+    };
+
+    toast.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${iconos[tipo] || iconos.success}</svg>
+      <div>
+        <div class="toast-title">${escapeHtml(titulo)}</div>
+        <div class="toast-desc">${escapeHtml(detalle || '')}</div>
+      </div>`;
+
+    container.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('show'));
+
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => toast.remove(), 300);
+    }, 3500);
+  }
+
+  /* ============================================================
+     MODAL (confirmaciones)
+     ============================================================ */
+
+
+
+
+
+
+  /* ============================================================
+     CARGA DE IMAGEN (evidencia)
+     ============================================================ */
+
+
+
+
+
+
+  /* ============================================================
+     LISTENERS — FORMULARIO
+     ============================================================ */
+
+
+  // Permite únicamente dígitos y un solo punto decimal; filtra cualquier otro
+  // carácter (letras, símbolos, signos, múltiples puntos) al escribir o pegar.
+
+
+  /* ============================================================
+     LISTENERS — TABLA (delegación de eventos)
+     ============================================================ */
+
+
+  /* ============================================================
+     LISTENERS VISUALES (heredados de Fase 1: tema, sidebar, tabs, chips)
+     ============================================================ */
+  function attachVisualListeners(){
+    const htmlEl = document.documentElement;
+   document.getElementById('themeToggleBtn').addEventListener('click', () => {
+  const nuevo = htmlEl.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  htmlEl.setAttribute('data-theme', nuevo);
+  localStorage.setItem('trading-master-theme', nuevo);
+});
+
+    const appEl = document.getElementById('app');
+    document.getElementById('sidebarCollapseBtn').addEventListener('click', () => {
+      appEl.classList.toggle('sidebar-collapsed');
+    });
+
+    const sidebarEl = document.getElementById('sidebar');
+    document.getElementById('mobileMenuBtn').addEventListener('click', () => {
+      sidebarEl.classList.toggle('mobile-open');
+    });
+
+    // NAV-01 — Sistema de navegación por módulos, basado en configuración.
+    // Cada módulo es una entrada { data-nav → id del contenedor }. Agregar un
+    // módulo nuevo en el futuro solo requiere:
+    //   1) crear su <div id="vistaNuevoModulo">,
+    //   2) agregar el <a class="nav-item" data-nav="nuevo-modulo"> al menú,
+    //   3) sumar una línea aquí.
+    // Nunca más un if/else por módulo.
+    const MODULOS_NAV = {
+      'mercado': 'vistaMercado', // Sprint NAV-MARKET — 🌐 Estado del Mercado, primera opción del menú
+      'inicio': 'vistaInicio',   // ahora exclusivamente Dashboard (KPIs personales)
+      'trades': 'vistaTrades',
+      'estrategias': 'vistaEstrategias',
+      'analytics': 'vistaAnalytics',
+      'plan-trading': 'vistaPlanTrading',
+      'historial': 'vistaHistorial',
+      'configuracion': 'vistaConfiguracion'
+    };
+    // Sprint — Reorganización de Navegación: 'cuentas', 'activos' y 'variables'
+    // se retiraron de MODULOS_NAV (ya no son destinos de nivel superior) — ahora
+    // viven dentro de Configuración, controlados por CONFIG_SUBMODULOS más abajo.
+    // Sus ids de vista (vistaCuentas, vistaActivos, vistaVariables) NO cambiaron
+    // en absoluto — solo cambió desde dónde se les controla la visibilidad.
+
+    function cambiarVista(navId){
+      Object.values(MODULOS_NAV).forEach(vid => {
+        const el = document.getElementById(vid);
+        if(el) el.style.display = 'none';
+      });
+      const idDestino = MODULOS_NAV[navId];
+      if(idDestino){
+        const destino = document.getElementById(idDestino);
+        if(destino) destino.style.display = '';
+      }
+      // Sprint — Reorganización de Navegación: al entrar a Configuración,
+      // siempre abre mostrando "Cuentas" por defecto (estado determinista,
+      // igual que ya hacía cambiarVista('inicio') al arrancar la app).
+      if(navId === 'configuracion'){
+        cambiarConfigSubvista('cuentas');
+      }
+    }
+
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        cambiarVista(item.dataset.nav);
+      });
+    });
+
+    /* ============================================================
+       SPRINT — Reorganización de Navegación: submenú interno de
+       Configuración. Mismo patrón exacto que MODULOS_NAV/cambiarVista()
+       de arriba, un nivel más adentro — nada de arquitectura nueva.
+       ============================================================ */
+    const CONFIG_SUBMODULOS = {
+      'cuentas': 'vistaCuentas',
+      'activos': 'vistaActivos',
+      'brokers': 'configPanelBrokers',
+      'mercados': 'configPanelMercados',
+      'temporalidades': 'configPanelTemporalidades',
+      'horizontes': 'configPanelHorizontes',
+      'direcciones': 'configPanelDirecciones',
+      'tipos-entrada': 'configPanelTiposEntrada',
+      'tipos-operacion': 'configPanelTiposOperacion',
+      'variables': 'vistaVariables',
+      'apariencia': 'configPanelApariencia'
+    };
+
+    function cambiarConfigSubvista(subNavId){
+      Object.values(CONFIG_SUBMODULOS).forEach(pid => {
+        const el = document.getElementById(pid);
+        if(el) el.style.display = 'none';
+      });
+      document.querySelectorAll('.config-subnav-item').forEach(item => item.classList.remove('active'));
+      const idDestino = CONFIG_SUBMODULOS[subNavId];
+      if(idDestino){
+        const destino = document.getElementById(idDestino);
+        if(destino) destino.style.display = '';
+      }
+      const navItem = document.querySelector(`.config-subnav-item[data-config-nav="${subNavId}"]`);
+      if(navItem) navItem.classList.add('active');
+
+      // Corrección — Entrada limpia a Variables. inicializarModuloVariables()
+      // solo corre UNA VEZ, al cargar la página completa — pero entrar y
+      // salir de "Variables" dentro de Configuración NO recarga la página,
+      // así que la categoría/Variable que se hubiera navegado antes se
+      // quedaba pegada. Cada vez que se entra aquí, se reinicia a la
+      // vista limpia de Categorías — solo se fija una categoría cuando el
+      // usuario hace clic explícitamente sobre ella.
+      if(subNavId === 'variables' && typeof irAPanelCategorias === 'function'){
+        categoriaVariablesSeleccionadaId = null;
+        variableSeleccionadaId = null;
+        renderCategoriasVariablesSidebar();
+        irAPanelCategorias();
+        sincronizarSelectCategoriaConNavegacion();
+        if(typeof ocultarFormularioVariable === 'function') ocultarFormularioVariable(); // Sprint 4.6 — refuerzo
+        if(typeof ocultarFormularioOpcion === 'function') ocultarFormularioOpcion(); // Sprint 4.6 — refuerzo
+      }
+    }
+
+    document.querySelectorAll('.config-subnav-item').forEach(item => {
+      item.addEventListener('click', () => cambiarConfigSubvista(item.dataset.configNav));
+    });
+
+    // Apariencia: reutiliza el botón YA existente de la topbar (mismo
+    // listener, cero lógica duplicada) — solo le dispara un clic real.
+    const apparienciaShortcut = document.getElementById('apparienciaThemeToggleShortcut');
+    if(apparienciaShortcut){
+      apparienciaShortcut.addEventListener('click', () => {
+        document.getElementById('themeToggleBtn').click();
+      });
+    }
+
+    // Vista inicial al cargar Trading Master: 🌐 Estado del Mercado (Sprint NAV-MARKET).
+    cambiarVista('mercado'); // Sprint NAV-MARKET — primera experiencia al abrir Trading Master
+
+    document.querySelectorAll('.form-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.form-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.querySelector(`.form-panel[data-panel="${tab.dataset.tab}"]`).classList.add('active');
+
+        // v0.4.5: la pestaña "Resumen" es una vista previa de solo lectura —
+        // se reconstruye con los datos actuales del formulario cada vez que se abre.
+        if(tab.dataset.tab === 'resumen'){
+          renderResumenPrevio();
+        }
+      });
+    });
+
+    document.querySelectorAll('.segmented').forEach(group => {
+      group.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          group.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        });
+      });
+    });
+
+    // ARQ-01 — el toggle "¿influyó en mi decisión?" de cualquier variable de
+    // decisión (data-decision="X") además revela/oculta sus campos. Un solo
+    // listener genérico sirve para Liquidez y para cualquier variable futura.
+    document.querySelectorAll('[data-decision]').forEach(toggle => {
+      toggle.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => actualizarVisibilidadDecision(toggle.dataset.decision));
+      });
+    });
+
+    // ASE X — "Calidad del Barrido" se muestra/oculta según ¿Hubo Barrido?
+    const liquidezBarridoEl = document.getElementById('liquidezBarrido');
+    if(liquidezBarridoEl){
+      liquidezBarridoEl.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', actualizarVisibilidadCalidadBarrido);
+      });
+    }
+
+    // IMP-04 — Estructura: Ubicación e Hipótesis son selección única simple
+    // (sin estrella), mismo criterio que cualquier chip-group exclusivo.
+    ['estructuraUbicacion', 'estructuraHipotesis'].forEach(id => {
+      const container = document.getElementById(id);
+      if(!container) return;
+      container.addEventListener('click', (e) => {
+        const chip = e.target.closest('.chip');
+        if(!chip) return;
+        container.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+      });
+    });
+
+    // IMP-04 — Estructura: Referencias/Formaciones/Confirmaciones son
+    // selección múltiple, cada chip con su propia ⭐ interna. Un solo
+    // listener delegado en el card cubre los 3 grupos a la vez.
+    const cardEstructura = document.getElementById('decisionBody-estructura');
+    if(cardEstructura){
+      cardEstructura.addEventListener('click', (e) => {
+        const estrella = e.target.closest('.chip-estrella');
+        if(estrella){
+          e.stopPropagation();
+          const yaEraFactorPrincipal = estrella.classList.contains('activa');
+          limpiarEstrellaEstructura(); // solo un factor principal en todo el módulo
+          if(!yaEraFactorPrincipal) estrella.classList.add('activa');
+          return;
+        }
+
+        const chip = e.target.closest('.chip');
+        if(!chip || !chip.dataset.categoria) return; // Ubicación/Hipótesis ya se manejan arriba
+        const seVaADeseleccionar = chip.classList.contains('active');
+        chip.classList.toggle('active');
+        if(seVaADeseleccionar){
+          // Si se desmarca un elemento que tenía la estrella, la estrella
+          // se elimina — nunca se reasigna automáticamente a otro elemento.
+          const estrellaDelChip = chip.querySelector('.chip-estrella');
+          if(estrellaDelChip) estrellaDelChip.classList.remove('activa');
+        }
+      });
+    }
+
+    // ASE X — Price Action: mismo patrón delegado exacto que Estructura.
+    const cardPriceAction = document.getElementById('decisionBody-priceAction');
+    if(cardPriceAction){
+      cardPriceAction.addEventListener('click', (e) => {
+        const estrella = e.target.closest('.chip-estrella');
+        if(estrella){
+          e.stopPropagation();
+          const yaEraFactorPrincipal = estrella.classList.contains('activa');
+          limpiarEstrellaPriceAction();
+          if(!yaEraFactorPrincipal) estrella.classList.add('activa');
+          return;
+        }
+
+        const chip = e.target.closest('.chip');
+        if(!chip || !chip.dataset.categoria) return;
+        const seVaADeseleccionar = chip.classList.contains('active');
+        chip.classList.toggle('active');
+        if(seVaADeseleccionar){
+          const estrellaDelChip = chip.querySelector('.chip-estrella');
+          if(estrellaDelChip) estrellaDelChip.classList.remove('activa');
+        }
+      });
+    }
+
+    // Desequilibrios y Volumen: mismo patrón delegado exacto que las
+    // Variables de Decisión anteriores.
+    [
+      { cardId: 'decisionBody-desequilibrios', limpiarEstrella: limpiarEstrellaDesequilibrios },
+      { cardId: 'decisionBody-volumen', limpiarEstrella: limpiarEstrellaVolumen }
+    ].forEach(({ cardId, limpiarEstrella }) => {
+      const card = document.getElementById(cardId);
+      if(!card) return;
+      card.addEventListener('click', (e) => {
+        const estrella = e.target.closest('.chip-estrella');
+        if(estrella){
+          e.stopPropagation();
+          const yaEraFactorPrincipal = estrella.classList.contains('activa');
+          limpiarEstrella();
+          if(!yaEraFactorPrincipal) estrella.classList.add('activa');
+          return;
+        }
+
+        const chip = e.target.closest('.chip');
+        if(!chip || !chip.dataset.categoria) return;
+        const seVaADeseleccionar = chip.classList.contains('active');
+        chip.classList.toggle('active');
+        if(seVaADeseleccionar){
+          const estrellaDelChip = chip.querySelector('.chip-estrella');
+          if(estrellaDelChip) estrellaDelChip.classList.remove('activa');
+        }
+      });
+    });
+
+    // Psicología y Aprendizaje (Fase 4.4): grupos de selección única/múltiple
+    // generados dinámicamente desde constantes — ver attachPsicologiaGroupListeners().
+    attachPsicologiaGroupListeners();
+
+    // Confirmaciones: selección múltiple (Fase 3.5) + mostrar/ocultar campo "Otro" (Fase 3.6)
+    // Delegación de eventos porque el contenido se genera dinámicamente desde constantes.
+    const confirmacionesContainer = document.getElementById('confirmacionesCheckboxGroup');
+    if(confirmacionesContainer){
+      confirmacionesContainer.addEventListener('click', (e) => {
+        const chip = e.target.closest('.chip');
+        if(!chip) return;
+        chip.classList.toggle('active');
+        actualizarVisibilidadOtroConfirmacion();
+      });
+    }
+
+    // Contexto del Mercado: selección única por fila (un clic reemplaza al <select>) — Fase 4.2
+    const contextoMercadoContainer = document.getElementById('contextoMercadoGrid');
+    if(contextoMercadoContainer){
+      contextoMercadoContainer.addEventListener('click', (e) => {
+        const chip = e.target.closest('.contexto-estado-chip');
+        if(!chip) return;
+        const fila = chip.closest('.contexto-fila');
+        if(!fila) return;
+        fila.querySelectorAll('.contexto-estado-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+      });
+    }
+  }
+</script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
