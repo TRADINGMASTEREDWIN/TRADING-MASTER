@@ -528,9 +528,34 @@
      incluyendo DST para Nueva York, y actualiza la cuenta regresiva cada segundo.
      ============================================================ */
   const SESIONES_MERCADO = [
-    { id:'nyse', icono:'🇺🇸', nombre:'Wall Street', mercado:'NYSE · sesión principal', timezone:'America/New_York', horario:'09:30–16:00', sesiones:[{apertura:[9,30],cierre:[16,0]}] },
-    { id:'tokio', icono:'🇯🇵', nombre:'Tokio', mercado:'Tokyo Stock Exchange · sesión principal', timezone:'Asia/Tokyo', horario:'09:00–11:30 · 12:30–15:30', sesiones:[{apertura:[9,0],cierre:[11,30]},{apertura:[12,30],cierre:[15,30]}] }
+    { id:'nyse', icono:'🇺🇸', nombre:'Wall Street', mercado:'NYSE · sesión principal', timezone:'America/New_York', zonaCorta:'ET', horario:'09:30–16:00', sesiones:[{apertura:[9,30],cierre:[16,0]}] },
+    { id:'tokio', icono:'🇯🇵', nombre:'Tokio', mercado:'Tokyo Stock Exchange · sesión principal', timezone:'Asia/Tokyo', zonaCorta:'JST', horario:'09:00–11:30 · 12:30–15:30', sesiones:[{apertura:[9,0],cierre:[11,30]},{apertura:[12,30],cierre:[15,30]}] }
   ];
+
+  // MARKET-12 — excepciones de calendario. La estructura queda preparada
+  // para cierres anticipados/cierres especiales sin tocar la lógica base.
+  // Las fechas oficiales de 2026 se mantienen explícitas para que el
+  // contador nunca trate un cierre conocido como una sesión normal.
+  const EXCEPCIONES_SESIONES = {
+    nyse: {
+      // NYSE 2026: Black Friday y Christmas Eve cierran a las 13:00 ET.
+      '2026-11-27': { tipo:'early-close', hora:[13,0], etiqueta:'CIERRE ANTICIPADO' },
+      '2026-12-24': { tipo:'early-close', hora:[13,0], etiqueta:'CIERRE ANTICIPADO' }
+    },
+    tokio: {}
+  };
+
+  // JPX/TSE — días sin sesión de acciones para 2026. Incluye los días de
+  // Año Nuevo y feriados nacionales; se puede ampliar por año sin cambiar
+  // la mecánica del contador.
+  const FERIADOS_TOKIO_POR_ANIO = {
+    2026: new Set([
+      '2026-01-01','2026-01-02','2026-01-12','2026-02-11','2026-02-23',
+      '2026-03-20','2026-04-29','2026-05-04','2026-05-05','2026-05-06',
+      '2026-07-20','2026-08-11','2026-09-21','2026-09-22','2026-09-23',
+      '2026-10-12','2026-11-03','2026-11-23','2026-12-31'
+    ])
+  };
 
   function partesZona(fecha, timezone){
     const partes=new Intl.DateTimeFormat('en-US',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23',weekday:'short'}).formatToParts(fecha);
@@ -586,37 +611,108 @@
     return lista.has(k);
   }
 
+  function obtenerExcepcionSesion(sesion, fecha){
+    const clave=claveFecha(fecha.year,fecha.month,fecha.day);
+    const manual=(EXCEPCIONES_SESIONES[sesion.id] && EXCEPCIONES_SESIONES[sesion.id][clave]) || null;
+    if(manual) return manual;
+
+    // Reglas recurrentes conocidas de NYSE para cierres anticipados.
+    if(sesion.id==='nyse'){
+      // Viernes posterior a Thanksgiving.
+      if(fecha.month===11 && new Date(Date.UTC(fecha.year,10,fecha.day)).getUTCDay()===5){
+        const d=new Date(Date.UTC(fecha.year,10,1));
+        let jueves=0;
+        for(let dia=1;dia<=30;dia++){
+          const x=new Date(Date.UTC(fecha.year,10,dia));
+          if(x.getUTCDay()===4) jueves++;
+          if(jueves===4){
+            const viernes=new Date(Date.UTC(fecha.year,10,dia+1));
+            if(fechasIguales(fecha,viernes)) return {tipo:'early-close',hora:[13,0],etiqueta:'CIERRE ANTICIPADO'};
+            break;
+          }
+        }
+      }
+      // Christmas Eve: si es día laborable y no coincide con el feriado
+      // observado de Christmas.
+      if(fecha.month===12 && fecha.day===24 && !esFinDeSemana(fecha.year,fecha.month,fecha.day) && !esFeriadoNYSE(fecha.year,fecha.month,fecha.day)){
+        return {tipo:'early-close',hora:[13,0],etiqueta:'CIERRE ANTICIPADO'};
+      }
+      // Víspera de Independence Day: solo es cierre anticipado cuando el
+      // 4 de julio no genera un feriado observado el mismo día siguiente.
+      if(fecha.month===7 && fecha.day===3 && !esFinDeSemana(fecha.year,fecha.month,fecha.day) && !esFeriadoNYSE(fecha.year,fecha.month,fecha.day)){
+        return {tipo:'early-close',hora:[13,0],etiqueta:'CIERRE ANTICIPADO'};
+      }
+    }
+    return null;
+  }
+
+  function fechasIguales(a,b){
+    return a.year===b.getUTCFullYear() && a.month===b.getUTCMonth()+1 && a.day===b.getUTCDate();
+  }
+
+  function esFeriadoSesion(sesion, fecha){
+    if(sesion.id==='nyse') return esFeriadoNYSE(fecha.year,fecha.month,fecha.day);
+    if(sesion.id==='tokio') return !!(FERIADOS_TOKIO_POR_ANIO[fecha.year] && FERIADOS_TOKIO_POR_ANIO[fecha.year].has(claveFecha(fecha.year,fecha.month,fecha.day)));
+    return false;
+  }
+
   function obtenerEstadoSesion(sesion,ahora){
     const p=partesZona(ahora,sesion.timezone), candidatos=[];
-    for(let delta=0;delta<=7;delta++){
+    for(let delta=0;delta<=14;delta++){
       const fecha=sumarDiasCalendario(p.year,p.month,p.day,delta);
       if(esFinDeSemana(fecha.year,fecha.month,fecha.day)) continue;
-      if(sesion.id==='nyse' && esFeriadoNYSE(fecha.year,fecha.month,fecha.day)) continue;
+      if(esFeriadoSesion(sesion,fecha)) continue;
+
+      const excepcion=obtenerExcepcionSesion(sesion,fecha);
       for(let indice=0; indice<sesion.sesiones.length; indice++){
         const bloque=sesion.sesiones[indice];
         const inicio=utcDesdeZona(fecha.year,fecha.month,fecha.day,bloque.apertura[0],bloque.apertura[1],0,sesion.timezone);
-        const fin=utcDesdeZona(fecha.year,fecha.month,fecha.day,bloque.cierre[0],bloque.cierre[1],0,sesion.timezone);
-        candidatos.push({inicio,fin,fecha,indice});
+        let horaCierre=bloque.cierre;
+        let tipoExcepcion=null;
+        let etiquetaExcepcion=null;
+        // Un cierre anticipado afecta el último bloque del día.
+        if(excepcion && excepcion.tipo==='early-close' && indice===sesion.sesiones.length-1){
+          horaCierre=excepcion.hora;
+          tipoExcepcion=excepcion.tipo;
+          etiquetaExcepcion=excepcion.etiqueta;
+        }
+        const fin=utcDesdeZona(fecha.year,fecha.month,fecha.day,horaCierre[0],horaCierre[1],0,sesion.timezone);
+        candidatos.push({inicio,fin,fecha,indice,tipoExcepcion,etiquetaExcepcion});
       }
     }
+
     const actual=candidatos.find(x=>ahora>=x.inicio&&ahora<x.fin);
     if(actual){
       const duracion=actual.fin.getTime()-actual.inicio.getTime();
       const transcurrido=ahora.getTime()-actual.inicio.getTime();
       const progreso=duracion>0 ? Math.max(0,Math.min(100,(transcurrido/duracion)*100)) : 0;
-      return {abierto:true,modo:'open',etiqueta:'ABIERTO',color:'var(--color-success)',fondo:'var(--color-success-soft)',objetivo:actual.fin,accion:'Cierra en',progreso};
+      return {
+        abierto:true, modo:'open',
+        etiqueta:actual.tipoExcepcion ? 'CIERRE ANTICIPADO' : 'ABIERTO',
+        color:actual.tipoExcepcion ? '#F59E0B' : 'var(--color-success)',
+        fondo:actual.tipoExcepcion ? 'rgba(245,158,11,.10)' : 'var(--color-success-soft)',
+        objetivo:actual.fin, accion:actual.tipoExcepcion ? 'Cierra antes' : 'Cierra en',
+        progreso, excepcion:actual.tipoExcepcion
+      };
     }
+
     const siguiente=candidatos.find(x=>x.inicio>ahora);
-    // Si existe un bloque posterior el mismo día, estamos en pausa intradía.
     const mismoDiaSiguiente=siguiente && siguiente.fecha.year===p.year && siguiente.fecha.month===p.month && siguiente.fecha.day===p.day;
+    const fechaActualFeriada=esFeriadoSesion(sesion,p);
+    const finDeSemanaActual=esFinDeSemana(p.year,p.month,p.day);
     if(mismoDiaSiguiente && siguiente.indice>0){
       return {abierto:false,modo:'pause',etiqueta:'PAUSA',color:'#EAB308',fondo:'rgba(234,179,8,.10)',objetivo:siguiente.inicio,accion:'Reabre en',progreso:0};
     }
+
     const minutosHastaApertura=siguiente ? Math.max(0,(siguiente.inicio.getTime()-ahora.getTime())/60000) : Infinity;
     if(minutosHastaApertura<=30){
       return {abierto:false,modo:'preopen',etiqueta:'PRÓXIMA APERTURA',color:'var(--color-info)',fondo:'rgba(59,130,246,.08)',objetivo:siguiente.inicio,accion:'Abre en',progreso:0};
     }
-    return {abierto:false,modo:'closed',etiqueta:'CERRADO',color:'var(--color-text-muted)',fondo:'var(--color-bg)',objetivo:siguiente?siguiente.inicio:null,accion:'Abre en',progreso:0};
+
+    let motivo='Fuera de horario regular';
+    if(fechaActualFeriada) motivo='Feriado · mercado cerrado';
+    else if(finDeSemanaActual) motivo='Fin de semana · mercado cerrado';
+    return {abierto:false,modo:'closed',etiqueta:'CERRADO',color:'var(--color-text-muted)',fondo:'var(--color-bg)',objetivo:siguiente?siguiente.inicio:null,accion:'Abre en',progreso:0,motivo};
   }
 
   function formatoCuentaRegresiva(ms){
@@ -634,23 +730,31 @@
       const estado=obtenerEstadoSesion(sesion,ahora);
       const countdown=estado.objetivo?formatoCuentaRegresiva(estado.objetivo-ahora):'—';
       const horaEvento=estado.objetivo?formatoHoraZona(estado.objetivo,sesion.timezone):'—';
+      const horaEventoPanama=estado.objetivo?formatoHoraZona(estado.objetivo,'America/Panama'):'—';
       const horaActual=formatoHoraZona(ahora,sesion.timezone);
+      const horaActualPanama=formatoHoraZona(ahora,'America/Panama');
+      const pActual=partesZona(ahora,sesion.timezone);
+      const horarioPanama=sesion.sesiones.map(b=>{
+        const ini=utcDesdeZona(pActual.year,pActual.month,pActual.day,b.apertura[0],b.apertura[1],0,sesion.timezone);
+        const fin=utcDesdeZona(pActual.year,pActual.month,pActual.day,b.cierre[0],b.cierre[1],0,sesion.timezone);
+        return `${formatoHoraZona(ini,'America/Panama')}–${formatoHoraZona(fin,'America/Panama')}`;
+      }).join(' · ');
       const clase=`market11-session-card is-${estado.modo}`;
-      const eventoLabel=estado.modo==='open'?'Próximo evento':(estado.modo==='pause'?'Reapertura':'Próxima apertura');
-      const detalle=estado.modo==='open'?'Sesión regular activa':(estado.modo==='pause'?'Pausa intradía':'Fuera de horario regular');
+      const eventoLabel=estado.modo==='open'?(estado.excepcion?'Próximo evento':'Próximo evento'):(estado.modo==='pause'?'Reapertura':'Próxima apertura');
+      const detalle=estado.modo==='open'?(estado.excepcion?'Sesión activa · cierre especial':'Sesión regular activa'):(estado.modo==='pause'?'Pausa intradía':(estado.motivo || 'Fuera de horario regular'));
       return `<div class="${clase}" style="--session-color:${estado.color}; --session-soft:${estado.fondo};">
         <div style="display:flex;align-items:flex-start;gap:var(--space-3);">
           <div style="font-size:1.8rem;line-height:1;">${sesion.icono}</div>
           <div style="min-width:0;flex:1;">
             <div style="display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;"><strong>${sesion.nombre}</strong><span class="market11-session-status"><span class="market11-session-dot"></span>${estado.etiqueta}</span></div>
             <div style="font-size:var(--fs-xs);color:var(--color-text-muted);margin-top:2px;">${sesion.mercado}</div>
-            <div style="font-size:var(--fs-xs);color:var(--color-text-muted);margin-top:5px;">Horario: ${sesion.horario}</div>
-            <div style="font-size:var(--fs-xs);margin-top:6px;"><strong>${detalle}</strong> · Hora local ${horaActual}</div>
+            <div style="font-size:var(--fs-xs);color:var(--color-text-muted);margin-top:5px;">Horario: ${sesion.horario} <strong>(Panamá: ${horarioPanama})</strong></div>
+            <div style="font-size:var(--fs-xs);margin-top:6px;"><strong>${detalle}</strong> · Hora ${sesion.zonaCorta} ${horaActual} · Panamá ${horaActualPanama}</div>
           </div>
-          <div style="text-align:right;min-width:130px;">
+          <div style="text-align:right;min-width:155px;">
             <div class="market11-session-event">${eventoLabel}</div>
             <div class="market11-session-countdown">${countdown}</div>
-            <div style="font-size:var(--fs-xs);color:var(--color-text-muted);margin-top:2px;">${horaEvento} ${sesion.id==='nyse'?'ET':'JST'}</div>
+            <div style="font-size:var(--fs-xs);color:var(--color-text-muted);margin-top:2px;">${horaEvento} ${sesion.zonaCorta} <strong>(${horaEventoPanama} Panamá)</strong></div>
           </div>
         </div>
         <div class="market11-session-progress"><span style="width:${estado.progreso || 0}%;"></span></div>
