@@ -69,21 +69,12 @@
    dashboard.js, variablesObservadas.js, ni de ningún elemento del DOM.
    Solo usa `fetch` (nativo del navegador).
 
-   WEBSOCKET — DOCUMENTADO, NO IMPLEMENTADO EN ESTA FASE
+   WEBSOCKET — implementado en esta fase con conexión pública compartida.
    Bitunix expone un WS público en wss://fapi.bitunix.com/public/, con
    suscripción {op:'subscribe', args:[{symbol, ch:'ticker'}]}, sin
-   autenticación para canales de mercado. Se prioriza según lo pedido
-   (1. catálogo, 2. ticker REST, 3. históricos) y el WS queda como
-   siguiente subpaso, por 2 razones honestas:
-     1. Introduce manejo de reconexión/ping-pong — complejidad real,
-        no trivial, que merece su propio paso aislado y revisable.
-     2. Este entorno de desarrollo NO tiene salida de red, así que
-        cualquier implementación de WS aquí sería código sin poder
-        verificarse contra el servidor real — un riesgo real de enviar
-        algo roto. subscribeTicker()/unsubscribeTicker() quedan
-        expuestas como placeholders explícitos (ver más abajo) que
-        avisan claramente que no están implementadas, en vez de fingir
-        que funcionan.
+   autenticación para canales de mercado. Esta fase implementa una
+   conexión compartida, reconexión y ping/pong; el contrato normalizado
+   sigue siendo el mismo de getTicker().
    ============================================================ */
 
 (function(global){
@@ -300,20 +291,212 @@
   }
 
   /* ============================================================
-     7. WEBSOCKET — placeholders explícitos, NO implementados.
-     Avisan con claridad en vez de fingir funcionar (ver nota en la
-     cabecera del archivo sobre por qué se difiere este subpaso).
+     7. WEBSOCKET — ticker público en tiempo real.
+
+     Una sola conexión pública compartida para todos los símbolos.
+     - Reutiliza wss://fapi.bitunix.com/public/
+     - Suscribe/desuscribe por símbolo.
+     - Reconecta automáticamente si la conexión se corta mientras
+       existan suscriptores.
+     - Reenvía el mismo contrato normalizado de getTicker().
+     - No requiere API key ni autenticación.
      ============================================================ */
-  function subscribeTicker(){
-    throw new Error('BitunixProvider.subscribeTicker: WebSocket todavía NO implementado en esta fase (Fase 4.2.1). Usa getTicker() (REST) mientras tanto. Ver documentación en la cabecera de este archivo.');
+  const WS_URL = 'wss://fapi.bitunix.com/public/';
+  const WS_RECONNECT_MS = 2000;
+  const WS_PING_MS = 20000;
+
+  let ws = null;
+  let wsReconnectTimer = null;
+  let wsPingTimer = null;
+  let wsIntentionalClose = false;
+  const wsSubscribers = new Map(); // symbol -> Set(callback)
+  const wsLastTicker = new Map();  // symbol -> normalized ticker
+
+  function wsTieneSuscriptores(){
+    for(const subs of wsSubscribers.values()){
+      if(subs && subs.size) return true;
+    }
+    return false;
   }
-  function unsubscribeTicker(){
-    // no-op deliberado: si nadie pudo suscribirse (subscribeTicker lanza
-    // error), no hay nada que desuscribir — nunca falla silenciosamente
-    // de forma inesperada, simplemente no hace nada.
+
+  function estadoWebSocket(){
+    if(!ws) return wsTieneSuscriptores() ? 'connecting' : 'disconnected';
+    if(ws.readyState === WebSocket.OPEN) return 'connected';
+    if(ws.readyState === WebSocket.CONNECTING) return 'connecting';
+    return 'disconnected';
   }
+
+  function enviarWS(payload){
+    if(!ws || ws.readyState !== WebSocket.OPEN) return false;
+    ws.send(JSON.stringify(payload));
+    return true;
+  }
+
+  function limpiarTimersWS(){
+    if(wsReconnectTimer){ clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+    if(wsPingTimer){ clearInterval(wsPingTimer); wsPingTimer = null; }
+  }
+
+  function iniciarPingWS(){
+    if(wsPingTimer) clearInterval(wsPingTimer);
+    wsPingTimer = setInterval(() => {
+      if(ws && ws.readyState === WebSocket.OPEN){
+        enviarWS({ op: 'ping', ping: Math.floor(Date.now() / 1000) });
+      }
+    }, WS_PING_MS);
+  }
+
+  function enviarSuscripcionesWS(){
+    if(!ws || ws.readyState !== WebSocket.OPEN) return;
+    const args = [];
+    wsSubscribers.forEach((subs, symbol) => {
+      if(subs && subs.size) args.push({ symbol, ch: 'ticker' });
+    });
+    if(args.length) enviarWS({ op: 'subscribe', args });
+  }
+
+  function notificarTicker(ticker){
+    if(!ticker) return;
+    wsLastTicker.set(ticker.symbol, ticker);
+    const subs = wsSubscribers.get(ticker.symbol);
+    if(!subs) return;
+    Array.from(subs).forEach(fn => {
+      try{ fn(ticker); }
+      catch(error){ console.error('[BitunixProvider] Error en subscriber ticker:', error); }
+    });
+  }
+
+  function normalizarTickerWS(symbol, data, timestamp){
+    const fila = data && !Array.isArray(data) ? data : null;
+    if(!fila) return null;
+
+    const s = String(fila.s || symbol || '').toUpperCase();
+    const open = parseFloat(fila.o);
+    const ultimo = parseFloat(fila.la);
+    const volumenQuote = parseFloat(fila.q);
+    const changeDirecto = parseFloat(fila.r);
+    const change24h = Number.isFinite(changeDirecto)
+      ? changeDirecto
+      : (Number.isFinite(open) && open !== 0 && Number.isFinite(ultimo)
+          ? ((ultimo - open) / open) * 100
+          : null);
+
+    return {
+      exchange: EXCHANGE,
+      marketType: MARKET_TYPE,
+      symbol: s,
+      price: Number.isFinite(ultimo) ? ultimo : null,
+      change24h,
+      volume24h: Number.isFinite(volumenQuote) ? volumenQuote : null,
+      timestamp: Number.isFinite(Number(timestamp)) ? Number(timestamp) : Date.now()
+    };
+  }
+
+  function programarReconexiónWS(){
+    if(wsReconnectTimer || wsIntentionalClose || !wsTieneSuscriptores()) return;
+    wsReconnectTimer = setTimeout(() => {
+      wsReconnectTimer = null;
+      conectarWebSocket();
+    }, WS_RECONNECT_MS);
+  }
+
+  function conectarWebSocket(){
+    if(wsIntentionalClose || !wsTieneSuscriptores()) return;
+    if(typeof WebSocket === 'undefined'){
+      console.warn('[BitunixProvider] WebSocket no está disponible en este entorno.');
+      return;
+    }
+    if(ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+
+    limpiarTimersWS();
+    try{
+      ws = new WebSocket(WS_URL);
+    }catch(error){
+      console.error('[BitunixProvider] No se pudo crear WebSocket:', error);
+      programarReconexiónWS();
+      return;
+    }
+
+    ws.onopen = () => {
+      iniciarPingWS();
+      enviarSuscripcionesWS();
+    };
+
+    ws.onmessage = (event) => {
+      let mensaje;
+      try{ mensaje = JSON.parse(event.data); }
+      catch(error){ return; }
+
+      if(mensaje && mensaje.op === 'pong') return;
+      if(!mensaje || mensaje.ch !== 'ticker') return;
+
+      const ticker = normalizarTickerWS(mensaje.symbol, mensaje.data, mensaje.ts);
+      if(ticker) notificarTicker(ticker);
+    };
+
+    ws.onerror = (error) => {
+      console.warn('[BitunixProvider] WebSocket error:', error);
+    };
+
+    ws.onclose = () => {
+      limpiarTimersWS();
+      ws = null;
+      if(!wsIntentionalClose && wsTieneSuscriptores()) programarReconexiónWS();
+    };
+  }
+
+  function subscribeTicker(symbol, callback){
+    const s = String(symbol || '').trim().toUpperCase();
+    if(!s || typeof callback !== 'function') return () => {};
+
+    if(!wsSubscribers.has(s)) wsSubscribers.set(s, new Set());
+    const subs = wsSubscribers.get(s);
+    const eraPrimero = subs.size === 0;
+    subs.add(callback);
+
+    wsIntentionalClose = false;
+    conectarWebSocket();
+
+    // Si ya tenemos un dato reciente, lo entregamos inmediatamente sin
+    // esperar el siguiente push del servidor.
+    const cacheado = wsLastTicker.get(s);
+    if(cacheado) {
+      try{ callback(cacheado); }catch(error){ console.error('[BitunixProvider] Error en callback inicial:', error); }
+    }
+
+    if(!eraPrimero && ws && ws.readyState === WebSocket.OPEN) return () => unsubscribeTicker(s, callback);
+    if(eraPrimero && ws && ws.readyState === WebSocket.OPEN){
+      enviarWS({ op: 'subscribe', args: [{ symbol: s, ch: 'ticker' }] });
+    }
+
+    return () => unsubscribeTicker(s, callback);
+  }
+
+  function unsubscribeTicker(symbol, callback){
+    const s = String(symbol || '').trim().toUpperCase();
+    const subs = wsSubscribers.get(s);
+    if(!subs) return;
+    if(typeof callback === 'function') subs.delete(callback);
+    if(subs.size > 0) return;
+
+    wsSubscribers.delete(s);
+    if(ws && ws.readyState === WebSocket.OPEN){
+      enviarWS({ op: 'unsubscribe', args: [{ symbol: s, ch: 'ticker' }] });
+    }
+
+    if(!wsTieneSuscriptores()){
+      wsIntentionalClose = true;
+      limpiarTimersWS();
+      if(ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)){
+        try{ ws.close(); }catch(error){}
+      }
+      ws = null;
+      wsIntentionalClose = false;
+    }
+  }
+
   function getConnectionStatus(){
-    return 'not_implemented';
+    return estadoWebSocket();
   }
 
   global.BitunixProvider = {

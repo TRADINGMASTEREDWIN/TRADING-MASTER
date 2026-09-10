@@ -13,9 +13,6 @@
 (function(global){
   'use strict';
 
-  const POLLING_MS = 3000;
-  const bitunixTimers = new Map();
-  const bitunixSubscribers = new Map();
 
   function normalizarInstrumento(instrumento){
     if(!instrumento) return null;
@@ -66,24 +63,6 @@
     return null;
   }
 
-  function key(i){ return `${i.exchange}|${i.marketType}|${i.symbol}`; }
-
-  function detenerBitunix(i){
-    const k = key(i);
-    const timer = bitunixTimers.get(k);
-    if(timer){ clearInterval(timer); bitunixTimers.delete(k); }
-    bitunixSubscribers.delete(k);
-  }
-
-  async function emitirBitunix(i, callback){
-    try{
-      const data = await getTicker(i);
-      if(data && typeof callback === 'function') callback(data);
-    }catch(error){
-      console.error('[InstrumentMarketData] Error obteniendo ticker Bitunix:', error);
-    }
-  }
-
   function subscribeTicker(instrumento, callback){
     const i = normalizarInstrumento(instrumento);
     if(!i || typeof callback !== 'function') return () => {};
@@ -93,29 +72,8 @@
       return () => unsubscribeTicker(i, callback);
     }
 
-    if(esBitunix(i) && i.marketType === 'FUTURES'){
-      const k = key(i);
-      if(!bitunixSubscribers.has(k)) bitunixSubscribers.set(k, new Set());
-      bitunixSubscribers.get(k).add(callback);
-
-      if(!bitunixTimers.has(k)){
-        emitirBitunix(i, callback);
-        const timer = setInterval(async () => {
-          const subs = bitunixSubscribers.get(k);
-          if(!subs || subs.size === 0){ detenerBitunix(i); return; }
-          try{
-            const data = await getTicker(i);
-            if(!data) return;
-            Array.from(subs).forEach(fn => {
-              try{ fn(data); }catch(error){ console.error('[InstrumentMarketData] Subscriber error:', error); }
-            });
-          }catch(error){
-            console.error('[InstrumentMarketData] Error polling Bitunix:', error);
-          }
-        }, POLLING_MS);
-        bitunixTimers.set(k, timer);
-      }
-      return () => unsubscribeTicker(i, callback);
+    if(esBitunix(i) && i.marketType === 'FUTURES' && global.BitunixProvider && typeof global.BitunixProvider.subscribeTicker === 'function'){
+      return global.BitunixProvider.subscribeTicker(i.symbol, callback);
     }
 
     return () => {};
@@ -130,17 +88,12 @@
       return;
     }
 
-    if(esBitunix(i)){
-      const k = key(i);
-      const subs = bitunixSubscribers.get(k);
-      if(!subs) return;
-      subs.delete(callback);
-      if(subs.size === 0) detenerBitunix(i);
+    if(esBitunix(i) && i.marketType === 'FUTURES' && global.BitunixProvider && typeof global.BitunixProvider.unsubscribeTicker === 'function'){
+      global.BitunixProvider.unsubscribeTicker(i.symbol, callback);
     }
   }
 
   global.InstrumentMarketData = {
-    POLLING_MS,
     getTicker,
     getHistoricalCandles,
     subscribeTicker,
