@@ -108,6 +108,135 @@
   };
 
   /* ============================================================
+     Fase 4.2.2 — MARKET CONTEXT FOUNDATION / MULTI-EXCHANGE
+     Catálogo de Binance FUTURES USDⓈ-M. Mismo patrón EXACTO que el
+     catálogo Spot de arriba (loadCatalog/getCatalog/search), pero en
+     variables y funciones PROPIAS — nunca se mezcla con `catalogo`
+     (Spot). Esto es deliberado: search()/getCatalog() (Spot) NO
+     cambian su comportamiento en absoluto, para no alterar a nadie que
+     ya las use hoy esperando solo resultados Spot (ej. el buscador de
+     Activos en assets.js, que este Sprint tiene prohibido tocar).
+
+     Endpoint verificado en la documentación pública vigente de Binance
+     el día de esta implementación:
+       GET https://fapi.binance.com/fapi/v1/exchangeInfo
+     Devuelve, por símbolo: symbol, baseAsset, quoteAsset, status,
+     contractType (PERPETUAL/CURRENT_QUARTER/NEXT_QUARTER), onboardDate,
+     entre otros. Se conservan solo los campos necesarios para
+     identificar el instrumento (regla del Sprint: no copiar campos
+     innecesarios).
+
+     POLÍTICA DE ESTADOS — coherente con la ya usada para Spot arriba
+     (esInstrumentoValido() exige status==='TRADING'): aquí se aplica
+     el mismo criterio, adaptado al enum real de Futures (TRADING /
+     PENDING_TRADING / PRE_DELIVERING / DELIVERING / DELIVERED /
+     SETTLING) — solo 'TRADING' se considera operable. No se inventa
+     una política nueva, se replica la misma decisión ya tomada para
+     Spot.
+
+     IDENTIDAD: cada instrumento normalizado incluye explícitamente
+     `exchange:'BINANCE'` y `marketType:'FUTURES'` — el catálogo Spot
+     histórico (normalizarInstrumento(), arriba) NO se modificó para
+     incluir estos 2 campos, así que por ahora esa distinción vive
+     completa (exchange+marketType+symbol) solo en las funciones nuevas
+     de este bloque y en searchTodosLosMercados(). Uniformar también el
+     catálogo Spot con estos campos queda para la Fase 4.2.3
+     (InstrumentCatalog) — se documenta como limitación conocida, no se
+     resuelve aquí para no tocar código Spot que ya funciona.
+     ============================================================ */
+  const BINANCE_FUTURES_EXCHANGE_INFO_URL = 'https://fapi.binance.com/fapi/v1/exchangeInfo';
+
+  let catalogoFutures = null;
+  let cargaFuturesEnProgreso = null;
+
+  function normalizarInstrumentoFutures(s){
+    return {
+      exchange: 'BINANCE',
+      marketType: 'FUTURES',
+      symbol: s.symbol,
+      baseAsset: s.baseAsset,
+      quoteAsset: s.quoteAsset,
+      contractType: s.contractType || null,
+      onboardDate: s.onboardDate || null
+    };
+  }
+
+  function esInstrumentoFuturesValido(s){
+    if(!s || typeof s.symbol !== 'string' || !s.symbol) return false;
+    if(typeof s.baseAsset !== 'string' || !s.baseAsset) return false;
+    if(typeof s.quoteAsset !== 'string' || !s.quoteAsset) return false;
+    return s.status === 'TRADING'; // mismo criterio de exclusión que ya usa Spot, adaptado al enum real de Futures
+  }
+
+  async function loadFuturesCatalog(){
+    if(catalogoFutures !== null) return catalogoFutures; // ya cargado -> nunca una segunda consulta
+    if(cargaFuturesEnProgreso) return cargaFuturesEnProgreso; // ya en curso -> reutiliza la MISMA promesa
+
+    cargaFuturesEnProgreso = (async () => {
+      try{
+        const response = await fetch(BINANCE_FUTURES_EXCHANGE_INFO_URL);
+        if(!response.ok){
+          throw new Error(`Binance Futures exchangeInfo respondió con estado ${response.status}`);
+        }
+
+        const data = await response.json();
+        if(!data || !Array.isArray(data.symbols)){
+          throw new Error('Respuesta inesperada de Binance Futures: falta el array symbols.');
+        }
+
+        const filtrados = data.symbols.filter(esInstrumentoFuturesValido).map(normalizarInstrumentoFutures);
+        catalogoFutures = filtrados; // [] también es un catálogo válido, no un error
+        return catalogoFutures;
+
+      }catch(error){
+        console.error('BinanceMarketData: no se pudo cargar el catálogo Futures:', error);
+        catalogoFutures = null; // permite reintentar en la próxima llamada
+        throw error; // controlado — el llamador decide, igual criterio que loadCatalog() (Spot)
+      }finally{
+        cargaFuturesEnProgreso = null;
+      }
+    })();
+
+    return cargaFuturesEnProgreso;
+  }
+
+  function getFuturesCatalog(){
+    return catalogoFutures || [];
+  }
+
+  // Búsqueda EXCLUSIVA de Futures — mismo criterio de búsqueda (symbol o
+  // baseAsset, case-insensitive) que ya usa search() para Spot.
+  function searchFutures(query){
+    if(!catalogoFutures || !query) return [];
+    const q = String(query).trim().toUpperCase();
+    if(!q) return [];
+    return catalogoFutures.filter(item =>
+      item.symbol.toUpperCase().indexOf(q) !== -1 ||
+      item.baseAsset.toUpperCase().indexOf(q) !== -1
+    );
+  }
+
+  // Búsqueda COMBINADA Spot+Futures — función NUEVA y ADITIVA. Nunca
+  // reemplaza a search() (que sigue devolviendo únicamente Spot, sin
+  // ningún cambio, exactamente como pide el Sprint). Cada resultado
+  // queda identificado con exchange+marketType+symbol — así BTCUSDT
+  // Spot y BTCUSDT Futures conviven en el mismo arreglo sin
+  // confundirse ni deduplicarse entre sí (nunca se deduplica solo por
+  // `symbol`). No muta los objetos de ningún catálogo existente.
+  function searchTodosLosMercados(query){
+    const spot = search(query).map(item => Object.assign({ exchange: 'BINANCE', marketType: 'SPOT' }, item));
+    const futures = searchFutures(query);
+    return spot.concat(futures);
+  }
+
+  Object.assign(global.BinanceMarketData, {
+    loadFuturesCatalog,
+    getFuturesCatalog,
+    searchFutures,
+    searchTodosLosMercados
+  });
+
+  /* ============================================================
      Sprint MARKET-1B/3A/UI (base) + MARKET-HYPE-1 (arquitectura Spot +
      Futures). Extiende el MISMO objeto BinanceMarketData. Fuente
      exclusivamente pública — sin API Key/Secret/balances/órdenes
