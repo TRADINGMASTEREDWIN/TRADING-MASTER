@@ -281,37 +281,48 @@
   }
 
   /* ============================================================
-     Sprint MARKET-3 — Precio en vivo dentro del formulario de Trade.
-     Reutiliza BinanceMarketData (sin WebSockets nuevos). NUNCA escribe en
-     "Precio de entrada" ([data-field="precioEntrada"]) — son campos
-     completamente independientes y esta función jamás los toca.
+     Sprint MARKET-3 / Fase 4.2.6 — Precio en vivo por instrumento.
+     Usa InstrumentMarketData para respetar exchange + marketType + symbol.
+     El precio vivo NUNCA escribe sobre Precio de entrada.
      ============================================================ */
-  let symbolSuscritoFormulario = null;
+  let instrumentoSuscritoFormulario = null;
   let callbackPrecioFormulario = null;
+  let cancelarPrecioFormulario = null;
 
   function formatearPrecioVivo(valor){
-    return '$' + valor.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
+    return '$' + Number(valor).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
   }
 
   function desuscribirPrecioFormularioActual(){
-    if(symbolSuscritoFormulario && callbackPrecioFormulario && typeof BinanceMarketData !== 'undefined'){
-      BinanceMarketData.unsubscribePrice(symbolSuscritoFormulario, callbackPrecioFormulario);
+    if(cancelarPrecioFormulario){
+      try{ cancelarPrecioFormulario(); }catch(error){ console.error('[InstrumentMarketData] Error cancelando ticker:', error); }
     }
-    symbolSuscritoFormulario = null;
+    cancelarPrecioFormulario = null;
+    instrumentoSuscritoFormulario = null;
     callbackPrecioFormulario = null;
   }
 
-  // Expuesta para que trades.js pueda llamarla desde resetForm() — evita
-  // dejar una suscripción "huérfana" cuando se guarda/cancela/limpia el
-  // formulario sin que el navegador dispare 'change' (resetForm() asigna
-  // .value directamente, sin dispatchEvent).
   function limpiarPrecioEnVivoFormulario(){
     desuscribirPrecioFormularioActual();
     const bloquePrecio = document.getElementById('precioVivoWrapper');
     if(bloquePrecio) bloquePrecio.style.display = 'none';
   }
 
-  function actualizarPrecioEnVivoFormulario(){
+  async function resolverInstrumentoFormulario(symbol){
+    const selectActivoEl = document.getElementById('selectActivo');
+    const exchange = selectActivoEl && selectActivoEl.dataset ? selectActivoEl.dataset.exchange : '';
+    const marketType = selectActivoEl && selectActivoEl.dataset ? selectActivoEl.dataset.marketType : '';
+
+    if(exchange && marketType){
+      return { symbol, exchange, marketType, instrumentId: selectActivoEl.dataset.instrumentId || null };
+    }
+
+    // Compatibilidad con activos antiguos guardados sin identidad completa:
+    // conserva Binance Spot como comportamiento histórico por defecto.
+    return { symbol, exchange: 'BINANCE', marketType: 'SPOT', instrumentId: null };
+  }
+
+  async function actualizarPrecioEnVivoFormulario(){
     const selectActivoEl = document.getElementById('selectActivo');
     const selectMercadoEl = document.getElementById('selectMercado');
     const bloquePrecio = document.getElementById('precioVivoWrapper');
@@ -321,37 +332,45 @@
     const symbolActual = esCrypto ? selectActivoEl.value : null;
     const symbolValido = symbolActual && symbolActual !== 'Otro...' && symbolActual !== '';
 
-    if(symbolSuscritoFormulario && symbolSuscritoFormulario !== symbolActual){
-      desuscribirPrecioFormularioActual(); // PASO — cambio de activo o de mercado: fuera el listener anterior
-    }
-
     if(!esCrypto || !symbolValido){
-      bloquePrecio.style.display = 'none';
+      limpiarPrecioEnVivoFormulario();
       return;
     }
 
     bloquePrecio.style.display = '';
+    const instrumento = await resolverInstrumentoFormulario(symbolActual);
+    const identidad = `${instrumento.exchange}|${instrumento.marketType}|${instrumento.symbol}`;
 
-    if(symbolSuscritoFormulario === symbolActual) return; // ya suscrito a este mismo símbolo, nada que hacer
+    if(instrumentoSuscritoFormulario === identidad) return;
+    desuscribirPrecioFormularioActual();
 
     const precioValorEl = document.getElementById('precioVivoValor');
     const precioEstadoEl = document.getElementById('precioVivoEstado');
     if(precioValorEl) precioValorEl.textContent = '—';
     if(precioEstadoEl) precioEstadoEl.textContent = 'Cargando...';
 
-    if(typeof BinanceMarketData === 'undefined') return;
+    if(typeof InstrumentMarketData === 'undefined') return;
 
     callbackPrecioFormulario = (data) => {
-      if(precioValorEl) precioValorEl.textContent = formatearPrecioVivo(data.price);
-      if(precioEstadoEl) precioEstadoEl.textContent = '● EN VIVO · Binance';
+      if(precioValorEl && Number.isFinite(Number(data && data.price))){
+        precioValorEl.textContent = formatearPrecioVivo(Number(data.price));
+      }
+      if(precioEstadoEl){
+        const fuente = data && data.exchange ? data.exchange : instrumento.exchange;
+        precioEstadoEl.textContent = `● EN VIVO · ${fuente}`;
+      }
     };
-    symbolSuscritoFormulario = symbolActual;
-    BinanceMarketData.subscribePrice(symbolActual, callbackPrecioFormulario);
+    instrumentoSuscritoFormulario = identidad;
+    cancelarPrecioFormulario = InstrumentMarketData.subscribeTicker(instrumento, callbackPrecioFormulario);
 
-    const cacheado = BinanceMarketData.getPrice(symbolActual);
-    if(cacheado !== null && precioValorEl){
-      precioValorEl.textContent = formatearPrecioVivo(cacheado);
-      if(precioEstadoEl) precioEstadoEl.textContent = '● EN VIVO · Binance';
+    try{
+      const cacheado = await InstrumentMarketData.getTicker(instrumento);
+      if(cacheado && precioValorEl && Number.isFinite(Number(cacheado.price))){
+        precioValorEl.textContent = formatearPrecioVivo(Number(cacheado.price));
+        if(precioEstadoEl) precioEstadoEl.textContent = `● EN VIVO · ${instrumento.exchange}`;
+      }
+    }catch(error){
+      console.error('[InstrumentMarketData] No se pudo obtener precio inicial:', error);
     }
   }
 
