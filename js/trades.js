@@ -1087,8 +1087,33 @@
   async function actualizarOperacion(id, data){
     const index = operaciones.findIndex(op => op.id === id);
     if(index === -1) return;
-    const idTradeExistente = operaciones[index].idTrade; // nunca se regenera ni se pierde al editar
-    const operacionActualizada = Object.assign({ id, idTrade: idTradeExistente }, data, { calculos: calcularOperacion(data) });
+    const anterior = operaciones[index];
+    const idTradeExistente = anterior.idTrade; // nunca se regenera ni se pierde al editar
+
+    // Fase 4.2.14 — si una edición convierte un Trade abierto en cerrado,
+    // capturamos el evento CLOSE sin alterar los hechos originales del formulario.
+    // Si el Trade ya estaba cerrado, no se crea otro snapshot por una edición.
+    let dataPersistir = data;
+    const pasoACerrado = anterior.estadoTrade !== 'Cerrado' && data.estadoTrade === 'Cerrado';
+    if(pasoACerrado){
+      try{
+        const snapshotCierre = await capturarSnapshotEventoTrade({
+          data,
+          eventType: 'CLOSE',
+          eventSource: 'TRADE_CLOSE',
+          sequence: (Array.isArray(anterior.snapshots) ? anterior.snapshots.length : 0) + 1
+        });
+        dataPersistir = anexarSnapshotAlTrade(data, snapshotCierre);
+        if(snapshotCierre.status === 'CONTEXT_ERROR' || snapshotCierre.status === 'SNAPSHOT_ERROR'){
+          console.warn('[SnapshotEngine] Trade cerrado sin snapshot automático:', snapshotCierre.reason || snapshotCierre.status);
+        }
+      }catch(error){
+        // El snapshot es complementario: nunca bloquea la actualización histórica.
+        console.error('[SnapshotEngine] No se pudo preparar snapshot de CLOSE:', error);
+      }
+    }
+
+    const operacionActualizada = Object.assign({ id, idTrade: idTradeExistente }, dataPersistir, { calculos: calcularOperacion(dataPersistir) });
     try{
       const guardada = await actualizarOperacionEnSupabase(id, operacionActualizada);
       operaciones[index] = guardada;
@@ -2374,10 +2399,13 @@
       previos.filter(m => m && m.movement_category === 'POSITION' && m.movement_type === 'EXIT').forEach(m => {
         const q = Number(m.quantity);
         if(Number.isFinite(q) && q > 0 && cantidad > 0){
-          // El precio promedio se mantiene tras una salida; solo reducimos
-          // cantidad para estimar el promedio vigente de forma segura.
-          cantidad = Math.max(0, cantidad - q);
-          costo = cantidad > 0 ? (costo * (cantidad + q) / Math.max(1, cantidad + q)) : 0;
+          // Con promedio ponderado, una salida reduce cantidad y costo al
+          // mismo costo unitario vigente; el precio promedio NO cambia.
+          const cantidadAntes = cantidad;
+          const promedioVigente = cantidadAntes > 0 ? costo / cantidadAntes : 0;
+          const cantidadSaliente = Math.min(q, cantidadAntes);
+          cantidad = Math.max(0, cantidadAntes - cantidadSaliente);
+          costo = cantidad > 0 ? promedioVigente * cantidad : 0;
         }
       });
       const precio = Number(movimiento.price);
