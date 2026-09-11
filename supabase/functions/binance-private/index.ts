@@ -1,13 +1,15 @@
 /*
  * Trading Master — Binance Private Read-Only Bridge
- * FASE 4.3.5B
+ * FASE 4.3.5B — CORREGIDA
  *
  * SECURITY CONTRACT:
  * - READ-ONLY only.
- * - API credentials are accepted only in-memory for the duration of one request.
- * - Credentials are NEVER written to Supabase, logs, localStorage, or responses.
- * - Only an explicit allow-list of Binance GET endpoints is callable.
- * - No POST/PUT/DELETE/PATCH endpoint can be selected through this function.
+ * - API credentials exist only in memory for the current request.
+ * - Credentials are NEVER stored, logged, returned, or sent to Supabase tables.
+ * - Only a fixed allow-list of Binance GET USER_DATA endpoints is callable.
+ * - No user-provided URL, method, host, path, or Binance endpoint is accepted.
+ * - Trading, withdrawals, transfers, margin, futures trading and options
+ *   permissions are rejected at validation time.
  */
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
@@ -33,7 +35,9 @@ function cleanSecret(value: unknown): string {
 
 function assertCredentials(apiKey: string, apiSecret: string) {
   if (!apiKey || !apiSecret) throw new Error('BINANCE_CREDENTIALS_REQUIRED');
-  if (apiKey.length > 256 || apiSecret.length > 256) throw new Error('BINANCE_CREDENTIALS_INVALID');
+  if (apiKey.length > 256 || apiSecret.length > 256) {
+    throw new Error('BINANCE_CREDENTIALS_INVALID');
+  }
 }
 
 async function hmacSha256Hex(secret: string, payload: string): Promise<string> {
@@ -44,7 +48,11 @@ async function hmacSha256Hex(secret: string, payload: string): Promise<string> {
     false,
     ['sign'],
   );
-  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload));
+  const signature = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    new TextEncoder().encode(payload),
+  );
   return Array.from(new Uint8Array(signature))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
@@ -70,30 +78,42 @@ async function signedGet(
     recvWindow: RECV_WINDOW,
     timestamp: Date.now(),
   });
+
   const signature = await hmacSha256Hex(apiSecret, query);
-  const response = await fetch(`${baseUrl}${path}?${query}&signature=${signature}`, {
-    method: 'GET',
-    headers: { 'X-MBX-APIKEY': apiKey },
-  });
+  const response = await fetch(
+    `${baseUrl}${path}?${query}&signature=${signature}`,
+    {
+      method: 'GET',
+      headers: { 'X-MBX-APIKEY': apiKey },
+    },
+  );
 
   const text = await response.text();
   let body: unknown;
-  try { body = JSON.parse(text); } catch { body = { raw: text }; }
+  try {
+    body = JSON.parse(text);
+  } catch {
+    body = { raw: text };
+  }
 
   if (!response.ok) {
-    return {
-      ok: false,
-      status: response.status,
-      body,
-    };
+    return { ok: false, status: response.status, body };
   }
 
   return { ok: true, status: response.status, body };
 }
 
-function validateNoTrading(permission: any) {
+/*
+ * Binance's API-key permission response contains several capabilities.
+ * Trading Master rejects every capability that could be used to mutate
+ * account funds/positions. Transfer flags are also rejected because the
+ * product security contract explicitly forbids transfers and withdrawals.
+ *
+ * We deliberately do NOT infer safety from enableReading alone.
+ */
+function validateReadOnlyPermissions(permission: any) {
   if (!permission || typeof permission !== 'object') {
-    return { valid: false, reason: 'BINANCE_PERMISSION_RESPONSE_INVALID' };
+    return { valid: false, readOnly: false, reason: 'BINANCE_PERMISSION_RESPONSE_INVALID' };
   }
 
   const forbidden = [
@@ -105,13 +125,18 @@ function validateNoTrading(permission: any) {
     ['enableFutures', permission.enableFutures],
     ['enableVanillaOptions', permission.enableVanillaOptions],
     ['enablePortfolioMarginTrading', permission.enablePortfolioMarginTrading],
+    ['enableFixApiTrade', permission.enableFixApiTrade],
   ];
 
-  const enabledForbidden = forbidden.filter(([, enabled]) => enabled === true).map(([name]) => name);
+  const enabledForbidden = forbidden
+    .filter(([, enabled]) => enabled === true)
+    .map(([name]) => name);
+
+  const readOnly = permission.enableReading === true && enabledForbidden.length === 0;
 
   return {
-    valid: permission.enableReading === true && enabledForbidden.length === 0,
-    readOnly: permission.enableReading === true && enabledForbidden.length === 0,
+    valid: readOnly,
+    readOnly,
     enabledForbidden,
     permission: {
       enableReading: permission.enableReading === true,
@@ -123,6 +148,7 @@ function validateNoTrading(permission: any) {
       enableFutures: permission.enableFutures === true,
       enableVanillaOptions: permission.enableVanillaOptions === true,
       enablePortfolioMarginTrading: permission.enablePortfolioMarginTrading === true,
+      enableFixApiTrade: permission.enableFixApiTrade === true,
       ipRestrict: permission.ipRestrict === true,
       enableFixReadOnly: permission.enableFixReadOnly === true,
     },
@@ -138,6 +164,8 @@ function normalizeSafeError(error: unknown) {
     'BINANCE_READONLY_REQUIRED',
     'ACTION_NOT_ALLOWED',
     'REQUEST_INVALID',
+    'PARAMETER_INVALID',
+    'SYMBOL_REQUIRED',
   ]);
   return allowed.has(message) ? message : 'BINANCE_PRIVATE_REQUEST_FAILED';
 }
@@ -149,40 +177,109 @@ async function getAuthenticatedUser(req: Request) {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const publishableKeysRaw = Deno.env.get('SUPABASE_PUBLISHABLE_KEYS');
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
-  const publishableKey = publishableKeysRaw
-    ? JSON.parse(publishableKeysRaw).default
-    : anonKey;
+  let publishableKey = anonKey;
+
+  if (publishableKeysRaw) {
+    try {
+      const parsed = JSON.parse(publishableKeysRaw);
+      publishableKey = parsed?.default || anonKey;
+    } catch {
+      publishableKey = anonKey;
+    }
+  }
 
   if (!supabaseUrl || !publishableKey) return null;
 
   const client = createClient(supabaseUrl, publishableKey, {
     global: { headers: { Authorization: authorization } },
   });
+
   const { data, error } = await client.auth.getUser();
   if (error || !data.user) return null;
   return data.user;
 }
 
+function positiveIntegerOrUndefined(value: unknown) {
+  if (value === undefined || value === null || value === '') return undefined;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 0) throw new Error('PARAMETER_INVALID');
+  return n;
+}
+
+function normalizeSymbol(value: unknown) {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (typeof value !== 'string') throw new Error('PARAMETER_INVALID');
+  const symbol = value.trim().toUpperCase();
+  if (!/^[A-Z0-9._-]{1,30}$/.test(symbol)) throw new Error('PARAMETER_INVALID');
+  return symbol;
+}
+
+function buildFillsParams(params: any, requireSymbol = true) {
+  const symbol = normalizeSymbol(params?.symbol);
+  if (requireSymbol && !symbol) throw new Error('SYMBOL_REQUIRED');
+
+  const startTime = positiveIntegerOrUndefined(params?.startTime);
+  const endTime = positiveIntegerOrUndefined(params?.endTime);
+  const fromId = positiveIntegerOrUndefined(params?.fromId);
+  const limitRaw = params?.limit;
+  const limit = limitRaw === undefined || limitRaw === null || limitRaw === ''
+    ? undefined
+    : positiveIntegerOrUndefined(limitRaw);
+
+  if (limit !== undefined && (limit < 1 || limit > 1000)) {
+    throw new Error('PARAMETER_INVALID');
+  }
+  if (startTime !== undefined && endTime !== undefined && startTime > endTime) {
+    throw new Error('PARAMETER_INVALID');
+  }
+
+  return { symbol, startTime, endTime, fromId, limit };
+}
+
+function buildOrdersParams(params: any) {
+  // Binance allOrders requires symbol for the REST endpoints used here.
+  return buildFillsParams(params, true);
+}
+
+function buildEmptyParams() {
+  return {};
+}
+
 async function handle(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
-  if (req.method !== 'POST') return json({ ok: false, error: 'METHOD_NOT_ALLOWED' }, 405);
+  if (req.method !== 'POST') {
+    return json({ ok: false, error: 'METHOD_NOT_ALLOWED' }, 405);
+  }
 
   const user = await getAuthenticatedUser(req);
   if (!user) return json({ ok: false, error: 'AUTH_REQUIRED' }, 401);
 
   let payload: any;
-  try { payload = await req.json(); } catch { return json({ ok: false, error: 'REQUEST_INVALID' }, 400); }
+  try {
+    payload = await req.json();
+  } catch {
+    return json({ ok: false, error: 'REQUEST_INVALID' }, 400);
+  }
 
   const action = payload?.action;
+  const allowedActions = new Set([
+    'validate',
+    'spotFills',
+    'futuresFills',
+    'spotOrders',
+    'futuresOrders',
+    'spotBalances',
+    'futuresBalances',
+    'futuresPositions',
+  ]);
+
+  if (!allowedActions.has(action)) throw new Error('ACTION_NOT_ALLOWED');
+
   const apiKey = cleanSecret(payload?.apiKey);
   const apiSecret = cleanSecret(payload?.apiSecret);
   assertCredentials(apiKey, apiSecret);
 
-  // Only these read operations are allowed in this phase.
-  const allowedActions = new Set(['validate', 'spotFills', 'futuresFills', 'spotOrders', 'futuresOrders', 'spotBalances', 'futuresBalances', 'futuresPositions']);
-  if (!allowedActions.has(action)) throw new Error('ACTION_NOT_ALLOWED');
-
-  // First gate every operation through Binance's API-key permission endpoint.
+  // First gate every operation through Binance's read-only permission check.
   const permissionResult = await signedGet(
     BINANCE_SPOT_BASE,
     '/sapi/v1/account/apiRestrictions',
@@ -191,12 +288,20 @@ async function handle(req: Request) {
   );
 
   if (!permissionResult.ok) {
-    return json({ ok: false, error: 'BINANCE_PERMISSION_DENIED', binance: permissionResult.body }, 400);
+    return json({
+      ok: false,
+      error: 'BINANCE_PERMISSION_DENIED',
+      binance: permissionResult.body,
+    }, 400);
   }
 
-  const permissionCheck = validateNoTrading(permissionResult.body);
+  const permissionCheck = validateReadOnlyPermissions(permissionResult.body);
   if (!permissionCheck.readOnly) {
-    return json({ ok: false, error: 'BINANCE_READONLY_REQUIRED', permission: permissionCheck }, 403);
+    return json({
+      ok: false,
+      error: 'BINANCE_READONLY_REQUIRED',
+      permission: permissionCheck,
+    }, 403);
   }
 
   if (action === 'validate') {
@@ -211,38 +316,72 @@ async function handle(req: Request) {
   }
 
   const p = payload?.params ?? {};
-  const common = {
-    symbol: typeof p.symbol === 'string' ? p.symbol.toUpperCase() : undefined,
-    startTime: Number.isFinite(Number(p.startTime)) ? Number(p.startTime) : undefined,
-    endTime: Number.isFinite(Number(p.endTime)) ? Number(p.endTime) : undefined,
-    fromId: Number.isFinite(Number(p.fromId)) ? Number(p.fromId) : undefined,
-    limit: Number.isFinite(Number(p.limit)) ? Math.min(Math.max(Number(p.limit), 1), 1000) : undefined,
-  };
+  let requestParams: Record<string, string | number | undefined> = {};
+  let base = BINANCE_SPOT_BASE;
+  let path = '';
+  let accountRef = 'BINANCE:SPOT';
 
-  const map: Record<string, { base: string; path: string }> = {
-    spotFills: { base: BINANCE_SPOT_BASE, path: '/api/v3/myTrades' },
-    futuresFills: { base: BINANCE_FUTURES_BASE, path: '/fapi/v1/userTrades' },
-    spotOrders: { base: BINANCE_SPOT_BASE, path: '/api/v3/allOrders' },
-    futuresOrders: { base: BINANCE_FUTURES_BASE, path: '/fapi/v1/allOrders' },
-    spotBalances: { base: BINANCE_SPOT_BASE, path: '/api/v3/account' },
-    futuresBalances: { base: BINANCE_FUTURES_BASE, path: '/fapi/v3/balance' },
-    futuresPositions: { base: BINANCE_FUTURES_BASE, path: '/fapi/v3/positionRisk' },
-  };
-
-  const target = map[action];
-  const result = await signedGet(target.base, target.path, apiKey, apiSecret, common);
-
-  if (!result.ok) {
-    return json({ ok: false, error: 'BINANCE_PRIVATE_REQUEST_FAILED', status: result.status, binance: result.body }, 400);
+  switch (action) {
+    case 'spotFills':
+      base = BINANCE_SPOT_BASE;
+      path = '/api/v3/myTrades';
+      requestParams = buildFillsParams(p, true);
+      break;
+    case 'futuresFills':
+      base = BINANCE_FUTURES_BASE;
+      path = '/fapi/v1/userTrades';
+      requestParams = buildFillsParams(p, true);
+      accountRef = 'BINANCE:FUTURES';
+      break;
+    case 'spotOrders':
+      base = BINANCE_SPOT_BASE;
+      path = '/api/v3/allOrders';
+      requestParams = buildOrdersParams(p);
+      break;
+    case 'futuresOrders':
+      base = BINANCE_FUTURES_BASE;
+      path = '/fapi/v1/allOrders';
+      requestParams = buildOrdersParams(p);
+      accountRef = 'BINANCE:FUTURES';
+      break;
+    case 'spotBalances':
+      base = BINANCE_SPOT_BASE;
+      path = '/api/v3/account';
+      requestParams = buildEmptyParams();
+      break;
+    case 'futuresBalances':
+      base = BINANCE_FUTURES_BASE;
+      path = '/fapi/v3/balance';
+      requestParams = buildEmptyParams();
+      accountRef = 'BINANCE:FUTURES';
+      break;
+    case 'futuresPositions':
+      base = BINANCE_FUTURES_BASE;
+      path = '/fapi/v3/positionRisk';
+      requestParams = { symbol: normalizeSymbol(p?.symbol) };
+      accountRef = 'BINANCE:FUTURES';
+      break;
+    default:
+      throw new Error('ACTION_NOT_ALLOWED');
   }
 
-  // Deliberately return Binance data only; no credentials are ever echoed.
+  const result = await signedGet(base, path, apiKey, apiSecret, requestParams);
+
+  if (!result.ok) {
+    return json({
+      ok: false,
+      error: 'BINANCE_PRIVATE_REQUEST_FAILED',
+      status: result.status,
+      binance: result.body,
+    }, 400);
+  }
+
   return json({
     ok: true,
     action,
     sourceType: 'EXTERNAL',
     exchange: 'BINANCE',
-    accountRef: `BINANCE:${action.startsWith('futures') ? 'FUTURES' : 'SPOT'}`,
+    accountRef,
     data: result.body,
   });
 }
@@ -251,6 +390,7 @@ Deno.serve(async (req) => {
   try {
     return await handle(req);
   } catch (error) {
+    // Never log the request payload or credentials.
     console.error('binance-private error:', normalizeSafeError(error));
     return json({ ok: false, error: normalizeSafeError(error) }, 400);
   }
