@@ -146,6 +146,18 @@
       symbol: entrada.symbol
     };
 
+    // Fase 4.3.3A — se valida ANTES de gastar ninguna llamada de red
+    // (incluyendo el fetch de contexto). Mismo criterio que ya usaba
+    // crearSnapshot() (validarEvento), aplicado aquí también y más
+    // temprano: si no hay un occurredAt confiable, se informa de
+    // inmediato — nunca se sustituye por "ahora" ni se gasta una
+    // consulta de contexto para un evento que de todos modos va a
+    // rechazarse al final.
+    const validacionTemprana = validarEvento(Object.assign({}, entrada, { instrument }));
+    if(validacionTemprana.status !== 'OK'){
+      return validacionTemprana;
+    }
+
     let context = entrada.context ? clonar(entrada.context) : null;
     let contextStatus = context ? 'PROVIDED' : 'NOT_REQUESTED';
 
@@ -161,7 +173,10 @@
         const resultado = await global.MarketContext.getMarketContext({
           symbol: instrument.symbol,
           exchange: instrument.exchange,
-          marketType: instrument.marketType
+          marketType: instrument.marketType,
+          // Fase 4.3.3A — el contexto se reconstruye HASTA el momento
+          // real del evento, nunca hasta "ahora" (look-ahead bias).
+          asOf: entrada.occurredAt
         });
 
         if(!resultado || resultado.status !== 'OK'){

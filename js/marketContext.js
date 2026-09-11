@@ -125,7 +125,7 @@
      Un fallo obteniendo velas de UNA temporalidad, o calculando UN
      indicador, nunca tumba el resto (regla explícita del Sprint).
      ============================================================ */
-  async function construirAssetContext(instrument, variablesCalculables){
+  async function construirAssetContext(instrument, variablesCalculables, asOfMs){
     const symbol = instrument.symbol;
     const marketType = instrument.marketType;
     const exchange = instrument.exchange;
@@ -137,7 +137,8 @@
         if(typeof InstrumentMarketData === 'undefined' || typeof InstrumentMarketData.getHistoricalCandles !== 'function'){
           throw new Error('InstrumentMarketData.getHistoricalCandles no está disponible');
         }
-        candles = await InstrumentMarketData.getHistoricalCandles(instrument, tf);
+        const opcionesCandles = (asOfMs !== null && asOfMs !== undefined) ? { asOf: asOfMs } : {};
+        candles = await InstrumentMarketData.getHistoricalCandles(instrument, tf, opcionesCandles);
       }catch(error){
         // Esta temporalidad queda marcada con su propio error — las demás continúan.
         timeframes[tf] = { indicators: {}, status: 'ERROR', error: String(error && error.message || error) };
@@ -155,7 +156,7 @@
       timeframes[tf] = { indicators, status: 'OK' };
     }
 
-    return { symbol, exchange, marketType, instrumentId: instrument.id || null, timeframes };
+    return { symbol, exchange, marketType, instrumentId: instrument.id || null, asOf: (asOfMs === null || asOfMs === undefined) ? null : asOfMs, timeframes };
   }
 
   /* ============================================================
@@ -202,6 +203,21 @@
     }
     const symbolNormalizado = symbol.trim().toUpperCase();
 
+    // Fase 4.3.3A — asOf: límite temporal para reconstruir el contexto
+    // histórico EXACTAMENTE como estaba disponible hasta ese instante
+    // (look-ahead bias). Acepta ms-epoch o cualquier string parseable
+    // por Date. Si se provee y NO es válido, se reporta INVALID_INPUT
+    // de inmediato — NUNCA se ignora silenciosamente ni se sustituye
+    // por "ahora". Sin asOf: comportamiento 100% igual que siempre.
+    let asOfMs = null;
+    if(opciones && opciones.asOf !== undefined && opciones.asOf !== null){
+      const candidato = (typeof opciones.asOf === 'number') ? opciones.asOf : new Date(opciones.asOf).getTime();
+      if(!Number.isFinite(candidato)){
+        return { status: 'INVALID_INPUT', reason: `asOf no es una fecha/hora válida: ${opciones.asOf}`, assetContext: null, globalContext: null };
+      }
+      asOfMs = candidato;
+    }
+
     const instrumento = await resolverInstrumento({
       symbol: symbolNormalizado,
       exchange: opciones && opciones.exchange,
@@ -216,7 +232,7 @@
 
     let assetContext;
     try{
-      assetContext = await construirAssetContext(instrumento.instrument, variablesCalculables);
+      assetContext = await construirAssetContext(instrumento.instrument, variablesCalculables, asOfMs);
     }catch(error){
       // Red de seguridad: no debería llegar aquí (los fallos por
       // temporalidad/indicador ya se capturan adentro), pero si algo
@@ -224,6 +240,12 @@
       return { status: 'ERROR', reason: String(error && error.message || error), assetContext: null, globalContext: null };
     }
 
+    // NOTA — límite conocido de esta fase: globalContext (Pulso,
+    // Sesiones, Fear&Greed) NO respeta asOf. MarketStatus/MarketSentiment
+    // no tienen modo histórico (solo exponen el estado ACTUAL) y esta
+    // fase tiene prohibido modificar Market Status. Si se pide un asOf
+    // pasado, globalContext seguirá reflejando el momento presente —
+    // documentado explícitamente, no oculto.
     const globalContext = await construirGlobalContext();
 
     return { status: 'OK', assetContext, globalContext };

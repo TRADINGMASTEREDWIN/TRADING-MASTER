@@ -274,10 +274,23 @@
     // Bitunix documenta límite máximo real de 200 por solicitud — nunca se pide más, nunca se completa artificialmente lo que falte.
     const limit = (opciones && Number.isFinite(opciones.limit)) ? Math.max(1, Math.min(opciones.limit, 200)) : 200;
 
-    const url = KLINE_URL + '?symbol=' + encodeURIComponent(s) + '&interval=' + encodeURIComponent(intervaloBitunix) + '&limit=' + limit;
+    // Fase 4.3.3A — asOf (look-ahead bias). endTime es un parámetro real
+    // y documentado del endpoint de Bitunix ("query k-lines before this
+    // time"). Sin asOf: comportamiento idéntico al de siempre.
+    let asOf = null;
+    if(opciones && opciones.asOf !== undefined && opciones.asOf !== null){
+      const candidato = Number(opciones.asOf);
+      if(!Number.isFinite(candidato)){
+        throw new Error('BitunixProvider.getHistoricalCandles: asOf inválido (' + opciones.asOf + ')');
+      }
+      asOf = candidato;
+    }
+
+    let url = KLINE_URL + '?symbol=' + encodeURIComponent(s) + '&interval=' + encodeURIComponent(intervaloBitunix) + '&limit=' + limit;
+    if(asOf !== null) url += '&endTime=' + asOf;
     const data = await pedirJson(url);
 
-    return data.map(vela => ({
+    let velas = data.map(vela => ({
       time: Number(vela.time),        // Bitunix ya entrega milisegundos Unix, mismo formato que marketData.js — sin conversión
       open: parseFloat(vela.open),
       high: parseFloat(vela.high),
@@ -288,6 +301,12 @@
       Number.isFinite(v.time) && Number.isFinite(v.open) && Number.isFinite(v.high) &&
       Number.isFinite(v.low) && Number.isFinite(v.price)
     ); // velas con datos corruptos se descartan, nunca se rellenan inventadas
+
+    // Defensa adicional (además de endTime en el servidor): nunca se
+    // entrega una vela cuya apertura sea posterior a asOf.
+    if(asOf !== null) velas = velas.filter(v => v.time <= asOf);
+
+    return velas;
   }
 
   /* ============================================================

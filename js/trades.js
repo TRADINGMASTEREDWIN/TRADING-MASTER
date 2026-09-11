@@ -957,9 +957,25 @@
       quoteAsset: symbol.endsWith('USDT') ? 'USDT' : null
     };
 
-    const ocurrido = movement && movement.occurred_at
-      ? movement.occurred_at
-      : ((data.fecha && data.horaEntrada) ? `${data.fecha}T${data.horaEntrada}:00` : new Date().toISOString());
+    // Fase 4.3.3A — event_at REAL, sin fallback a "ahora". Cada tipo de
+    // evento mira su propio par fecha/hora: CLOSE/EXIT nunca deben tomar
+    // prestada la fecha/hora de ENTRY (bug encontrado en el diagnóstico
+    // 4.3.3 — antes, un cierre sin `movement` usaba data.fecha/horaEntrada,
+    // la hora de LA ENTRADA, no la del cierre). Si no hay dato suficiente
+    // para determinar el event_at real, se conserva el hecho (el
+    // Trade/movimiento se guarda igual, ver captura del try/catch más
+    // abajo) pero NUNCA se inventa una fecha/hora histórica — se deja
+    // `ocurrido` en null y es SnapshotEngine.validarEvento() quien lo
+    // reporta como INVALID_INPUT de forma explícita.
+    const tipoEvento = String(eventType || '').toUpperCase();
+    let ocurrido = null;
+    if(movement && movement.occurred_at){
+      ocurrido = movement.occurred_at;
+    }else if(tipoEvento === 'CLOSE' || tipoEvento === 'EXIT'){
+      ocurrido = (data.fechaSalida && data.horaSalida) ? `${data.fechaSalida}T${data.horaSalida}:00` : null;
+    }else{
+      ocurrido = (data.fecha && data.horaEntrada) ? `${data.fecha}T${data.horaEntrada}:00` : null;
+    }
 
     const executionPrice = movement && movement.price !== undefined
       ? movement.price
@@ -1050,7 +1066,7 @@
         sequence: 1
       });
       const dataConSnapshot = anexarSnapshotAlTrade(data, snapshotEntrada);
-      if(snapshotEntrada.status === 'CONTEXT_ERROR' || snapshotEntrada.status === 'SNAPSHOT_ERROR') {
+      if(snapshotEntrada.status === 'CONTEXT_ERROR' || snapshotEntrada.status === 'SNAPSHOT_ERROR' || snapshotEntrada.status === 'INVALID_INPUT') {
         console.warn('[SnapshotEngine] Trade guardado sin snapshot automático:', snapshotEntrada.reason || snapshotEntrada.status);
       }
 
@@ -1104,7 +1120,7 @@
           sequence: (Array.isArray(anterior.snapshots) ? anterior.snapshots.length : 0) + 1
         });
         dataPersistir = anexarSnapshotAlTrade(data, snapshotCierre);
-        if(snapshotCierre.status === 'CONTEXT_ERROR' || snapshotCierre.status === 'SNAPSHOT_ERROR'){
+        if(snapshotCierre.status === 'CONTEXT_ERROR' || snapshotCierre.status === 'SNAPSHOT_ERROR' || snapshotCierre.status === 'INVALID_INPUT'){
           console.warn('[SnapshotEngine] Trade cerrado sin snapshot automático:', snapshotCierre.reason || snapshotCierre.status);
         }
       }catch(error){
@@ -2452,7 +2468,7 @@
           movimientoPersistir = Object.assign({}, movimiento, {
             metadata: Object.assign({}, movimiento.metadata || {}, { snapshot: snapshotResultado.snapshot })
           });
-        }else if(snapshotResultado.status === 'CONTEXT_ERROR' || snapshotResultado.status === 'SNAPSHOT_ERROR'){
+        }else if(snapshotResultado.status === 'CONTEXT_ERROR' || snapshotResultado.status === 'SNAPSHOT_ERROR' || snapshotResultado.status === 'INVALID_INPUT'){
           console.warn('[SnapshotEngine] Movimiento guardado sin snapshot automático:', snapshotResultado.reason || snapshotResultado.status);
         }
       }catch(error){

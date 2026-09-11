@@ -623,14 +623,28 @@
     if(!config) throw new Error(`Timeframe de gráfico no soportado: ${timeframe}`);
 
     const marketType = (opciones && opciones.marketType === 'FUTURES') ? 'FUTURES' : 'SPOT';
-    const clave = `${s}|${timeframe}|${marketType}`;
+
+    // Fase 4.3.3A — asOf (look-ahead bias). Si se provee, limita las
+    // velas a las disponibles HASTA ese instante (nunca posteriores).
+    // Sin asOf: comportamiento 100% idéntico al de siempre (retrocompatible).
+    let asOf = null;
+    if(opciones && opciones.asOf !== undefined && opciones.asOf !== null){
+      const candidato = Number(opciones.asOf);
+      if(!Number.isFinite(candidato)){
+        throw new Error(`getHistoricalCandles: asOf inválido (${opciones.asOf})`);
+      }
+      asOf = candidato;
+    }
+
+    const clave = `${s}|${timeframe}|${marketType}|${asOf === null ? 'latest' : asOf}`;
     const cacheado = historicoVelasCache[clave];
     if(cacheado && (Date.now() - cacheado.timestamp) < HISTORICO_CACHE_TTL_MS){
       return cacheado.datos;
     }
 
     const baseUrl = (marketType === 'FUTURES') ? BINANCE_FUTURES_KLINES_URL : BINANCE_SPOT_KLINES_URL;
-    const url = `${baseUrl}?symbol=${encodeURIComponent(s)}&interval=${config.interval}&limit=${config.limit}`;
+    let url = `${baseUrl}?symbol=${encodeURIComponent(s)}&interval=${config.interval}&limit=${config.limit}`;
+    if(asOf !== null) url += `&endTime=${asOf}`;
     const response = await fetch(url);
     if(!response.ok){
       throw new Error(`Binance klines respondió con estado ${response.status} para ${s} (${marketType}, ${timeframe})`);
@@ -641,7 +655,7 @@
       throw new Error(`Respuesta inesperada de klines para ${s}: se esperaba un array.`);
     }
 
-    const datos = raw.map(vela => {
+    let datos = raw.map(vela => {
       const quoteVolume = parseFloat(vela[7]);
       return {
         time: Number(vela[0]),
@@ -655,6 +669,11 @@
       Number.isFinite(v.time) && Number.isFinite(v.open) && Number.isFinite(v.high) &&
       Number.isFinite(v.low) && Number.isFinite(v.price)
     );
+
+    // Defensa adicional (además de endTime en el servidor): nunca se
+    // entrega una vela cuya apertura sea posterior a asOf, sin importar
+    // qué haya devuelto Binance.
+    if(asOf !== null) datos = datos.filter(v => v.time <= asOf);
 
     historicoVelasCache[clave] = { datos, timestamp: Date.now() };
     return datos;
