@@ -518,6 +518,7 @@
     await cargarDireccionesGeneralesDesdeSupabase();
     await cargarTiposOperacionGeneralesDesdeSupabase(); // Sprint 4.4
     await cargarTemporalidadesDeHorizontes(); // Sprint 4.1
+    await cargarExchangesGeneralesDesdeSupabase(); // Fase 4.3.2
 
     poblarSelectMercadoOperacion();
     poblarSelectTipoTradeOperacion();
@@ -534,6 +535,7 @@
     renderTiposEntradaGeneralesTable();
     renderDireccionesGeneralesTable();
     renderTiposOperacionGeneralesTable(); // Sprint 4.4
+    renderExchangesGeneralesTable(); // Fase 4.3.2
   }
 
   function attachCatalogosGeneralesListeners(){
@@ -546,4 +548,5 @@
     attachTiposOperacionGeneralesListeners(); // Sprint 4.4
     attachDireccionSegmentedOperacionListener();
     attachTemporalidadPorTipoTradeListener(); // Sprint 4.1
+    attachExchangesGeneralesListeners(); // Fase 4.3.2
   }
