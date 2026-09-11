@@ -242,7 +242,18 @@
       // ausencia de metadata -> {} (compatible con NOT NULL DEFAULT
       // '{}'::jsonb). Cualquier otro valor recibido (incluido {} y objetos
       // con contenido) se conserva exactamente tal cual.
-      metadata: (movimiento.metadata === undefined || movimiento.metadata === null) ? {} : movimiento.metadata
+      metadata: (movimiento.metadata === undefined || movimiento.metadata === null) ? {} : movimiento.metadata,
+      // Fase 4.3.3B — trazabilidad de origen del hecho. NO sustituye a
+      // `occurred_at` (event_at, ya resuelto en la Fase 4.3.3A): esto
+      // identifica DE DÓNDE viene el movimiento, no CUÁNDO ocurrió.
+      // Por defecto MANUAL — hoy el único origen real de esta app; un
+      // futuro importador externo pasaría explícitamente 'EXTERNAL' y
+      // su propio external_id, sin tocar esta función.
+      source_type: movimiento.source_type !== undefined ? movimiento.source_type : 'MANUAL',
+      external_id: movimiento.external_id !== undefined ? movimiento.external_id : null
+      // recorded_at NO se envía desde aquí a propósito: la columna tiene
+      // DEFAULT now() en Supabase — siempre debe ser el reloj del
+      // servidor, nunca un valor calculado en el cliente.
     };
 
     const { data, error } = await supabaseClient

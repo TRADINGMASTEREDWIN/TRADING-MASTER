@@ -2358,7 +2358,14 @@
       direction: datos.movement_category === 'POSITION' ? derivarDireccionMovimiento(movimientoDireccionTradeActual, datos.movement_type) : undefined,
       commission: (datos.movement_category === 'POSITION' && datos.commission !== '') ? parseFloat(datos.commission) : undefined,
       amount: datos.movement_category !== 'POSITION' ? parseFloat(datos.amount) : undefined,
-      notes: datos.notes !== '' ? datos.notes : undefined
+      notes: datos.notes !== '' ? datos.notes : undefined,
+      // Fase 4.3.3B — este modal es HOY el único origen de movimientos:
+      // el usuario los teclea directamente. source_type=MANUAL explícito
+      // aquí (no solo por el default de storage.js) para que quede claro
+      // en el propio punto de creación. external_id se deja sin enviar
+      // (crearMovimientoEnSupabase lo guarda como null) — no existe
+      // ningún identificador externo real todavía, nunca se inventa uno.
+      source_type: 'MANUAL'
     };
 
     // Advertencia informativa y NO bloqueante — Trading Master registra
