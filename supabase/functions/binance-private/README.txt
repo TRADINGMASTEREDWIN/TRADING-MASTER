@@ -1,20 +1,26 @@
-TRADING MASTER — FASE 4.3.5B
-BINANCE SECURE READ-ONLY BRIDGE
+TRADING MASTER — FASE 4.3.5B CORREGIDA
+PUENTE DE SOLO LECTURA SEGURO DE BINANCE
 
-NUEVOS ARCHIVOS
-- binancePrivateBridge.js
+ESTRUCTURA
+- js/binancePrivateBridge.js
 - supabase/functions/binance-private/index.ts
 
-IMPORTANTE
-- Esta fase NO guarda API Key ni Secret Key.
-- Las credenciales viajan únicamente en memoria durante una petición autenticada.
-- No se escriben en Supabase, localStorage, URLs ni logs.
-- Solo se permiten endpoints GET de lectura de Binance.
-- La función verifica primero /sapi/v1/account/apiRestrictions y rechaza claves con permisos de trading, retiros, transferencias, margin, futures, options o portfolio margin.
-- No se habilita ninguna operación de trading.
+CAMBIO PRINCIPAL
+La validación de permisos no usa enableReading como única señal. La Edge Function rechaza también las capacidades que podrían modificar fondos, posiciones u órdenes, incluyendo trading Spot/Margin, Futures, Options, Portfolio Margin, retiros y transferencias.
 
-INTEGRACIÓN
-- El frontend debe cargar binancePrivateBridge.js después de supabase.js.
-- La Edge Function debe desplegarse como `binance-private`.
-- NO introducir API keys reales en archivos del repositorio.
-- Esta fase no implementa persistencia de credenciales ni sincronización automática.
+SEGURIDAD
+- No guarda API Key ni Secret Key.
+- No escribe credenciales en Supabase, localStorage, URL ni DOM.
+- Solo acepta una lista cerrada de acciones.
+- Solo ejecuta GET contra endpoints privados de lectura de Binance.
+- Nunca acepta URL, host, path o método arbitrario enviados por el cliente.
+- No crea, modifica ni cancela órdenes.
+- No realiza retiros, transferencias, préstamos ni cambios de configuración.
+
+NO HACER TODAVÍA
+- No introducir claves reales en GitHub.
+- No guardar claves en Supabase.
+- No desplegar ni probar con una clave que tenga permisos de trading.
+
+FUENTE
+La lista de permisos se contrasta con la respuesta de /sapi/v1/account/apiRestrictions de Binance.
