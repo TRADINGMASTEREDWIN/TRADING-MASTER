@@ -1,0 +1,8 @@
+# Trading Master — Supabase CLI configuration
+# Project: Trading Master
+# READ-ONLY Binance private-data bridge
+
+project_id = "pxaqnmxjcmddfgihfnzm"
+
+[functions.binance-private]
+verify_jwt = true
