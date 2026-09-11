@@ -1130,6 +1130,7 @@
           <a class="config-subnav-item" data-config-nav="activos">💠 Activos</a>
           <a class="config-subnav-item" data-config-nav="brokers">🏦 Brokers</a>
           <a class="config-subnav-item" data-config-nav="mercados">📊 Mercados</a>
+          <a class="config-subnav-item" data-config-nav="exchanges">🏛️ Exchanges</a>
 
           <div class="config-subnav-group-title">Catálogos</div>
           <a class="config-subnav-item" data-config-nav="temporalidades">⏱️ Temporalidades</a>
@@ -1454,6 +1455,26 @@
 
 
       </div><!-- /configPanelMercados -->
+
+<div id="configPanelExchanges" style="display:none;">
+      <!-- ===== EXCHANGES (Fase 4.3.2) — solo lectura + activar/desactivar ===== -->
+      <section class="card" style="margin-bottom: var(--space-6);">
+        <div class="card-header">
+          <div class="card-header-title-group">
+            <div><h2>Exchanges</h2><div class="card-header-sub">Catálogo de exchanges y sus capacidades (Supabase). Solo lectura de capacidades — el estado Activo/Inactivo sí se puede administrar aquí.</div></div>
+          </div>
+        </div>
+      </section>
+      <section class="card" style="margin-bottom: var(--space-6);">
+        <div class="card-header"><div class="card-header-title-group"><div><h2>Listado de Exchanges</h2><div class="card-header-sub"><span id="exchangesGenCount">0</span> exchanges registrados</div></div></div></div>
+        <div class="table-wrap" style="max-height: none;">
+          <table class="data-table">
+            <thead><tr><th>Exchange</th><th>Estado</th><th>Capacidades</th></tr></thead>
+            <tbody id="exchangesGenTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+      </div><!-- /configPanelExchanges -->
 
 <div id="configPanelTemporalidades" style="display:none;">
       <!-- ===== 3. TEMPORALIDADES ===== -->
@@ -2255,6 +2276,7 @@
 <script src="js/marketSentiment.js"></script>
   <script src="js/variables.js"></script>
   <script src="js/catalogosGenerales.js"></script>
+  <script src="js/exchangesConfig.js"></script>
   <script src="js/variablesObservadas.js"></script>
 <script>
   /* ============================================================
@@ -2990,6 +3012,7 @@
       'activos': 'vistaActivos',
       'brokers': 'configPanelBrokers',
       'mercados': 'configPanelMercados',
+      'exchanges': 'configPanelExchanges',
       'temporalidades': 'configPanelTemporalidades',
       'horizontes': 'configPanelHorizontes',
       'direcciones': 'configPanelDirecciones',
