@@ -20,13 +20,14 @@
 
    Modelo de datos (op.variablesObservadas, array):
    [
-     { variable_id, valor_observado, influyo_en_decision },
+     { variable_id, valor_observado, participacion_decision, influyo_en_decision },
      ...
    ]
    - valor_observado: string (single_select/text/numeric),
      array de strings (multi_select), o boolean (boolean) — según
      el tipo de dato de esa variable.
-   - influyo_en_decision: boolean, SIEMPRE independiente del valor
+   - participacion_decision: CONSIDERADA | INFLUYENTE | DETERMINANTE; si no participa, no se registra.
+   - influyo_en_decision: boolean de compatibilidad, derivado de la participación.
      observado (puede haber Barrido=Sí sin que haya influido, y
      viceversa no aplica pero se registra igual de independiente).
 
@@ -163,6 +164,17 @@
   // Sprint 4 — control de "importancia", genérico para cualquier variable con
   // importance_enabled=true (no exclusivo de Liquidez). Independiente de
   // valor_observado e influyo_en_decision, mismo principio de Sprint 3.
+  function construirControlParticipacion(){
+    return `<div class="vo-participacion" style="margin-top: var(--space-2); display:flex; align-items:center; gap: var(--space-3); flex-wrap:wrap;">
+      <span style="font-size: var(--fs-xs); color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.04em;">Participación en mi decisión</span>
+      <div class="segmented vo-participacion-segmented">
+        <button class="neutral" type="button" data-valor="considerada">Considerada</button>
+        <button class="neutral" type="button" data-valor="influyente">Influyente</button>
+        <button class="neutral" type="button" data-valor="determinante">Determinante</button>
+      </div>
+    </div>`;
+  }
+
   function construirControlImportancia(){
     return `<div class="vo-importancia" style="margin-top: var(--space-2); display:flex; align-items:center; gap: var(--space-3);">
       <span style="font-size: var(--fs-xs); color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.04em;">¿Es especialmente importante?</span>
@@ -211,14 +223,7 @@
         <label>${escapeHtml(etiqueta)}</label>
         <div class="vo-control">${controlHtml}</div>
         ${variable.importancia ? construirControlImportancia() : ''}
-        ${mostrarInfluyo ? `
-        <div style="margin-top: var(--space-2); display:flex; align-items:center; gap: var(--space-3);">
-          <span style="font-size: var(--fs-xs); color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.04em;">¿Influyó en mi decisión?</span>
-          <div class="segmented vo-influyo-segmented">
-            <button class="sell active" type="button" data-valor="no">No</button>
-            <button class="buy" type="button" data-valor="si">Sí</button>
-          </div>
-        </div>` : ''}
+        ${mostrarInfluyo ? construirControlParticipacion() : ''}
       </div>
     `;
     }).join('');
@@ -386,12 +391,14 @@
         valorObservado = activo ? activo.dataset.value : null;
       }
 
-      const influyoBtn = bloque.querySelector('.vo-influyo-segmented button.active');
-      const influyoEnDecision = influyoBtn ? influyoBtn.dataset.valor === 'si' : false;
+      const participacionBtn = bloque.querySelector('.vo-participacion-segmented button.active');
+      const participacion = participacionBtn ? participacionBtn.dataset.valor : null;
+      const influyoEnDecision = participacion === 'influyente' || participacion === 'determinante';
 
       const registro = {
         variable_id: variableId,
         valor_observado: valorObservado,
+        ...(participacion ? { participacion_decision: participacion } : {}),
         influyo_en_decision: influyoEnDecision
       };
 
@@ -437,8 +444,10 @@
         bloque.querySelectorAll('.vo-valor-chips .chip').forEach(c => c.classList.toggle('active', c.dataset.value === valor));
       }
 
-      const influyo = (registro && registro.influyo_en_decision) ? 'si' : 'no';
-      bloque.querySelectorAll('.vo-influyo-segmented button').forEach(b => b.classList.toggle('active', b.dataset.valor === influyo));
+      const participacionGuardada = registro && ['considerada', 'influyente', 'determinante'].includes(registro.participacion_decision)
+        ? registro.participacion_decision
+        : (registro && registro.influyo_en_decision ? 'influyente' : null);
+      bloque.querySelectorAll('.vo-participacion-segmented button').forEach(b => b.classList.toggle('active', b.dataset.valor === participacionGuardada));
 
       const importancia = (registro && registro.es_importante) ? 'si' : 'no';
       bloque.querySelectorAll('.vo-importancia-segmented button').forEach(b => b.classList.toggle('active', b.dataset.valor === importancia));
