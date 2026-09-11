@@ -2349,17 +2349,73 @@
     await ejecutarGuardadoMovimiento(movimientoPreparado);
   }
 
+  function clasificarEventoSnapshotMovimiento(movimiento, movimientosPrevios){
+    if(!movimiento || movimiento.movement_category !== 'POSITION') return null;
+    const tipo = movimiento.movement_type;
+    const previos = Array.isArray(movimientosPrevios) ? movimientosPrevios : [];
+
+    if(tipo === 'ENTRY'){
+      const entradasPrevias = previos.filter(m => m && m.movement_category === 'POSITION' && m.movement_type === 'ENTRY');
+      if(entradasPrevias.length === 0) return 'ENTRY';
+
+      // Una entrada posterior representa un aumento de posición. Si el precio
+      // difiere del promedio vigente, además de aumentar la posición modifica
+      // el precio promedio: lo registramos como AVERAGE. Si coincide, es ADD.
+      let cantidad = 0;
+      let costo = 0;
+      entradasPrevias.forEach(m => {
+        const q = Number(m.quantity);
+        const px = Number(m.price);
+        if(Number.isFinite(q) && q > 0 && Number.isFinite(px)){
+          cantidad += q;
+          costo += q * px;
+        }
+      });
+      previos.filter(m => m && m.movement_category === 'POSITION' && m.movement_type === 'EXIT').forEach(m => {
+        const q = Number(m.quantity);
+        if(Number.isFinite(q) && q > 0 && cantidad > 0){
+          // El precio promedio se mantiene tras una salida; solo reducimos
+          // cantidad para estimar el promedio vigente de forma segura.
+          cantidad = Math.max(0, cantidad - q);
+          costo = cantidad > 0 ? (costo * (cantidad + q) / Math.max(1, cantidad + q)) : 0;
+        }
+      });
+      const precio = Number(movimiento.price);
+      if(cantidad > 0 && Number.isFinite(precio)){
+        const promedio = costo / cantidad;
+        return Math.abs(precio - promedio) < Math.max(1e-10, Math.abs(promedio) * 1e-8) ? 'ADD' : 'AVERAGE';
+      }
+      return 'ADD';
+    }
+
+    if(tipo === 'EXIT'){
+      let posicion = 0;
+      previos.forEach(m => {
+        if(!m || m.movement_category !== 'POSITION') return;
+        const q = Number(m.quantity);
+        if(!Number.isFinite(q) || q <= 0) return;
+        if(m.movement_type === 'ENTRY') posicion += q;
+        else if(m.movement_type === 'EXIT') posicion -= q;
+      });
+      const salida = Number(movimiento.quantity);
+      if(Number.isFinite(salida) && posicion > 0 && Math.abs(salida - posicion) < Math.max(1e-10, posicion * 1e-8)) return 'CLOSE';
+      return 'EXIT';
+    }
+    return tipo;
+  }
+
   async function ejecutarGuardadoMovimiento(movimiento){
-    // Fase 4.2.11 — cada movimiento de posición crea su fotografía histórica.
+    // Fase 4.2.11/4.2.12 — cada movimiento de posición crea una fotografía histórica.
     // CAPITAL/COST no se consideran eventos de ejecución de mercado.
     let movimientoPersistir = movimiento;
     if(movimiento.movement_category === 'POSITION'){
       try{
         const trade = operaciones.find(o => o.id === movimientoTradeIdActual);
         const movimientosPrevios = await cargarMovimientosDelTrade(movimientoTradeIdActual);
+        const eventType = clasificarEventoSnapshotMovimiento(movimiento, movimientosPrevios);
         const snapshotResultado = await capturarSnapshotEventoTrade({
           data: trade || {},
-          eventType: movimiento.movement_type,
+          eventType: eventType || movimiento.movement_type,
           eventSource: 'TRADE_MOVEMENT',
           sequence: movimientosPrevios.length + 1,
           movement: movimiento
