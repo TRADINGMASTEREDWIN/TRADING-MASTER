@@ -931,6 +931,72 @@
     );
   }
 
+  // Fase 4.2.11 — puente de eventos hacia SnapshotEngine.
+  // Captura únicamente contexto disponible para instrumentos cripto con identidad
+  // completa. Si el contexto no está disponible, el Trade/MOVIMIENTO se guarda
+  // igualmente: la captura automática nunca debe bloquear un hecho histórico.
+  async function capturarSnapshotEventoTrade({ data, eventType, eventSource='TRADE_EVENT', sequence=1, movement=null }){
+    if(typeof SnapshotEngine === 'undefined' || typeof SnapshotEngine.capturarSnapshot !== 'function'){
+      return { status: 'SNAPSHOT_UNAVAILABLE' };
+    }
+
+    const mercado = String(data && data.mercado || '').trim();
+    const symbol = String(data && data.activo || '').trim().toUpperCase();
+    if(!symbol || mercado !== 'Cripto') return { status: 'NOT_APPLICABLE' };
+
+    const selectActivoEl = document.getElementById('selectActivo');
+    const dataset = selectActivoEl && selectActivoEl.dataset ? selectActivoEl.dataset : {};
+    const exchange = String(dataset.exchange || 'BINANCE').trim().toUpperCase();
+    const marketType = String(dataset.marketType || 'SPOT').trim().toUpperCase();
+    const instrument = {
+      id: dataset.instrumentId || `${exchange}|${marketType}|${symbol}`,
+      exchange,
+      marketType,
+      symbol,
+      baseAsset: symbol.endsWith('USDT') ? symbol.slice(0, -4) : null,
+      quoteAsset: symbol.endsWith('USDT') ? 'USDT' : null
+    };
+
+    const ocurrido = movement && movement.occurred_at
+      ? movement.occurred_at
+      : ((data.fecha && data.horaEntrada) ? `${data.fecha}T${data.horaEntrada}:00` : new Date().toISOString());
+
+    const executionPrice = movement && movement.price !== undefined
+      ? movement.price
+      : data.precioEntrada;
+    const executionQuantity = movement && movement.quantity !== undefined
+      ? movement.quantity
+      : (data.cantidad || data.tamano || null);
+    const direction = movement && movement.direction ? movement.direction : data.direccion;
+
+    try{
+      return await SnapshotEngine.capturarSnapshot({
+        eventType,
+        eventSource,
+        sequence,
+        instrument,
+        occurredAt: ocurrido,
+        executionTimeframe: data.temporalidad || null,
+        executionPrice,
+        executionQuantity,
+        direction,
+        entryType: data.tipoEntrada || null,
+        variablesObservadas: data.variablesObservadas || [],
+        automatic: true
+      });
+    }catch(error){
+      console.error('[SnapshotEngine] Error capturando snapshot:', error);
+      return { status: 'SNAPSHOT_ERROR', reason: String(error && error.message || error) };
+    }
+  }
+
+  function anexarSnapshotAlTrade(data, resultadoSnapshot){
+    if(!resultadoSnapshot || resultadoSnapshot.status !== 'OK' || !resultadoSnapshot.snapshot) return data;
+    const actual = Array.isArray(data.snapshots) ? data.snapshots.slice() : [];
+    actual.push(resultadoSnapshot.snapshot);
+    return Object.assign({}, data, { snapshots: actual });
+  }
+
   async function guardarOperacion(){
     const data = collectFormData();
     const { valido, faltantes } = validateForm(data);
@@ -974,10 +1040,24 @@
     if(editingId){
       await actualizarOperacion(editingId, data);
     }else{
+      // Fase 4.2.11 — el primer hecho histórico del Trade es ENTRY.
+      // Se captura antes de persistir para conservar la fotografía del momento
+      // sin modificar los datos originales del formulario.
+      const snapshotEntrada = await capturarSnapshotEventoTrade({
+        data,
+        eventType: 'ENTRY',
+        eventSource: 'TRADE_CREATE',
+        sequence: 1
+      });
+      const dataConSnapshot = anexarSnapshotAlTrade(data, snapshotEntrada);
+      if(snapshotEntrada.status === 'CONTEXT_ERROR' || snapshotEntrada.status === 'SNAPSHOT_ERROR') {
+        console.warn('[SnapshotEngine] Trade guardado sin snapshot automático:', snapshotEntrada.reason || snapshotEntrada.status);
+      }
+
       const nuevaOperacionLocal = Object.assign(
         { idTrade: generarSiguienteIdTrade() },
-        data,
-        { calculos: calcularOperacion(data) }
+        dataConSnapshot,
+        { calculos: calcularOperacion(dataConSnapshot) }
       );
       // Sprint (conexión de Trades): el id ya no se genera localmente
       // (generarId()) — Supabase asigna el UUID real al insertar.
@@ -2270,8 +2350,35 @@
   }
 
   async function ejecutarGuardadoMovimiento(movimiento){
+    // Fase 4.2.11 — cada movimiento de posición crea su fotografía histórica.
+    // CAPITAL/COST no se consideran eventos de ejecución de mercado.
+    let movimientoPersistir = movimiento;
+    if(movimiento.movement_category === 'POSITION'){
+      try{
+        const trade = operaciones.find(o => o.id === movimientoTradeIdActual);
+        const movimientosPrevios = await cargarMovimientosDelTrade(movimientoTradeIdActual);
+        const snapshotResultado = await capturarSnapshotEventoTrade({
+          data: trade || {},
+          eventType: movimiento.movement_type,
+          eventSource: 'TRADE_MOVEMENT',
+          sequence: movimientosPrevios.length + 1,
+          movement: movimiento
+        });
+        if(snapshotResultado.status === 'OK' && snapshotResultado.snapshot){
+          movimientoPersistir = Object.assign({}, movimiento, {
+            metadata: Object.assign({}, movimiento.metadata || {}, { snapshot: snapshotResultado.snapshot })
+          });
+        }else if(snapshotResultado.status === 'CONTEXT_ERROR' || snapshotResultado.status === 'SNAPSHOT_ERROR'){
+          console.warn('[SnapshotEngine] Movimiento guardado sin snapshot automático:', snapshotResultado.reason || snapshotResultado.status);
+        }
+      }catch(error){
+        // El snapshot es complementario: nunca bloquea el hecho histórico.
+        console.error('[SnapshotEngine] No se pudo preparar snapshot del movimiento:', error);
+      }
+    }
+
     try{
-      await crearMovimientoEnSupabase(movimiento);
+      await crearMovimientoEnSupabase(movimientoPersistir);
     }catch(error){
       showToast('danger', 'No se pudo guardar el movimiento', error.message || 'Error al guardar en Supabase.');
       return;
