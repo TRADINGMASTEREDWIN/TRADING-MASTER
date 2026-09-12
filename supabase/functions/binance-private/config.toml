@@ -1,4 +1,4 @@
 project_id = "pxaqnmxjcmddfgihfnzm"
 
 [functions.binance-private]
-verify_jwt = true
+verify_jwt = false
