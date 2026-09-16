@@ -481,8 +481,6 @@ async function handle(
       {
         ok: false,
         error: 'BINANCE_PERMISSION_DENIED',
-        edgeRegion: Deno.env.get('SB_REGION') ?? null,
-        binance: permissionResult.body,
       },
       400,
     );
@@ -514,8 +512,6 @@ async function handle(
       action: 'validate',
       readOnly: true,
       accountRef: 'BINANCE:SPOT',
-      userId,
-      edgeRegion: Deno.env.get('SB_REGION') ?? null,
       permission:
         permissionCheck.permission,
     });
