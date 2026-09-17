@@ -1,5 +1,5 @@
 /* Trading Master — Binance Private Bridge — FASE 4.3.5C */
-const BINANCE_PRIVATE_FUNCTION_NAME = 'binance-private';
+const BINANCE_PRIVATE_FUNCTION_NAME = 'binance-private?forceFunctionRegion=sa-east-1';
 
 function ensureSupabaseClient() {
   if (!window.supabaseClient) throw new Error('SUPABASE_CLIENT_UNAVAILABLE');
