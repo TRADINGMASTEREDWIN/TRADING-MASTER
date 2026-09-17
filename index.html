@@ -576,7 +576,7 @@
               <div class="card-header-sub">Registra cada detalle de tu ejecución</div>
             </div>
             <span class="badge warning" id="editModeBadge" style="display:none;">Editando operación</span>
-            <button class="btn-secondary" id="importarBinanceBtn" type="button" onclick="window.TradingMasterBinanceImport?.importarFillsBinanceEnTradeActual?.().then(r => { alert(`Binance: ${r.imported} movimientos importados, ${r.skipped} ya existentes.`); }).catch(e => alert(`Error al importar Binance: ${e?.message || e}`));">
+            <button class="btn-secondary" id="importarBinanceBtn" type="button">
               ↻ Importar Binance
             </button>
           </div>
@@ -2245,6 +2245,41 @@
 <script src="js/plan.js"></script>
 <script src="js/dashboard.js"></script>
 <script src="js/trades.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('importarBinanceBtn');
+    if(!btn) return;
+    btn.addEventListener('click', async () => {
+      if(typeof window.TradingMasterBinanceImport?.importarBinanceDesdeFormulario !== 'function'){
+        alert('El módulo de importación de Binance no está disponible. Recarga la aplicación.');
+        return;
+      }
+      const activo = String(document.querySelector('[data-field="activo"]')?.value || '').trim().toUpperCase();
+      const tipo = String(document.querySelector('[data-field="tipoOperacion"]')?.value || '').trim();
+      if(!activo){
+        alert('Primero selecciona el Activo/Símbolo que quieres importar.');
+        return;
+      }
+      if(!tipo){
+        alert('Primero selecciona el Tipo de operación (Spot o Futuros).');
+        return;
+      }
+      btn.disabled = true;
+      const textoOriginal = btn.innerHTML;
+      btn.innerHTML = '↻ Importando…';
+      try{
+        const resultado = await window.TradingMasterBinanceImport.importarBinanceDesdeFormulario();
+        alert(`Binance: ${resultado.tradesCreated} trade(s) creados, ${resultado.imported} movimientos importados, ${resultado.skipped} ya existentes.`);
+      }catch(error){
+        console.error('[Trading Master] Error importando Binance:', error);
+        alert(`Error al importar Binance: ${error?.message || error}`);
+      }finally{
+        btn.disabled = false;
+        btn.innerHTML = textoOriginal;
+      }
+    });
+  });
+</script>
   <script src="js/catalog.js"></script>
 <script src="js/assets.js"></script>
 <!-- Sprint MARKET-1A — servicio aislado, sin conectar a ningún selector/formulario todavía -->
