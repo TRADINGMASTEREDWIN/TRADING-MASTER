@@ -3021,3 +3021,331 @@
     reconstruirDesdeCanonicalEvents
   };
 })();
+
+/* ============================================================
+   BINANCE IMPORT — Fase 2: Fills -> Trades + Movements
+
+   - Importa hechos económicos desde Binance READ-ONLY.
+   - Si no existe un Trade previo, reconstruye ciclos de posición y crea
+     los Trades necesarios.
+   - Cada fill se persiste como trade_movement.
+   - Idempotencia por source_type + external_id a nivel global.
+   - No usa precio para inventar ENTRY/EXIT: ENTRY/EXIT se determina por
+     la secuencia de posición y, en Futures, por positionSide cuando existe.
+   ============================================================ */
+(function inicializarImportadorBinance(){
+  const EPSILON = 1e-12;
+
+  function numero(v){
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function sideEvento(evento){
+    const d = String(evento?.direction || '').toLowerCase();
+    if(d === 'compra') return 'BUY';
+    if(d === 'venta') return 'SELL';
+    return null;
+  }
+
+  function positionSideEvento(evento){
+    return String(
+      evento?.metadata?.positionSide ||
+      evento?.metadata?.raw?.positionSide ||
+      ''
+    ).toUpperCase();
+  }
+
+  function determinarDireccionFutures(evento, saldoAntes, saldoDespues){
+    const ps = positionSideEvento(evento);
+    if(ps === 'LONG' || ps === 'SHORT') return ps;
+    if(saldoAntes > EPSILON) return 'LONG';
+    if(saldoAntes < -EPSILON) return 'SHORT';
+    if(saldoDespues > EPSILON) return 'LONG';
+    if(saldoDespues < -EPSILON) return 'SHORT';
+    return sideEvento(evento) === 'SELL' ? 'SHORT' : 'LONG';
+  }
+
+  function deltaFutures(evento, direccion){
+    const qty = Math.abs(numero(evento.quantity));
+    const side = sideEvento(evento);
+    const ps = positionSideEvento(evento);
+
+    if(ps === 'LONG') return side === 'BUY' ? qty : -qty;
+    if(ps === 'SHORT') return side === 'SELL' ? qty : -qty;
+    return direccion === 'SHORT'
+      ? (side === 'SELL' ? qty : -qty)
+      : (side === 'BUY' ? qty : -qty);
+  }
+
+  function agruparFillsEnTrades(eventos, marketType){
+    const ordenados = [...eventos].sort((a,b) =>
+      new Date(a.event_at).getTime() - new Date(b.event_at).getTime()
+    );
+
+    const grupos = [];
+    let actual = null;
+    let saldo = 0;
+    let direccionFutures = null;
+
+    for(const evento of ordenados){
+      const side = sideEvento(evento);
+      const qty = Math.abs(numero(evento.quantity));
+      if(!side || qty <= 0) continue;
+
+      if(marketType === 'SPOT'){
+        const delta = side === 'BUY' ? qty : -qty;
+        if(!actual && delta > 0){
+          actual = { direction: 'LONG', fills: [] };
+        }
+        if(!actual) continue;
+        actual.fills.push(evento);
+        saldo += delta;
+
+        if(saldo <= EPSILON){
+          grupos.push(actual);
+          actual = null;
+          saldo = 0;
+        }
+        continue;
+      }
+
+      const ps = positionSideEvento(evento);
+      if(!actual){
+        direccionFutures = ps === 'SHORT' ? 'SHORT' : ps === 'LONG' ? 'LONG' : (side === 'SELL' ? 'SHORT' : 'LONG');
+        actual = { direction: direccionFutures, fills: [] };
+        saldo = 0;
+      }
+
+      const nuevaDireccion = determinarDireccionFutures(evento, saldo, saldo + deltaFutures(evento, actual.direction));
+      if(!positionSideEvento(evento) && saldo !== 0 && nuevaDireccion !== actual.direction){
+        grupos.push(actual);
+        actual = { direction: nuevaDireccion, fills: [] };
+        saldo = 0;
+      }
+
+      actual.fills.push(evento);
+      saldo += deltaFutures(evento, actual.direction);
+
+      if(Math.abs(saldo) <= EPSILON){
+        grupos.push(actual);
+        actual = null;
+        saldo = 0;
+        direccionFutures = null;
+      }
+    }
+
+    if(actual && actual.fills.length) grupos.push(actual);
+    return grupos;
+  }
+
+  function promedioPonderado(fills){
+    let qty = 0;
+    let importe = 0;
+    for(const f of fills){
+      const q = Math.abs(numero(f.quantity));
+      const p = numero(f.price);
+      qty += q;
+      importe += q * p;
+    }
+    return qty > 0 ? importe / qty : null;
+  }
+
+  function fechaPartes(iso){
+    if(!iso) return { fecha: '', hora: '' };
+    const d = new Date(iso);
+    if(Number.isNaN(d.getTime())) return { fecha: '', hora: '' };
+    return {
+      fecha: d.toISOString().slice(0,10),
+      hora: d.toISOString().slice(11,16)
+    };
+  }
+
+  function construirTradeData(grupo, marketType, accountRef){
+    const fills = grupo.fills;
+    const apertura = grupo.direction === 'SHORT'
+      ? fills.filter(f => sideEvento(f) === 'SELL')
+      : fills.filter(f => sideEvento(f) === 'BUY');
+    const cierre = grupo.direction === 'SHORT'
+      ? fills.filter(f => sideEvento(f) === 'BUY')
+      : fills.filter(f => sideEvento(f) === 'SELL');
+
+    const primera = fills[0];
+    const ultima = fills[fills.length - 1];
+    const entrada = apertura.length ? apertura : [primera];
+    const salida = cierre.length ? cierre : [];
+    const fp = fechaPartes(primera.event_at);
+    const fl = fechaPartes(ultima.event_at);
+    const symbol = primera.instrument.symbol;
+    const precioEntrada = promedioPonderado(entrada);
+    const precioSalida = salida.length ? promedioPonderado(salida) : null;
+    const cantidadEntrada = entrada.reduce((t,f) => t + Math.abs(numero(f.quantity)), 0);
+    const tamanoPosicion = precioEntrada !== null ? cantidadEntrada * precioEntrada : null;
+    const comisionApertura = entrada.reduce((t,f) => t + Math.abs(numero(f.commission)), 0);
+    const comisionCierre = salida.reduce((t,f) => t + Math.abs(numero(f.commission)), 0);
+    const cerrado = salida.length > 0 && Math.abs(
+      fills.reduce((net,f) => {
+        const side = sideEvento(f);
+        return net + (grupo.direction === 'SHORT'
+          ? (side === 'SELL' ? Math.abs(numero(f.quantity)) : -Math.abs(numero(f.quantity)))
+          : (side === 'BUY' ? Math.abs(numero(f.quantity)) : -Math.abs(numero(f.quantity))));
+      }, 0)
+    ) <= EPSILON;
+
+    return {
+      idTrade: typeof generarSiguienteIdTrade === 'function' ? generarSiguienteIdTrade() : null,
+      fecha: fp.fecha,
+      horaEntrada: fp.hora,
+      mercado: 'Cripto',
+      tipoOperacion: marketType === 'FUTURES' ? 'Futuros' : 'Spot',
+      activo: symbol,
+      cuenta: accountRef,
+      side: grupo.direction === 'SHORT' ? 'SELL' : 'BUY',
+      direccion: grupo.direction === 'SHORT' ? 'SELL' : 'BUY',
+      positionDirection: grupo.direction,
+      temporalidad: '',
+      tipoEntrada: '',
+      precioEntrada: precioEntrada !== null ? String(precioEntrada) : '',
+      margenUtilizado: '',
+      apalancamiento: '',
+      tamanoPosicion: tamanoPosicion !== null ? String(tamanoPosicion) : '',
+      stopLoss: '',
+      takeProfit: '',
+      riesgoPct: '',
+      comisionApertura: String(comisionApertura),
+      comisionCierre: String(comisionCierre),
+      fechaSalida: cerrado ? fl.fecha : '',
+      horaSalida: cerrado ? fl.hora : '',
+      precioSalida: cerrado && precioSalida !== null ? String(precioSalida) : '',
+      estadoTrade: cerrado ? 'Cerrado' : 'Abierto',
+      fuente: 'BINANCE',
+      origenImportacion: 'BINANCE_PRIVATE_READ_ONLY',
+      cuentaOrigen: accountRef,
+      variablesObservadas: [],
+      decisiones: {},
+      snapshots: []
+    };
+  }
+
+  async function obtenerExternalIdsExistentes(externalIds){
+    if(!externalIds.length) return new Set();
+    const { data, error } = await supabaseClient
+      .from('trade_movements')
+      .select('external_id')
+      .eq('source_type', 'EXTERNAL')
+      .in('external_id', externalIds);
+    if(error) throw error;
+    return new Set((data || []).map(r => String(r.external_id)));
+  }
+
+  function tipoMovimiento(evento, grupo, saldoAntes, saldoDespues){
+    const side = sideEvento(evento);
+    if(grupo.direction === 'SHORT'){
+      return saldoAntes <= EPSILON && saldoDespues > EPSILON ? 'ENTRY'
+        : saldoDespues <= EPSILON ? 'EXIT'
+        : side === 'SELL' ? 'ENTRY' : 'EXIT';
+    }
+    return saldoAntes <= EPSILON && saldoDespues > EPSILON ? 'ENTRY'
+      : saldoDespues <= EPSILON ? 'EXIT'
+      : side === 'BUY' ? 'ENTRY' : 'EXIT';
+  }
+
+  async function importarFillsBinance({ symbol, marketType='SPOT', startTime, endTime, fromId, limit=1000 } = {}){
+    if(!symbol) throw new Error('BINANCE_IMPORT_SYMBOL_REQUIRED');
+    if(marketType !== 'SPOT' && marketType !== 'FUTURES') throw new Error('BINANCE_IMPORT_MARKET_TYPE_INVALID');
+    if(typeof window.BinancePrivateBridge?.obtenerFillsBinanceReadOnly !== 'function') throw new Error('BINANCE_PRIVATE_BRIDGE_UNAVAILABLE');
+    if(typeof window.BinanceEventNormalizer?.normalizarFills !== 'function') throw new Error('BINANCE_EVENT_NORMALIZER_UNAVAILABLE');
+    if(typeof crearOperacionEnSupabase !== 'function') throw new Error('TRADE_PERSISTENCE_UNAVAILABLE');
+    if(typeof crearMovimientoEnSupabase !== 'function') throw new Error('TRADE_MOVEMENT_PERSISTENCE_UNAVAILABLE');
+
+    const respuesta = await window.BinancePrivateBridge.obtenerFillsBinanceReadOnly({
+      marketType,
+      params: { symbol, startTime, endTime, fromId, limit }
+    });
+    const raw = Array.isArray(respuesta?.data) ? respuesta.data : [];
+    if(!raw.length) return { ok:true, tradesCreated:0, imported:0, skipped:0, total:0 };
+
+    const normalized = window.BinanceEventNormalizer.normalizarFills(raw, {
+      marketType,
+      account_ref: respuesta?.accountRef || (marketType === 'FUTURES' ? 'BINANCE:FUTURES' : 'BINANCE:SPOT'),
+      instrument: {
+        exchange:'BINANCE', marketType,
+        symbol:String(symbol).toUpperCase(),
+        baseAsset:String(symbol).toUpperCase().replace(/(USDT|USDC|BUSD|BTC|ETH|BNB|FDUSD)$/i,''),
+        quoteAsset:String(symbol).toUpperCase().match(/(USDT|USDC|BUSD|BTC|ETH|BNB|FDUSD)$/i)?.[1] || ''
+      }
+    });
+
+    const ids = normalized.map(e => e.external_id).filter(Boolean);
+    const existing = await obtenerExternalIdsExistentes(ids);
+    const nuevos = normalized.filter(e => !existing.has(String(e.external_id)));
+    if(!nuevos.length) return { ok:true, tradesCreated:0, imported:0, skipped:normalized.length, total:normalized.length };
+
+    const grupos = agruparFillsEnTrades(nuevos, marketType);
+    let tradesCreated = 0;
+    let imported = 0;
+
+    for(const grupo of grupos){
+      if(!grupo.fills.length) continue;
+      const accountRef = grupo.fills[0].account_ref || (marketType === 'FUTURES' ? 'BINANCE:FUTURES' : 'BINANCE:SPOT');
+      const tradeData = construirTradeData(grupo, marketType, accountRef);
+      delete tradeData.id;
+      const creada = await crearOperacionEnSupabase(tradeData);
+      operaciones.push(creada);
+      tradesCreated += 1;
+
+      let saldo = 0;
+      for(const evento of grupo.fills){
+        const side = sideEvento(evento);
+        const qty = Math.abs(numero(evento.quantity));
+        const delta = grupo.direction === 'SHORT'
+          ? (side === 'SELL' ? qty : -qty)
+          : (side === 'BUY' ? qty : -qty);
+        const saldoAntes = saldo;
+        saldo += delta;
+        const movementType = tipoMovimiento(evento, grupo, saldoAntes, saldo);
+
+        await crearMovimientoEnSupabase({
+          trade_id: creada.id,
+          movement_type: movementType,
+          movement_category: 'POSITION',
+          occurred_at: evento.event_at,
+          price: evento.price,
+          quantity: evento.quantity,
+          direction: evento.direction,
+          commission: evento.commission,
+          amount: evento.amount,
+          metadata: Object.assign({}, evento.metadata || {}, {
+            canonicalEvent: evento,
+            import: { exchange:'BINANCE', marketType, accountRef }
+          }),
+          source_type:'EXTERNAL',
+          external_id:evento.external_id
+        });
+        imported += 1;
+      }
+    }
+
+    renderTable();
+    return {
+      ok:true,
+      tradesCreated,
+      imported,
+      skipped:normalized.length - nuevos.length,
+      total:normalized.length
+    };
+  }
+
+  async function importarBinanceDesdeFormulario(){
+    const activo = String(document.querySelector('[data-field="activo"]')?.value || '').trim().toUpperCase();
+    const tipo = String(document.querySelector('[data-field="tipoOperacion"]')?.value || '').toLowerCase();
+    if(!activo) throw new Error('BINANCE_IMPORT_SYMBOL_REQUIRED');
+    const marketType = tipo.includes('fut') ? 'FUTURES' : 'SPOT';
+    return importarFillsBinance({ symbol:activo, marketType, limit:1000 });
+  }
+
+  window.TradingMasterBinanceImport = Object.freeze({
+    importarFillsBinance,
+    importarBinanceDesdeFormulario
+  });
+})();
