@@ -546,7 +546,11 @@
     }
     delete data.activoOtro;
 
-    data.direccion = document.querySelector('#direccionSegmented button.active').dataset.direction;
+    const activeDirection = document.querySelector('#direccionSegmented button.active');
+    data.side = activeDirection ? activeDirection.dataset.direction : (data.side || 'BUY');
+    // Compatibilidad con registros históricos: direccion conserva el campo antiguo,
+    // pero el nuevo modelo usa side=BUY/SELL y positionDirection=LONG/SHORT.
+    data.direccion = data.side;
     // GT-01.1: el Estado del Trade ya no lo elige el usuario — se deduce
     // automáticamente. Si están los 3 datos mínimos de cierre, quedó Cerrado;
     // si falta cualquiera, quedó Abierto. Esta es la única fuente de verdad.
@@ -780,14 +784,14 @@
       // absoluta — ver nota histórica conservada más abajo, sin cambios.
       const stopLoss = parseFloat(datos.stopLoss);
       if(datos.stopLoss !== '' && datos.stopLoss !== undefined && !isNaN(stopLoss)){
-        const riesgoUnitario = (direccion === 'Venta') ? (stopLoss - entrada) : (entrada - stopLoss);
+        const riesgoUnitario = (direccion === 'SELL' || direccion === 'Venta') ? (stopLoss - entrada) : (entrada - stopLoss);
         const riesgoDinero = Math.abs(cantidad * riesgoUnitario);
         resultado.riesgoDinero = riesgoDinero;
         resultado.riesgoPctCalculado = (riesgoDinero / tamano) * 100;
 
         const takeProfit = parseFloat(datos.takeProfit);
         if(datos.takeProfit !== '' && datos.takeProfit !== undefined && !isNaN(takeProfit)){
-          const rewardUnitario = (direccion === 'Venta') ? (entrada - takeProfit) : (takeProfit - entrada);
+          const rewardUnitario = (direccion === 'SELL' || direccion === 'Venta') ? (entrada - takeProfit) : (takeProfit - entrada);
           const rewardDinero = Math.abs(cantidad * rewardUnitario);
           resultado.rewardDinero = rewardDinero;
 
@@ -830,7 +834,7 @@
       return resultado;
     }
 
-    const variacion = (direccion === 'Venta') ? (entrada - salida) : (salida - entrada);
+    const variacion = (direccion === 'SELL' || direccion === 'Venta') ? (entrada - salida) : (salida - entrada);
 
     const pnl = cantidad * variacion;
     const pnlNeto = pnl - comisionFinal;
@@ -853,16 +857,11 @@
   }
 
   function actualizarTamanoPosicionAutomatico(){
-    const margenEl = document.querySelector('[data-field="margenUtilizado"]');
-    const apalancamientoEl = document.querySelector('[data-field="apalancamiento"]');
-    const tamanoEl = document.querySelector('[data-field="tamanoPosicion"]');
-    if(!margenEl || !apalancamientoEl || !tamanoEl) return;
-
-    const margen = parseFloat(margenEl.value);
-    const apalancamiento = parseFloat(apalancamientoEl.value);
-    if(!isNaN(margen) && !isNaN(apalancamiento)){
-      tamanoEl.value = (margen * apalancamiento).toFixed(2);
-    }
+    // El tamaño de una operación importada ya no se fabrica como Margen × Apalancamiento.
+    // El valor económico debe provenir de los fills y ser calculado por el motor de reconstrucción.
+    // Se conserva esta función únicamente para compatibilidad con código antiguo, sin sobrescribir
+    // datos provenientes de un exchange.
+    return;
   }
 
   // Sprint UX-3.2A — vista previa en vivo de los autocálculos. Reutiliza
@@ -2784,7 +2783,7 @@
       selectActivoEl.addEventListener('change', actualizarVisibilidadActivoOtro);
     }
 
-    // Tamaño de posición = Margen utilizado × Apalancamiento (editable manualmente después)
+    // El tamaño de posición de una operación importada proviene de sus ejecuciones; no se recalcula aquí.
     const margenEl = document.querySelector('[data-field="margenUtilizado"]');
     const apalancamientoEl = document.querySelector('[data-field="apalancamiento"]');
     if(margenEl && apalancamientoEl){
@@ -2890,3 +2889,135 @@
         });
       }
   }
+/* ============================================================
+   TM-RECONSTRUCCION-1 — Reconstrucción común desde Canonical Events.
+   No consulta APIs ni Supabase y no modifica operaciones existentes.
+   Recibe únicamente hechos económicos normalizados (FILL) y devuelve
+   un resumen que el importador podrá convertir después en Trade.
+   ============================================================ */
+(function inicializarMotorReconstruccionTrade(){
+  function numero(valor){
+    const n = Number(valor);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function normalizarDireccion(evento){
+    const side = String(
+      evento?.metadata?.side ||
+      evento?.metadata?.raw?.side ||
+      ''
+    ).toUpperCase();
+
+    if(side === 'BUY') return 'BUY';
+    if(side === 'SELL') return 'SELL';
+
+    const direction = String(evento?.direction || '').toLowerCase();
+    if(direction === 'compra') return 'BUY';
+    if(direction === 'venta') return 'SELL';
+    return null;
+  }
+
+  function calcularPrecioPromedio(fills){
+    let cantidad = 0;
+    let importe = 0;
+
+    fills.forEach(fill => {
+      const qty = Math.abs(numero(fill.quantity));
+      const price = numero(fill.price);
+      if(qty <= 0 || price <= 0) return;
+      cantidad += qty;
+      importe += qty * price;
+    });
+
+    return cantidad > 0 ? importe / cantidad : null;
+  }
+
+  function determinarDireccionPosicion(fills, marketType){
+    const tipo = String(marketType || '').toUpperCase();
+    if(tipo !== 'FUTURES') return null;
+
+    let neta = 0;
+    let long = 0;
+    let short = 0;
+
+    fills.forEach(fill => {
+      const side = normalizarDireccion(fill);
+      const qty = Math.abs(numero(fill.quantity));
+      const positionSide = String(
+        fill?.metadata?.positionSide ||
+        fill?.metadata?.raw?.positionSide ||
+        ''
+      ).toUpperCase();
+
+      if(positionSide === 'LONG') long += side === 'BUY' ? qty : -qty;
+      else if(positionSide === 'SHORT') short += side === 'SELL' ? qty : -qty;
+      else neta += side === 'BUY' ? qty : -qty;
+    });
+
+    if(long > 0 && short === 0) return 'LONG';
+    if(short > 0 && long === 0) return 'SHORT';
+    if(neta > 0) return 'LONG';
+    if(neta < 0) return 'SHORT';
+    return null;
+  }
+
+  function reconstruirDesdeCanonicalEvents(eventos){
+    const fills = (Array.isArray(eventos) ? eventos : [])
+      .filter(evento => String(evento?.event_type || '').toUpperCase() === 'FILL')
+      .slice()
+      .sort((a, b) => {
+        const ta = new Date(a?.event_at || 0).getTime();
+        const tb = new Date(b?.event_at || 0).getTime();
+        return ta - tb;
+      });
+
+    if(!fills.length){
+      return {
+        estado: 'SIN_EJECUCIONES',
+        fills: [],
+        ejecuciones: 0,
+        cantidadEjecutada: 0,
+        precioPromedio: null,
+        comisiones: 0,
+        importe: 0,
+        side: null,
+        positionDirection: null,
+        fechaPrimeraEjecucion: null,
+        fechaUltimaEjecucion: null
+      };
+    }
+
+    const cantidadEjecutada = fills.reduce(
+      (total, fill) => total + Math.abs(numero(fill.quantity)), 0
+    );
+
+    const comisiones = fills.reduce(
+      (total, fill) => total + Math.abs(numero(fill.commission)), 0
+    );
+
+    const importe = fills.reduce(
+      (total, fill) => total + Math.abs(numero(fill.amount)), 0
+    );
+
+    const sides = [...new Set(fills.map(normalizarDireccion).filter(Boolean))];
+    const marketType = fills[0]?.instrument?.marketType || null;
+
+    return {
+      estado: 'OK',
+      fills,
+      ejecuciones: fills.length,
+      cantidadEjecutada,
+      precioPromedio: calcularPrecioPromedio(fills),
+      comisiones,
+      importe,
+      side: sides.length === 1 ? sides[0] : 'MIXED',
+      positionDirection: determinarDireccionPosicion(fills, marketType),
+      fechaPrimeraEjecucion: fills[0]?.event_at || null,
+      fechaUltimaEjecucion: fills[fills.length - 1]?.event_at || null
+    };
+  }
+
+  window.TradingMasterTradeReconstruction = {
+    reconstruirDesdeCanonicalEvents
+  };
+})();
