@@ -30,3 +30,6 @@ Thumbs.db
 
 # Local Supabase state
 .supabase/
+
+# Binance persistent worker secrets
+binance-worker/.env
