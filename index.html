@@ -576,6 +576,9 @@
               <div class="card-header-sub">Registra cada detalle de tu ejecución</div>
             </div>
             <span class="badge warning" id="editModeBadge" style="display:none;">Editando operación</span>
+            <button class="btn-secondary" id="importarBinanceBtn" type="button" onclick="window.TradingMasterBinanceImport?.importarFillsBinanceEnTradeActual?.().then(r => { alert(`Binance: ${r.imported} movimientos importados, ${r.skipped} ya existentes.`); }).catch(e => alert(`Error al importar Binance: ${e?.message || e}`));">
+              ↻ Importar Binance
+            </button>
           </div>
         </div>
         <div class="card-body">
