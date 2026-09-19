@@ -68,10 +68,11 @@ async function connectSpot() {
   socket.on('message', (buffer) => {
     try {
       const message = JSON.parse(buffer.toString());
-      if (message?.status && message.status !== 200) {
-        console.error('[BINANCE][SPOT] subscription error', JSON.stringify(message));
-        return;
-      }
+     if (message?.status && message.status !== 200) {
+  console.error('[BINANCE][SPOT] subscription error', JSON.stringify(message));
+  try { socket.close(); } catch {}
+  return;
+}
       const event = message?.data || message;
       const canonical = normalizeBinanceUserEvent(event);
       if (canonical) {
@@ -127,7 +128,7 @@ async function connectFutures() {
   let controlSocket = null;
   let dataSocket = null;
   let keepaliveTimer = null;
-
+let restarting = false;
   try {
     const auth = await bootstrap();
     controlSocket = new WebSocket(FUTURES_WS_API_URL);
@@ -169,8 +170,10 @@ async function connectFutures() {
       }
     });
 
-    const restart = () => {
-      if (stopping) return;
+   const restart = () => {
+  if (stopping || restarting) return;
+  restarting = true;
+     
       if (keepaliveTimer) clearInterval(keepaliveTimer);
       try { dataSocket?.close(); } catch {}
       try { controlSocket?.close(); } catch {}
